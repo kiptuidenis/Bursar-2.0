@@ -207,6 +207,25 @@
                     <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
                     <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
                 </div>
+                
+                <!-- Optional Date Range Picker inside modal lock flow -->
+                <div id="designer-lock-dates-section" style="display: none; flex-direction: column; gap: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: 0.6rem; text-align: left; width: 100%;">
+                    <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em;">
+                        <i data-lucide="calendar" style="width: 0.95rem; height: 0.95rem; color: var(--color-accent-violet);"></i> Payout Schedule (Optional)
+                    </h4>
+                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.4rem; line-height: 1.35;">Select start and end dates for daily allowance disbursements. Leave blank to start immediately and run indefinitely.</p>
+                    <div class="form-grid" style="margin-bottom: 0; gap: 0.8rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="lock-start-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">Start Date</label>
+                            <input type="date" id="lock-start-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="lock-end-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">End Date</label>
+                            <input type="date" id="lock-end-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                        </div>
+                    </div>
+                </div>
+
                 <button id="lock-budget-btn" class="btn btn-block" style="display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.12); color: #f59e0b; padding: 0.65rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
                     <i data-lucide="lock" style="width: 1rem; height: 1rem; vertical-align: middle; margin-right: 0.3rem; display: inline-block;"></i> Lock & Finalize Budget
                 </button>
@@ -222,25 +241,6 @@
                 <button class="close-btn" id="close-settings-btn">&times;</button>
             </div>
             <form id="settings-form" class="drawer-form">
-                <!-- Mode Choice -->
-                <div class="form-group">
-                    <label>Application Mode</label>
-                    <div class="mode-selector">
-                        <label class="mode-option">
-                            <input type="radio" name="mode" value="simulation" checked>
-                            <span class="mode-option-label">Simulation</span>
-                        </label>
-                        <label class="mode-option">
-                            <input type="radio" name="mode" value="sandbox">
-                            <span class="mode-option-label">Sandbox</span>
-                        </label>
-                        <label class="mode-option">
-                            <input type="radio" name="mode" value="live">
-                            <span class="mode-option-label">Live M-Pesa</span>
-                        </label>
-                    </div>
-                </div>
-
                 <!-- Core Wallet Config -->
                 <div class="form-grid">
                     <div class="form-group">
@@ -250,18 +250,6 @@
                     <div class="form-group">
                         <label for="settings-time">Payout Time (HH:MM)</label>
                         <input type="time" id="settings-time" required>
-                    </div>
-                </div>
-
-                <!-- Disbursement Dates Config -->
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="settings-start-date">Disbursement Start Date</label>
-                        <input type="date" id="settings-start-date">
-                    </div>
-                    <div class="form-group">
-                        <label for="settings-end-date">Disbursement End Date</label>
-                        <input type="date" id="settings-end-date">
                     </div>
                 </div>
 

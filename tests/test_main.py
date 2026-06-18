@@ -344,3 +344,37 @@ def test_settings_disbursement_dates():
     assert settings["end_date"] == "2026-06-25"
 
 
+def test_lock_disbursement_dates():
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000004", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000004", "password": "pinpassword"})
+    
+    # Add a budget item to make locking allowed
+    c.post("/api/budget/items", json={"category": "Groceries", "amount": 400.0})
+    
+    # 1. Test invalid start date format
+    res1 = c.post("/api/budget/lock", json={"start_date": "20-06-2026"})
+    assert res1.status_code == 400
+    
+    # 2. Test invalid end date format
+    res2 = c.post("/api/budget/lock", json={"end_date": "2026/06/25"})
+    assert res2.status_code == 400
+    
+    # 3. Test end date earlier than start date
+    res3 = c.post("/api/budget/lock", json={"start_date": "2026-06-25", "end_date": "2026-06-20"})
+    assert res3.status_code == 400
+    
+    # 4. Successful lock with dates
+    res4 = c.post("/api/budget/lock", json={"start_date": "2026-06-20", "end_date": "2026-06-25"})
+    assert res4.status_code == 200
+    assert res4.json()["start_date"] == "2026-06-20"
+    assert res4.json()["end_date"] == "2026-06-25"
+    
+    # Verify budget locked and dates stored in settings
+    settings = c.get("/api/settings").json()
+    assert settings["is_budget_locked"] is True
+    assert settings["start_date"] == "2026-06-20"
+    assert settings["end_date"] == "2026-06-25"
+
+
+

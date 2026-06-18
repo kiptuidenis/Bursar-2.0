@@ -134,20 +134,16 @@ function setupEventHandlers() {
     document.getElementById("settings-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        const mode = document.querySelector('input[name="mode"]:checked').value;
+        const mode = currentSettings.mode || "simulation";
         const daily_budget = parseFloat(document.getElementById("settings-budget").value);
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value;
-        const start_date = document.getElementById("settings-start-date").value || "";
-        const end_date = document.getElementById("settings-end-date").value || "";
         
         const payload = {
             mode,
             daily_budget,
             payout_time,
             phone_number,
-            start_date,
-            end_date,
             mpesa_consumer_key: document.getElementById("settings-key").value,
             mpesa_consumer_secret: document.getElementById("settings-secret").value,
             mpesa_shortcode: document.getElementById("settings-shortcode").value,
@@ -324,6 +320,10 @@ function setupEventHandlers() {
     document.getElementById("open-budget-designer-btn").addEventListener("click", () => {
         document.getElementById("new-category-name").value = "";
         document.getElementById("new-category-amount").value = "";
+        const startDateInput = document.getElementById("lock-start-date");
+        const endDateInput = document.getElementById("lock-end-date");
+        if (startDateInput) startDateInput.value = currentSettings.start_date || "";
+        if (endDateInput) endDateInput.value = currentSettings.end_date || "";
         budgetDesignerModal.classList.add("active");
         renderBudgetBreakdown();
     });
@@ -372,8 +372,16 @@ function setupEventHandlers() {
             if (!confirm("Are you sure you want to finalize and lock your budget? Once locked, you cannot add or delete allocation categories until the first day of next month.")) {
                 return;
             }
+            
+            const start_date = document.getElementById("lock-start-date").value || "";
+            const end_date = document.getElementById("lock-end-date").value || "";
+            
             try {
-                const res = await fetch("/api/budget/lock", { method: "POST" });
+                const res = await fetch("/api/budget/lock", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ start_date, end_date })
+                });
                 if (res.status === 401) return showAuthScreen();
                 if (!res.ok) {
                     const data = await res.json();
@@ -450,8 +458,6 @@ function updateDashboardMetrics(settings) {
 
     document.getElementById(`settings-time`).value = settings.payout_time || "08:00";
     document.getElementById(`settings-phone`).value = settings.phone_number || "";
-    document.getElementById(`settings-start-date`).value = settings.start_date || "";
-    document.getElementById(`settings-end-date`).value = settings.end_date || "";
     
     document.getElementById(`settings-key`).value = settings.mpesa_consumer_key || "";
     document.getElementById(`settings-secret`).value = settings.mpesa_consumer_secret || "";
@@ -777,15 +783,24 @@ function renderBudgetBreakdown() {
     const lockNoticeText = document.getElementById("budget-lock-notice-text");
     const lockBtn = document.getElementById("lock-budget-btn");
     const addForm = document.getElementById("add-category-form");
+    const lockDatesSection = document.getElementById("designer-lock-dates-section");
 
     if (isLocked) {
         if (lockNotice) {
             lockNotice.style.display = "flex";
             if (lockNoticeText) {
-                lockNoticeText.innerHTML = `<strong>Locked:</strong> Allocations are locked until the end of the month to prevent overspending.`;
+                let text = `<strong>Locked:</strong> Allocations are locked until the end of the month to prevent overspending.`;
+                if (currentSettings.start_date || currentSettings.end_date) {
+                    text += `<br><span style="display:inline-block; margin-top:0.25rem; font-size:0.75rem;"><i data-lucide="calendar" style="width:0.85rem; height:0.85rem; vertical-align:middle; margin-right:0.15rem; display:inline-block;"></i> Payout schedule: <strong>${currentSettings.start_date || 'immediate'}</strong> to <strong>${currentSettings.end_date || 'indefinite'}</strong></span>`;
+                }
+                lockNoticeText.innerHTML = text;
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
             }
         }
         if (lockBtn) lockBtn.style.display = "none";
+        if (lockDatesSection) lockDatesSection.style.display = "none";
         if (addForm) {
             const inputs = addForm.querySelectorAll("input, button");
             inputs.forEach(el => el.disabled = true);
@@ -796,6 +811,7 @@ function renderBudgetBreakdown() {
             const inputs = addForm.querySelectorAll("input, button");
             inputs.forEach(el => el.disabled = false);
         }
+        if (lockDatesSection) lockDatesSection.style.display = "flex";
         if (lockBtn) {
             // Only show lock button if we have items
             if (budgetItems.length > 0) {
