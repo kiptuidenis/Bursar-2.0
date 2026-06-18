@@ -74,21 +74,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-body" style="flex-direction: column; align-items: flex-start; gap: 0.2rem;">
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem; width: 100%;">
-                        <span class="currency" id="budget-currency-label">KES</span>
-                        <span class="amount-value" id="daily-budget-value">0.00</span>
-                        <input type="number" id="inline-budget-input" class="inline-amount-input" style="display: none;" min="0" step="any">
-                    </div>
-                    <!-- Categories Breakdown list -->
-                    <div class="card-body-breakdown" id="budget-breakdown-container">
-                        <!-- Dynamic Pills -->
-                    </div>
+                <div class="card-body">
+                    <span class="currency" id="budget-currency-label">KES</span>
+                    <span class="amount-value" id="daily-budget-value">0.00</span>
+                    <input type="number" id="inline-budget-input" class="inline-amount-input" style="display: none;" min="0" step="any">
                 </div>
                 <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <span class="footer-info" id="payout-time-info">Payout at 08:00</span>
-                    <button class="text-link-btn" id="open-budget-designer-btn" title="Design budget allocation categories">
-                        <i data-lucide="sliders" style="width: 0.95rem; height: 0.95rem; vertical-align: middle; margin-right: 0.2rem;"></i> Design
+                    <button class="text-link-btn" id="open-budget-designer-btn" title="Create budget allocation categories">
+                        <i data-lucide="sliders" style="width: 0.95rem; height: 0.95rem; vertical-align: middle; margin-right: 0.2rem;"></i> Create
                     </button>
                 </div>
             </section>
@@ -166,7 +160,7 @@
     <div class="modal-overlay" id="budget-designer-modal">
         <div class="modal-content glass-panel" style="max-width: 480px; padding: 2rem;">
             <div class="modal-header">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="sliders" style="color: var(--color-accent-violet);"></i> Budget Designer</h3>
+                <h3 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="sliders" style="color: var(--color-accent-violet);"></i> Budget Creator</h3>
                 <button class="close-btn" id="close-budget-designer-btn">&times;</button>
             </div>
             <div class="designer-body" style="display: flex; flex-direction: column; gap: 1rem;">

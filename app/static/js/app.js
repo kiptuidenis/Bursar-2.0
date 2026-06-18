@@ -685,26 +685,10 @@ async function fetchBudgetItems() {
 
 // Render the breakdown pills in the Daily Budget card and inside the Budget Designer modal
 function renderBudgetBreakdown() {
-    const container = document.getElementById("budget-breakdown-container");
     const designerList = document.getElementById("designer-category-list");
     const designerTotal = document.getElementById("designer-total-budget");
     
-    // 1. Render pills on the main card
-    if (container) {
-        if (budgetItems.length === 0) {
-            container.innerHTML = "";
-            container.style.display = "none";
-        } else {
-            container.style.display = "flex";
-            container.innerHTML = budgetItems.map(item => `
-                <span class="category-pill" title="Allocated Daily">
-                    ${escapeHTML(item.category)}: <span class="category-pill-amount">KES ${item.amount.toFixed(2)}</span>
-                </span>
-            `).join("");
-        }
-    }
-    
-    // 2. Render rows inside the designer modal list
+    // Render rows inside the designer modal list
     if (designerList) {
         if (budgetItems.length === 0) {
             designerList.innerHTML = `<div class="empty-state" style="padding: 1.5rem 0; color: var(--text-muted); text-align: center; font-style: italic;">No categories defined. Add one below to start.</div>`;
