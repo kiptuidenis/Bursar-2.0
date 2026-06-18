@@ -258,57 +258,6 @@
                     <input type="text" id="settings-phone" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
                 </div>
 
-                <!-- Environment Switch -->
-                <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.25rem;">
-                    <div style="display: flex; flex-direction: column; gap: 0.15rem; text-align: left;">
-                        <label for="settings-live-mode" style="margin-bottom: 0; font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Live Production Mode</label>
-                        <span style="font-size: 0.72rem; color: var(--text-muted);">Enable real money payouts instead of sandbox.</span>
-                    </div>
-                    <label class="switch-toggle">
-                        <input type="checkbox" id="settings-live-mode">
-                        <span class="switch-slider"></span>
-                    </label>
-                </div>
-
-                <!-- API Credentials (only visible when not in simulation) -->
-                <div class="credentials-group" id="mpesa-credentials-fields">
-                    <h4 class="group-title">Safaricom Daraja API Keys</h4>
-                    
-                    <div class="form-group">
-                        <label for="settings-key">Consumer Key</label>
-                        <input type="text" id="settings-key" placeholder="Enter Consumer Key">
-                    </div>
-                    <div class="form-group">
-                        <label for="settings-secret">Consumer Secret</label>
-                        <input type="password" id="settings-secret" placeholder="Enter Consumer Secret">
-                    </div>
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="settings-shortcode">B2C Shortcode</label>
-                            <input type="text" id="settings-shortcode" placeholder="e.g. 600298">
-                        </div>
-                        <div class="form-group">
-                            <label for="settings-initiator">Initiator Username</label>
-                            <input type="text" id="settings-initiator" placeholder="e.g. testapi">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="settings-password">Initiator Password</label>
-                        <input type="password" id="settings-password" placeholder="Enter Initiator Password">
-                    </div>
-
-                    <h4 class="group-title">Callback Endpoints</h4>
-                    <div class="form-group">
-                        <label for="settings-result-url">B2C Result URL (HTTPS required)</label>
-                        <input type="url" id="settings-result-url" placeholder="https://domain.com/api/callbacks/b2c-result">
-                    </div>
-                    <div class="form-group">
-                        <label for="settings-timeout-url">B2C Timeout URL (HTTPS required)</label>
-                        <input type="url" id="settings-timeout-url" placeholder="https://domain.com/api/callbacks/b2c-timeout">
-                    </div>
-                </div>
 
                 <button type="submit" class="btn btn-primary btn-block">Save Configuration</button>
             </form>

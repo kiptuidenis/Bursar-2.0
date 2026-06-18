@@ -327,14 +327,20 @@ def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_i
 
 @app.post("/api/payout/trigger")
 async def trigger_payout_manually(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    from app.config import (
+        MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
+        MPESA_SHORTCODE, MPESA_INITIATOR_NAME, MPESA_INITIATOR_PASSWORD
+    )
     settings = db.get_settings(user_id)
+    user_mode = settings.get("mode", "sandbox") if settings else "sandbox"
+    client_mode = "simulation" if user_mode == "simulation" else MPESA_MODE
     client = MpesaClient(
-        consumer_key=settings.get("mpesa_consumer_key", ""),
-        consumer_secret=settings.get("mpesa_consumer_secret", ""),
-        shortcode=settings.get("mpesa_shortcode", ""),
-        initiator_name=settings.get("mpesa_initiator_name", ""),
-        initiator_password=settings.get("mpesa_initiator_password", ""),
-        mode=settings.get("mode", "simulation")
+        consumer_key=MPESA_CONSUMER_KEY,
+        consumer_secret=MPESA_CONSUMER_SECRET,
+        shortcode=MPESA_SHORTCODE,
+        initiator_name=MPESA_INITIATOR_NAME,
+        initiator_password=MPESA_INITIATOR_PASSWORD,
+        mode=client_mode
     )
     
     now = datetime.datetime.now()

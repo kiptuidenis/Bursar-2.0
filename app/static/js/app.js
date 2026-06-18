@@ -99,13 +99,7 @@ function setupEventHandlers() {
         if (e.target === settingsDrawer) settingsDrawer.classList.remove("active");
     });
 
-    // Toggle credentials panel based on mode radio selection
-    const modeRadios = document.querySelectorAll('input[name="mode"]');
-    modeRadios.forEach(radio => {
-        radio.addEventListener("change", (e) => {
-            toggleCredentialsFields(e.target.value);
-        });
-    });
+
 
     // Deposit Submit Form
     document.getElementById("deposit-form").addEventListener("submit", async (e) => {
@@ -134,23 +128,14 @@ function setupEventHandlers() {
     document.getElementById("settings-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        const mode = document.getElementById("settings-live-mode").checked ? "live" : "sandbox";
         const daily_budget = parseFloat(document.getElementById("settings-budget").value);
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value;
         
         const payload = {
-            mode,
             daily_budget,
             payout_time,
-            phone_number,
-            mpesa_consumer_key: document.getElementById("settings-key").value,
-            mpesa_consumer_secret: document.getElementById("settings-secret").value,
-            mpesa_shortcode: document.getElementById("settings-shortcode").value,
-            mpesa_initiator_name: document.getElementById("settings-initiator").value,
-            mpesa_initiator_password: document.getElementById("settings-password").value,
-            mpesa_b2c_result_url: document.getElementById("settings-result-url").value,
-            mpesa_b2c_timeout_url: document.getElementById("settings-timeout-url").value
+            phone_number
         };
 
         try {
@@ -397,15 +382,7 @@ function setupEventHandlers() {
     }
 }
 
-// Shows/Hides Daraja fields in settings form
-function toggleCredentialsFields(mode) {
-    const credGroup = document.getElementById("mpesa-credentials-fields");
-    if (mode === "simulation") {
-        credGroup.classList.remove("active");
-    } else {
-        credGroup.classList.add("active");
-    }
-}
+
 
 // Fetch general configuration & state
 async function fetchSettings() {
@@ -458,20 +435,6 @@ function updateDashboardMetrics(settings) {
 
     document.getElementById(`settings-time`).value = settings.payout_time || "08:00";
     document.getElementById(`settings-phone`).value = settings.phone_number || "";
-    
-    document.getElementById(`settings-key`).value = settings.mpesa_consumer_key || "";
-    document.getElementById(`settings-secret`).value = settings.mpesa_consumer_secret || "";
-    document.getElementById(`settings-shortcode`).value = settings.mpesa_shortcode || "";
-    document.getElementById(`settings-initiator`).value = settings.mpesa_initiator_name || "";
-    document.getElementById(`settings-password`).value = settings.mpesa_initiator_password || "";
-    document.getElementById(`settings-result-url`).value = settings.mpesa_b2c_result_url || "";
-    document.getElementById(`settings-timeout-url`).value = settings.mpesa_b2c_timeout_url || "";
-
-    const liveModeCheckbox = document.getElementById("settings-live-mode");
-    if (liveModeCheckbox) {
-        liveModeCheckbox.checked = (settings.mode === "live");
-    }
-    toggleCredentialsFields(settings.mode || "sandbox");
 }
 
 // Fetch historical payout transaction rows

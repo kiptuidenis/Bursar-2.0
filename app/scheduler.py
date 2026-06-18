@@ -107,11 +107,12 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
             except Exception as ex:
                 db.log_event(user_id, "WARNING", f"Could not read cert file {cert_filename}: {str(ex)}")
 
+        from app.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
         res = await mpesa_client.send_b2c_payout(
             phone_number=phone_number,
             amount=daily_budget,
-            result_url=settings.get("mpesa_b2c_result_url", ""),
-            timeout_url=settings.get("mpesa_b2c_timeout_url", ""),
+            result_url=MPESA_B2C_RESULT_URL,
+            timeout_url=MPESA_B2C_TIMEOUT_URL,
             cert_bytes=cert_bytes
         )
         
@@ -196,13 +197,21 @@ class BackgroundScheduler:
                     user_id = user["id"]
                     settings = self.db.get_settings(user_id)
                     if settings:
+                        from app.config import (
+                            MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
+                            MPESA_SHORTCODE, MPESA_INITIATOR_NAME, MPESA_INITIATOR_PASSWORD
+                        )
+                        # Fallback for offline simulation unit tests
+                        user_mode = settings.get("mode", "sandbox")
+                        client_mode = "simulation" if user_mode == "simulation" else MPESA_MODE
+                        
                         client = MpesaClient(
-                            consumer_key=settings.get("mpesa_consumer_key", ""),
-                            consumer_secret=settings.get("mpesa_consumer_secret", ""),
-                            shortcode=settings.get("mpesa_shortcode", ""),
-                            initiator_name=settings.get("mpesa_initiator_name", ""),
-                            initiator_password=settings.get("mpesa_initiator_password", ""),
-                            mode=settings.get("mode", "simulation")
+                            consumer_key=MPESA_CONSUMER_KEY,
+                            consumer_secret=MPESA_CONSUMER_SECRET,
+                            shortcode=MPESA_SHORTCODE,
+                            initiator_name=MPESA_INITIATOR_NAME,
+                            initiator_password=MPESA_INITIATOR_PASSWORD,
+                            mode=client_mode
                         )
                         now = datetime.datetime.now()
                         loop.run_until_complete(check_and_trigger_payout(self.db, client, now, user_id=user_id))
