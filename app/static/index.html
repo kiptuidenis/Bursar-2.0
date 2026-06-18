@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="css/style.css">
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="glow-bg"></div>
@@ -126,14 +128,13 @@
                 </div>
             </section>
 
-            <!-- Console Log Output -->
-            <section class="logs-section glass-panel">
+            <!-- Interactive Balance Chart -->
+            <section class="chart-section glass-panel">
                 <div class="section-header">
-                    <h2><i data-lucide="terminal"></i> System Activity Logs</h2>
-                    <button class="text-link-btn" id="clear-logs-btn">Clear View</button>
+                    <h2><i data-lucide="line-chart"></i> Balance & Budget Pacing</h2>
                 </div>
-                <div class="console-box" id="logs-console">
-                    <div class="log-line log-info">[System] Console initialized... Ready.</div>
+                <div class="chart-container">
+                    <canvas id="balance-chart"></canvas>
                 </div>
             </section>
         </div>

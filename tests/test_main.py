@@ -2,8 +2,8 @@ import pytest
 import os
 import json
 from fastapi.testclient import TestClient
-from db import DatabaseManager
-from main import app, get_db
+from app.db import DatabaseManager
+from app.main import app, get_db
 
 DB_FILE = "test_api_multitenant.db"
 test_db_manager = None

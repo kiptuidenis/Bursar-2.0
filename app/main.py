@@ -10,10 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from db import DatabaseManager
-from mpesa import MpesaClient
-from auth import SessionManager
-from scheduler import BackgroundScheduler, check_and_trigger_payout
+from app.db import DatabaseManager
+from app.mpesa import MpesaClient
+from app.auth import SessionManager
+from app.scheduler import BackgroundScheduler, check_and_trigger_payout
 
 # DB File Configuration
 DB_FILE = "bursar.db"

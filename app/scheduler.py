@@ -5,8 +5,8 @@ import threading
 import sqlite3
 import logging
 from typing import Optional
-from db import DatabaseManager
-from mpesa import MpesaClient
+from app.db import DatabaseManager
+from app.mpesa import MpesaClient
 
 logger = logging.getLogger("bursar.scheduler")
 

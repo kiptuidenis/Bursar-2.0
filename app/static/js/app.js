@@ -2,10 +2,12 @@
 
 // Global State
 let currentSettings = {};
+let currentPayouts = [];
 let countdownInterval = null;
 let pollInterval = null;
 let currentAuthAction = "login"; // "login" or "signup"
 let isAuthenticated = false;
+let balanceChartInstance = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     // Check initial authentication status
@@ -59,6 +61,12 @@ function showAuthScreen() {
     if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
+    }
+
+    // Clean up chart
+    if (balanceChartInstance) {
+        balanceChartInstance.destroy();
+        balanceChartInstance = null;
     }
 }
 
@@ -115,7 +123,6 @@ function setupEventHandlers() {
             
             depositModal.classList.remove("active");
             pollDashboardData();
-            addLocalLog("INFO", `Client triggered deposit of KES ${amount.toFixed(2)}.`);
         } catch (err) {
             console.error(err);
             alert("Failed to deposit funds. Please check server logs.");
@@ -156,16 +163,10 @@ function setupEventHandlers() {
             
             settingsDrawer.classList.remove("active");
             pollDashboardData();
-            addLocalLog("INFO", "Client saved updated configuration settings.");
         } catch (err) {
             console.error(err);
             alert("Failed to save settings. Check inputs.");
         }
-    });
-
-    // Clear logs view
-    document.getElementById("clear-logs-btn").addEventListener("click", () => {
-        document.getElementById("logs-console").innerHTML = "";
     });
 
     // Auth Overlay Form Events
@@ -296,7 +297,6 @@ function setupEventHandlers() {
             
             cancelInlineEdit();
             pollDashboardData();
-            addLocalLog("INFO", `Updated daily budget to KES ${newBudget.toFixed(2)} directly from dashboard.`);
         } catch (err) {
             console.error(err);
             alert("Failed to save daily budget.");
@@ -334,6 +334,7 @@ async function fetchSettings() {
 
         // Update indicators
         updateDashboardMetrics(data);
+        refreshChart();
     } catch (err) {
         console.error("Error fetching settings:", err);
     }
@@ -388,12 +389,14 @@ async function fetchPayouts() {
         const res = await fetch("/api/payouts");
         if (res.status === 401) return showAuthScreen();
         const data = await res.json();
+        currentPayouts = data;
         
         document.getElementById("payout-count-badge").innerText = `${data.length} total`;
 
         const body = document.getElementById("payout-history-body");
         if (data.length === 0) {
             body.innerHTML = `<tr><td colspan="5" class="empty-state">No payouts recorded yet.</td></tr>`;
+            refreshChart();
             return;
         }
 
@@ -419,53 +422,175 @@ async function fetchPayouts() {
                 </tr>
             `;
         }).join("");
+        
+        refreshChart();
     } catch (err) {
         console.error("Error fetching payouts:", err);
     }
 }
 
-// Fetch system logger events
-async function fetchLogs() {
-    try {
-        const res = await fetch("/api/logs");
-        if (res.status === 401) return showAuthScreen();
-        const data = await res.json();
-
-        const consoleBox = document.getElementById("logs-console");
-        if (data.length === 0) {
-            consoleBox.innerHTML = `<div class="log-line log-info">[System] Ready...</div>`;
-            return;
+// Calculate 7-day balance trend
+function calculate7DayBalanceTrend(currentBalance, payouts) {
+    const dates = [];
+    const balances = new Array(7).fill(0);
+    
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        dates.push(`${yyyy}-${mm}-${dd}`);
+    }
+    
+    const hasSuccessfulPayouts = payouts.some(p => p.status === "SUCCESS");
+    
+    if (!hasSuccessfulPayouts) {
+        // Mock a pacing line based on daily budget
+        const dailyBudget = currentSettings.daily_budget || 500;
+        let runningBalance = currentBalance;
+        if (currentBalance === 0) {
+            runningBalance = dailyBudget * 3;
         }
+        for (let i = 6; i >= 0; i--) {
+            balances[i] = runningBalance;
+            runningBalance += dailyBudget;
+        }
+    } else {
+        // Group successful payouts by date
+        const payoutsByDate = {};
+        payouts.forEach(p => {
+            if (p.status === "SUCCESS") {
+                const dateKey = p.payout_date;
+                payoutsByDate[dateKey] = (payoutsByDate[dateKey] || 0) + parseFloat(p.amount);
+            }
+        });
+        
+        let runningBalance = currentBalance;
+        for (let i = 6; i >= 0; i--) {
+            balances[i] = runningBalance;
+            const dateStr = dates[i];
+            if (payoutsByDate[dateStr]) {
+                runningBalance += payoutsByDate[dateStr];
+            }
+        }
+    }
+    
+    return { dates, balances };
+}
 
-        consoleBox.innerHTML = data.map(log => {
-            const timeStr = new Date(log.created_at + "Z").toLocaleTimeString();
-            let levelClass = "log-info";
-            if (log.level === "WARNING") levelClass = "log-warning";
-            if (log.level === "ERROR") levelClass = "log-error";
-
-            return `
-                <div class="log-line ${levelClass}">
-                    <span class="log-timestamp">[${timeStr}]</span> ${log.message}
-                </div>
-            `;
-        }).join("");
-    } catch (err) {
-        console.error("Error fetching logs:", err);
+// Render interactive Chart.js pacing area chart
+function renderBalanceChart(payouts, settings) {
+    const canvas = document.getElementById("balance-chart");
+    if (!canvas) return;
+    
+    const { dates, balances } = calculate7DayBalanceTrend(settings.balance || 0, payouts);
+    
+    const formattedLabels = dates.map(dStr => {
+        const parts = dStr.split('-');
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    
+    const ctx = canvas.getContext("2d");
+    
+    if (balanceChartInstance) {
+        balanceChartInstance.data.labels = formattedLabels;
+        balanceChartInstance.data.datasets[0].data = balances;
+        balanceChartInstance.update();
+    } else {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(142, 68, 255, 0.25)'); // Violet accent glow
+        gradient.addColorStop(1, 'rgba(59, 113, 254, 0.0)');   // Transparent indigo
+        
+        balanceChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: formattedLabels,
+                datasets: [{
+                    label: 'Wallet Balance',
+                    data: balances,
+                    borderColor: '#8e44ff',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#3b71fe',
+                    pointBorderColor: 'rgba(255, 255, 255, 0.8)',
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: '#8e44ff',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    backgroundColor: gradient,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(18, 22, 37, 0.95)',
+                        titleFont: {
+                            family: 'Outfit',
+                            size: 13,
+                            weight: '600'
+                        },
+                        bodyFont: {
+                            family: 'Outfit',
+                            size: 12
+                        },
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return 'Balance: KES ' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.03)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            font: {
+                                family: 'Outfit',
+                                size: 11
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.03)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            font: {
+                                family: 'Outfit',
+                                size: 11
+                            },
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
-// Adds log locally on immediate action triggers without waiting for poll
-function addLocalLog(level, message) {
-    const timeStr = new Date().toLocaleTimeString();
-    let levelClass = "log-info";
-    if (level === "WARNING") levelClass = "log-warning";
-    if (level === "ERROR") levelClass = "log-error";
-
-    const consoleBox = document.getElementById("logs-console");
-    const logLine = document.createElement("div");
-    logLine.className = `log-line ${levelClass}`;
-    logLine.innerHTML = `<span class="log-timestamp">[${timeStr}]</span> ${message}`;
-    consoleBox.insertBefore(logLine, consoleBox.firstChild);
+// Wrapper function to trigger chart update with latest state
+function refreshChart() {
+    renderBalanceChart(currentPayouts, currentSettings);
 }
 
 // Tick the distribution countdown live
@@ -507,5 +632,4 @@ function pollDashboardData() {
     if (!isAuthenticated) return;
     fetchSettings();
     fetchPayouts();
-    fetchLogs();
 }

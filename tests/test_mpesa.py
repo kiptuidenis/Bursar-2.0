@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography import x509
 from cryptography.x509.oid import NameOID
-from mpesa import MpesaClient
+from app.mpesa import MpesaClient
 
 # Helper fixture to generate a valid DER certificate for testing encryption
 @pytest.fixture
