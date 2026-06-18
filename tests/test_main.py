@@ -471,4 +471,36 @@ def test_stk_push_and_callbacks():
     assert settings["balance"] == 1500.0
 
 
+def test_settings_payout_time_validation():
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000006", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000006", "password": "pinpassword"})
+    
+    # 1. Successful update with a future time (e.g. 15 minutes in the future)
+    import datetime
+    now = datetime.datetime.now()
+    future_time = now + datetime.timedelta(minutes=15)
+    
+    # Handle overflow to next day safely by capping to 23:59 if it rolls over
+    if future_time.date() > now.date():
+        future_time_str = "23:59"
+    else:
+        future_time_str = future_time.strftime("%H:%M")
+        
+    res = c.post("/api/settings", json={"payout_time": future_time_str})
+    assert res.status_code == 200
+    
+    # 2. Failed update with a past time (if not at 00:00)
+    if now.hour > 0 or now.minute > 0:
+        if now.minute > 0:
+            past_time_str = f"{now.hour:02d}:00"
+        else:
+            past_time_str = f"{(now.hour - 1):02d}:59"
+            
+        res_past = c.post("/api/settings", json={"payout_time": past_time_str})
+        assert res_past.status_code == 400
+        assert "past" in res_past.json()["detail"].lower()
+
+
+
 

@@ -184,6 +184,18 @@ function setupEventHandlers() {
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value;
         
+        // Validate payout_time is not in the past today if changed
+        if (payout_time !== currentSettings.payout_time) {
+            const [hour, minute] = payout_time.split(":").map(Number);
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+                alert("Payout time cannot be in the past today. Please choose a future time.");
+                return;
+            }
+        }
+        
         const payload = {
             daily_budget,
             payout_time,
@@ -197,13 +209,17 @@ function setupEventHandlers() {
                 body: JSON.stringify(payload)
             });
             if (res.status === 401) return showAuthScreen();
-            if (!res.ok) throw new Error("Saving settings failed.");
+            
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || "Saving settings failed.");
+            }
             
             settingsDrawer.classList.remove("active");
             pollDashboardData();
         } catch (err) {
             console.error(err);
-            alert("Failed to save settings. Check inputs.");
+            alert(err.message || "Failed to save settings. Check inputs.");
         }
     });
 

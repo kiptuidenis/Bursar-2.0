@@ -220,6 +220,24 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
             else:
                 updates[field] = ""
                 
+    # 3. Validate payout_time format and ensure it is not in the past today if changed
+    if "payout_time" in updates and updates["payout_time"]:
+        payout_time_str = updates["payout_time"]
+        old_payout_time = current.get("payout_time", "") if current else ""
+        if payout_time_str != old_payout_time:
+            if not re.match(r"^\d{2}:\d{2}$", payout_time_str):
+                raise HTTPException(status_code=400, detail="Invalid payout time format. Must be HH:MM.")
+            try:
+                h, m = map(int, payout_time_str.split(":"))
+                if h < 0 or h > 23 or m < 0 or m > 59:
+                    raise ValueError()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid hours or minutes in payout time.")
+                
+            now = datetime.datetime.now()
+            if h < now.hour or (h == now.hour and m <= now.minute):
+                raise HTTPException(status_code=400, detail="Payout time cannot be in the past today. Please choose a future time.")
+
     db.update_settings(user_id, **updates)
     db.log_event(user_id, "INFO", "Wallet and API configuration updated.")
     
