@@ -19,7 +19,7 @@ load_dotenv(".env")
 
 # Default to simulation mode when running tests
 if "PYTEST_CURRENT_TEST" in os.environ:
-    os.environ.setdefault("MPESA_MODE", "simulation")
+    os.environ["MPESA_MODE"] = "simulation"
 
 # Load Configuration Properties
 MPESA_MODE = os.environ.get("MPESA_MODE", "sandbox").lower()
@@ -30,3 +30,8 @@ MPESA_INITIATOR_NAME = os.environ.get("MPESA_INITIATOR_NAME", "")
 MPESA_INITIATOR_PASSWORD = os.environ.get("MPESA_INITIATOR_PASSWORD", "")
 MPESA_B2C_RESULT_URL = os.environ.get("MPESA_B2C_RESULT_URL", "")
 MPESA_B2C_TIMEOUT_URL = os.environ.get("MPESA_B2C_TIMEOUT_URL", "")
+
+# Lipa Na M-Pesa Online (STK Push) Settings
+MPESA_LNM_SHORTCODE = os.environ.get("MPESA_LNM_SHORTCODE", "174379")
+MPESA_LNM_PASSKEY = os.environ.get("MPESA_LNM_PASSKEY", "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919")
+MPESA_STK_CALLBACK_URL = os.environ.get("MPESA_STK_CALLBACK_URL", "")

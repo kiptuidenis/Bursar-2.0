@@ -105,3 +105,53 @@ class MpesaClient:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
+
+    async def initiate_stk_push(self, phone_number: str, amount: float, 
+                                 callback_url: str, passkey: str, 
+                                 lnm_shortcode: str) -> Dict[str, Any]:
+        """Initiate Lipa Na M-Pesa Online STK Push request."""
+        if self.mode == "simulation":
+            await asyncio.sleep(0.1)
+            return {
+                "ResponseCode": "0",
+                "ResponseDescription": "Success. Request accepted for processing",
+                "MerchantRequestID": f"sim_merch_{uuid.uuid4().hex[:12]}",
+                "CheckoutRequestID": f"sim_check_{uuid.uuid4().hex[:12]}",
+                "CustomerMessage": "Success"
+            }
+
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        password_str = f"{lnm_shortcode}{passkey}{timestamp}"
+        password = base64.b64encode(password_str.encode("utf-8")).decode("utf-8")
+
+        token = await self.get_access_token()
+        url = f"{self.base_url}/mpesa/stkpush/v1/processrequest"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        # Format number to 254... format if starting with 0 or +
+        phone = phone_number.strip().replace("+", "")
+        if phone.startswith("0") and len(phone) == 10:
+            phone = "254" + phone[1:]
+
+        payload = {
+            "BusinessShortCode": lnm_shortcode,
+            "Password": password,
+            "Timestamp": timestamp,
+            "TransactionType": "CustomerPayBillOnline",
+            "Amount": int(amount),
+            "PartyA": phone,
+            "PartyB": lnm_shortcode,
+            "PhoneNumber": phone,
+            "CallBackURL": callback_url,
+            "AccountReference": "BursarWallet",
+            "TransactionDesc": "Deposit"
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            return response.json()

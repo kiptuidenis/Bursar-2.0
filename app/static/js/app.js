@@ -108,19 +108,71 @@ function setupEventHandlers() {
         if (isNaN(amount) || amount <= 0) return;
 
         try {
-            const res = await fetch("/api/deposit", {
+            const res = await fetch("/api/deposit/initiate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ amount })
             });
             if (res.status === 401) return showAuthScreen();
-            if (!res.ok) throw new Error("Deposit failed.");
             
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Initiation failed.");
+            
+            // Close input modal
             depositModal.classList.remove("active");
-            pollDashboardData();
+            
+            // Open polling overlay
+            const pollingOverlay = document.getElementById("deposit-polling-overlay");
+            const progressBar = document.getElementById("stk-progress-bar");
+            const statusText = document.getElementById("stk-status-text");
+            
+            pollingOverlay.classList.add("active");
+            progressBar.style.width = "100%";
+            statusText.innerText = "Waiting for confirmation (60s)...";
+            
+            // Start polling status
+            const checkoutRequestId = data.checkout_request_id;
+            let secondsLeft = 60;
+            const pollIntervalTime = 2000; // 2 seconds
+            
+            const pollTimer = setInterval(async () => {
+                secondsLeft -= 2;
+                if (secondsLeft <= 0) {
+                    clearInterval(pollTimer);
+                    pollingOverlay.classList.remove("active");
+                    alert("Payment confirmation timed out. If you completed M-Pesa PIN entry, please check dashboard balance in a few moments.");
+                    pollDashboardData();
+                    return;
+                }
+                
+                // Update progress indicator
+                progressBar.style.width = `${(secondsLeft / 60) * 100}%`;
+                statusText.innerText = `Waiting for confirmation (${secondsLeft}s)...`;
+                
+                try {
+                    const statusRes = await fetch(`/api/deposit/status/${checkoutRequestId}`);
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === "SUCCESS") {
+                            clearInterval(pollTimer);
+                            pollingOverlay.classList.remove("active");
+                            alert("KES " + amount.toFixed(2) + " M-Pesa deposit completed successfully! 🚀🔒");
+                            pollDashboardData();
+                        } else if (statusData.status === "FAILED") {
+                            clearInterval(pollTimer);
+                            pollingOverlay.classList.remove("active");
+                            alert("M-Pesa payment failed or was cancelled by user.");
+                            pollDashboardData();
+                        }
+                    }
+                } catch (pollErr) {
+                    console.error("Polling error:", pollErr);
+                }
+            }, pollIntervalTime);
+            
         } catch (err) {
             console.error(err);
-            alert("Failed to deposit funds. Please check server logs.");
+            alert(err.message || "Failed to initiate M-Pesa STK Push. Make sure your phone number starts with 254 in Settings.");
         }
     });
 

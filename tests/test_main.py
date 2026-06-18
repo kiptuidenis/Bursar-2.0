@@ -42,7 +42,7 @@ def test_unauthenticated_requests():
     assert r1.status_code == 401
     assert "required" in r1.json()["detail"].lower()
     
-    r2 = client.post("/api/deposit", json={"amount": 100})
+    r2 = client.post("/api/deposit/initiate", json={"amount": 100})
     assert r2.status_code == 401
     
     r3 = client.get("/api/payouts")
@@ -102,13 +102,23 @@ def test_user_data_isolation_via_api():
     client_b.post("/api/auth/signup", json={"phone_number": "254722222222", "password": "pass"})
     client_b.post("/api/auth/login", json={"phone_number": "254722222222", "password": "pass"})
     
-    # User A deposits 1000
-    res_dep_a = client_a.post("/api/deposit", json={"amount": 1000.0})
-    assert res_dep_a.json()["new_balance"] == 1000.0
+    # User A initiates deposit
+    res_dep_a = client_a.post("/api/deposit/initiate", json={"amount": 1000.0})
+    assert res_dep_a.status_code == 200
+    checkout_id_a = res_dep_a.json()["checkout_request_id"]
     
-    # User B deposits 500
-    res_dep_b = client_b.post("/api/deposit", json={"amount": 500.0})
-    assert res_dep_b.json()["new_balance"] == 500.0
+    # User A simulates successful callback
+    res_cb_a = client_a.post("/api/deposit/simulate-callback", json={"checkout_request_id": checkout_id_a, "status": "SUCCESS"})
+    assert res_cb_a.status_code == 200
+    
+    # User B initiates deposit
+    res_dep_b = client_b.post("/api/deposit/initiate", json={"amount": 500.0})
+    assert res_dep_b.status_code == 200
+    checkout_id_b = res_dep_b.json()["checkout_request_id"]
+    
+    # User B simulates successful callback
+    res_cb_b = client_b.post("/api/deposit/simulate-callback", json={"checkout_request_id": checkout_id_b, "status": "SUCCESS"})
+    assert res_cb_b.status_code == 200
     
     # Verify User A still has 1000, and User B has 500
     assert client_a.get("/api/settings").json()["balance"] == 1000.0
@@ -281,10 +291,16 @@ def test_locking_api_constraints():
     assert add_item_res.status_code == 200
     
     # Now deposit funds (this should auto-lock both because budget items exist)
-    dep_res = c.post("/api/deposit", json={"amount": 1000.0})
+    dep_res = c.post("/api/deposit/initiate", json={"amount": 1000.0})
     assert dep_res.status_code == 200
-    assert dep_res.json()["is_budget_locked"] is True
-    assert dep_res.json()["is_deposit_locked"] is True
+    checkout_id = dep_res.json()["checkout_request_id"]
+    
+    cb_res = c.post("/api/deposit/simulate-callback", json={"checkout_request_id": checkout_id, "status": "SUCCESS"})
+    assert cb_res.status_code == 200
+    
+    settings_res2 = c.get("/api/settings").json()
+    assert settings_res2["is_budget_locked"] is True
+    assert settings_res2["is_deposit_locked"] is True
     
     # 2. Try adding another budget item (should fail with HTTP 400)
     fail_add = c.post("/api/budget/items", json={"category": "Food", "amount": 300.0})
@@ -375,6 +391,84 @@ def test_lock_disbursement_dates():
     assert settings["is_budget_locked"] is True
     assert settings["start_date"] == "2026-06-20"
     assert settings["end_date"] == "2026-06-25"
+
+
+def test_stk_push_and_callbacks():
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000005", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000005", "password": "pinpassword"})
+    
+    # 1. Initiate STK Push deposit
+    res_init = c.post("/api/deposit/initiate", json={"amount": 1500.0})
+    assert res_init.status_code == 200
+    checkout_id = res_init.json()["checkout_request_id"]
+    
+    # 2. Check pending status
+    res_status = c.get(f"/api/deposit/status/{checkout_id}")
+    assert res_status.status_code == 200
+    assert res_status.json()["status"] == "PENDING"
+    
+    # 3. Simulate callback from Safaricom webhook (success)
+    success_callback = {
+        "Body": {
+            "stkCallback": {
+                "MerchantRequestID": "mock-merchant-id",
+                "CheckoutRequestID": checkout_id,
+                "ResultCode": 0,
+                "ResultDesc": "The service request is processed successfully.",
+                "CallbackMetadata": {
+                    "Item": [
+                        {
+                            "Name": "Amount",
+                            "Value": 1500.0
+                        },
+                        {
+                            "Name": "MpesaReceiptNumber",
+                            "Value": "NLJ7RT6KKH"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    res_webhook = client.post("/api/callbacks/stk-callback", json=success_callback)
+    assert res_webhook.status_code == 200
+    assert res_webhook.json()["status"] == "acknowledged"
+    
+    # Check updated status (should be SUCCESS)
+    res_status_sec = c.get(f"/api/deposit/status/{checkout_id}")
+    assert res_status_sec.json()["status"] == "SUCCESS"
+    
+    # Check balance credited and deposit locked
+    settings = c.get("/api/settings").json()
+    assert settings["balance"] == 1500.0
+    assert settings["is_deposit_locked"] is True
+    
+    # 4. Try initiating another deposit and simulating a failure callback
+    res_init2 = c.post("/api/deposit/initiate", json={"amount": 2000.0})
+    assert res_init2.status_code == 200
+    checkout_id2 = res_init2.json()["checkout_request_id"]
+    
+    failed_callback = {
+        "Body": {
+            "stkCallback": {
+                "MerchantRequestID": "mock-merchant-id-2",
+                "CheckoutRequestID": checkout_id2,
+                "ResultCode": 1032,
+                "ResultDesc": "Request cancelled by user."
+            }
+        }
+    }
+    res_webhook2 = client.post("/api/callbacks/stk-callback", json=failed_callback)
+    assert res_webhook2.status_code == 200
+    
+    # Check status (should be FAILED)
+    res_status_failed = c.get(f"/api/deposit/status/{checkout_id2}")
+    assert res_status_failed.json()["status"] == "FAILED"
+    
+    # Balance should still be 1500.0 (unchanged)
+    settings = c.get("/api/settings").json()
+    assert settings["balance"] == 1500.0
 
 
 

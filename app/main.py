@@ -230,28 +230,137 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
     res_dict["is_deposit_locked"] = db.is_deposit_locked(user_id)
     return {"status": "success", "settings": res_dict}
 
-@app.post("/api/deposit")
-def deposit_funds(payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    db.adjust_balance(user_id, payload.amount)
-    db.log_event(user_id, "INFO", f"Deposited KES {payload.amount:.2f} into wallet.")
+@app.post("/api/deposit/initiate")
+async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    from app.config import (
+        MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
+        MPESA_LNM_SHORTCODE, MPESA_LNM_PASSKEY, MPESA_STK_CALLBACK_URL
+    )
+    import uuid
     
-    # Auto-lock deposit for the month
-    db.lock_deposit(user_id)
-    
-    # Auto-lock budget if user already has budget categories configured
-    items = db.get_budget_items(user_id)
-    if items:
-        db.lock_budget(user_id)
-        db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
-        
     settings = db.get_settings(user_id)
-    new_balance = settings.get("balance", 0.0)
-    return {
-        "status": "success", 
-        "new_balance": new_balance,
-        "is_budget_locked": db.is_budget_locked(user_id),
-        "is_deposit_locked": db.is_deposit_locked(user_id)
-    }
+    phone = settings.get("phone_number", "")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Target phone number must be configured in settings before depositing.")
+        
+    client = MpesaClient(
+        consumer_key=MPESA_CONSUMER_KEY,
+        consumer_secret=MPESA_CONSUMER_SECRET,
+        shortcode=MPESA_LNM_SHORTCODE,
+        initiator_name="",
+        initiator_password="",
+        mode="simulation" if (settings.get("mode") == "simulation" or MPESA_MODE == "simulation") else MPESA_MODE
+    )
+    
+    try:
+        res = await client.initiate_stk_push(
+            phone_number=phone,
+            amount=payload.amount,
+            callback_url=MPESA_STK_CALLBACK_URL,
+            passkey=MPESA_LNM_PASSKEY,
+            lnm_shortcode=MPESA_LNM_SHORTCODE
+        )
+        
+        response_code = res.get("ResponseCode", "")
+        if response_code == "0":
+            checkout_request_id = res.get("CheckoutRequestID", "")
+            db.create_deposit(user_id, checkout_request_id, payload.amount)
+            db.log_event(user_id, "INFO", f"STK Push deposit request of KES {payload.amount:.2f} initiated. CheckoutRequestID: {checkout_request_id}.")
+            return {"status": "success", "checkout_request_id": checkout_request_id}
+        else:
+            desc = res.get("ResponseDescription", "LNM API Error")
+            raise Exception(desc)
+            
+    except Exception as e:
+        db.log_event(user_id, "ERROR", f"Failed to initiate STK Push: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to initiate deposit payment: {str(e)}")
+
+@app.get("/api/deposit/status/{checkout_request_id}")
+def check_deposit_status(checkout_request_id: str, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    deposit = db.get_deposit(checkout_request_id)
+    if not deposit or deposit["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Deposit transaction not found.")
+    return {"status": deposit["status"], "checkout_request_id": checkout_request_id}
+
+@app.post("/api/callbacks/stk-callback")
+def mpesa_stk_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
+    stk_callback = body.get("Body", {}).get("stkCallback", {})
+    if not stk_callback:
+        return {"status": "ignored"}
+        
+    checkout_request_id = stk_callback.get("CheckoutRequestID", "")
+    result_code = stk_callback.get("ResultCode")
+    result_desc = stk_callback.get("ResultDesc", "")
+    
+    deposit = db.get_deposit(checkout_request_id)
+    if not deposit or deposit["status"] != "PENDING":
+        return {"status": "ignored"}
+        
+    user_id = deposit["user_id"]
+    amount = deposit["amount"]
+    
+    if result_code == 0:
+        # Get Mpesa Receipt Number
+        receipt = ""
+        meta_items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
+        for item in meta_items:
+            if item.get("Name") == "MpesaReceiptNumber":
+                receipt = item.get("Value", "")
+                break
+                
+        db.update_deposit_status(checkout_request_id, "SUCCESS", receipt)
+        db.adjust_balance(user_id, amount)
+        db.log_event(user_id, "INFO", f"STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
+        
+        # Auto-lock deposit for the month
+        db.lock_deposit(user_id)
+        
+        # Auto-lock budget if user already has budget categories configured
+        items = db.get_budget_items(user_id)
+        if items:
+            db.lock_budget(user_id)
+            db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+    else:
+        db.update_deposit_status(checkout_request_id, "FAILED")
+        db.log_event(user_id, "ERROR", f"STK Push deposit failed. Reason: {result_desc}.")
+        
+    return {"status": "acknowledged"}
+
+@app.post("/api/deposit/simulate-callback")
+def simulate_stk_callback(payload: Dict[str, Any] = Body(...), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    import uuid
+    # Local endpoint to fake a Safaricom callback response for test environment simulation
+    checkout_request_id = payload.get("checkout_request_id", "")
+    status = payload.get("status", "SUCCESS").upper()
+    
+    deposit = db.get_deposit(checkout_request_id)
+    if not deposit or deposit["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Deposit transaction not found.")
+        
+    if deposit["status"] != "PENDING":
+        raise HTTPException(status_code=400, detail="Transaction already processed.")
+        
+    amount = deposit["amount"]
+    
+    if status == "SUCCESS":
+        receipt = payload.get("receipt_number", f"MOCK{uuid.uuid4().hex[:6].upper()}")
+        db.update_deposit_status(checkout_request_id, "SUCCESS", receipt)
+        db.adjust_balance(user_id, amount)
+        db.log_event(user_id, "INFO", f"[SIMULATED] STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
+        
+        # Auto-lock deposit
+        db.lock_deposit(user_id)
+        
+        # Auto-lock budget
+        items = db.get_budget_items(user_id)
+        if items:
+            db.lock_budget(user_id)
+            db.log_event(user_id, "INFO", "Budget automatically locked due to simulated active deposit.")
+    else:
+        db.update_deposit_status(checkout_request_id, "FAILED")
+        db.log_event(user_id, "ERROR", f"[SIMULATED] STK Push deposit failed.")
+        
+    return {"status": "success"}
 
 @app.get("/api/payouts")
 def list_payouts(limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):

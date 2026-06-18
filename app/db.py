@@ -111,6 +111,20 @@ class DatabaseManager:
             )
         """)
         
+        # Create deposits table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deposits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                checkout_request_id TEXT UNIQUE NOT NULL,
+                amount REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                mpesa_receipt TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
         # Add dynamic locking columns to settings if they do not exist
         cursor.execute("PRAGMA table_info(settings)")
         columns = [row["name"] for row in cursor.fetchall()]
@@ -394,6 +408,37 @@ class DatabaseManager:
         
         self.log_event(user_id, "INFO", f"Recalculated daily budget allocation total: KES {total:.2f}.")
         return total
+
+    def create_deposit(self, user_id: int, checkout_request_id: str, amount: float) -> int:
+        """Create a pending deposit transaction record."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO deposits (user_id, checkout_request_id, amount, status)
+            VALUES (?, ?, ?, 'PENDING')
+        """, (user_id, checkout_request_id, amount))
+        conn.commit()
+        return cursor.lastrowid
+
+    def get_deposit(self, checkout_request_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch a deposit record by its checkout request ID."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM deposits WHERE checkout_request_id = ?", (checkout_request_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_deposit_status(self, checkout_request_id: str, status: str, mpesa_receipt: str = "") -> bool:
+        """Update the status and M-Pesa receipt of a deposit transaction."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE deposits 
+            SET status = ?, mpesa_receipt = ?
+            WHERE checkout_request_id = ?
+        """, (status, mpesa_receipt, checkout_request_id))
+        conn.commit()
+        return cursor.rowcount > 0
 
     def close(self) -> None:
         """Close the sqlite database connection."""
