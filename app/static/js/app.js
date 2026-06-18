@@ -342,20 +342,6 @@ async function fetchSettings() {
 
 // Update UI dashboard labels based on backend model state
 function updateDashboardMetrics(settings) {
-    const badge = document.getElementById("mode-badge");
-    const text = document.getElementById("current-mode-text");
-    
-    badge.className = "status-badge";
-    if (settings.mode === "simulation") {
-        text.innerText = "Simulation Mode";
-    } else if (settings.mode === "sandbox") {
-        badge.classList.add("sandbox-mode");
-        text.innerText = "Sandbox Mode";
-    } else if (settings.mode === "live") {
-        badge.classList.add("live-mode");
-        text.innerText = "Live M-Pesa";
-    }
-
     document.getElementById("wallet-balance").innerText = parseFloat(settings.balance || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     
     const inlineInput = document.getElementById("inline-budget-input");
