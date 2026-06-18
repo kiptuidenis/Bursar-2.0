@@ -95,6 +95,18 @@ class DatabaseManager:
             )
         """)
         
+        # Create budget items table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS budget_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                amount REAL NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE (user_id, category)
+            )
+        """)
+        
         conn.commit()
 
     # Cryptographic Hashing Helpers
@@ -263,6 +275,55 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM logs WHERE user_id = ? ORDER BY id DESC LIMIT ?", (user_id, limit))
         return [dict(row) for row in cursor.fetchall()]
+
+    def get_budget_items(self, user_id: int) -> List[Dict[str, Any]]:
+        """Fetch all budget allocation items for a specific user."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM budget_items WHERE user_id = ? ORDER BY category ASC", (user_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def add_or_update_budget_item(self, user_id: int, category: str, amount: float) -> int:
+        """Add a new budget allocation item or update it if the category already exists."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO budget_items (user_id, category, amount)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, category) DO UPDATE SET amount = excluded.amount
+        """, (user_id, category, amount))
+        conn.commit()
+        item_id = cursor.lastrowid
+        self.recalculate_daily_budget(user_id)
+        return item_id
+
+    def delete_budget_item(self, user_id: int, item_id: int) -> bool:
+        """Delete a specific budget allocation item for a user."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM budget_items WHERE user_id = ? AND id = ?", (user_id, item_id))
+        conn.commit()
+        deleted = cursor.rowcount > 0
+        if deleted:
+            self.recalculate_daily_budget(user_id)
+        return deleted
+
+    def recalculate_daily_budget(self, user_id: int) -> float:
+        """Sum all allocation items and update the user's daily budget settings."""
+        conn = self.connection
+        cursor = conn.cursor()
+        
+        # Calculate sum
+        cursor.execute("SELECT SUM(amount) as total FROM budget_items WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        total = row["total"] if row and row["total"] is not None else 0.0
+        
+        # Update settings table
+        cursor.execute("UPDATE settings SET daily_budget = ? WHERE user_id = ?", (total, user_id))
+        conn.commit()
+        
+        self.log_event(user_id, "INFO", f"Recalculated daily budget allocation total: KES {total:.2f}.")
+        return total
 
     def close(self) -> None:
         """Close the sqlite database connection."""

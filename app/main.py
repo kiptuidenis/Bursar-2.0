@@ -105,6 +105,11 @@ class DepositRequest(BaseModel):
     amount: float = Field(..., gt=0, description="Amount to deposit must be greater than zero")
 
 
+class BudgetItemPayload(BaseModel):
+    category: str = Field(..., min_length=1, max_length=100, description="Budget category name")
+    amount: float = Field(..., gt=0, description="Amount allocated to category must be greater than zero")
+
+
 # API Routing — Authentication (Public)
 @app.post("/api/auth/signup")
 def signup_user(payload: AuthPayload, db: DatabaseManager = Depends(get_db)):
@@ -200,6 +205,29 @@ def list_payouts(limit: int = 100, user_id: int = Depends(get_current_user_id), 
 @app.get("/api/logs")
 def list_logs(limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     return db.get_logs(user_id, limit=limit)
+
+
+@app.get("/api/budget/items")
+def list_budget_items(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    return db.get_budget_items(user_id)
+
+
+@app.post("/api/budget/items")
+def add_or_update_budget_item(payload: BudgetItemPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    category = payload.category.strip()
+    if not category:
+        raise HTTPException(status_code=400, detail="Category name cannot be empty")
+        
+    item_id = db.add_or_update_budget_item(user_id, category, payload.amount)
+    return {"status": "success", "item_id": item_id, "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
+
+
+@app.delete("/api/budget/items/{item_id}")
+def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    deleted = db.delete_budget_item(user_id, item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Budget item not found")
+    return {"status": "success", "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
 
 @app.post("/api/payout/trigger")
 async def trigger_payout_manually(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):

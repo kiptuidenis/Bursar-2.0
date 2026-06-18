@@ -3,6 +3,7 @@
 // Global State
 let currentSettings = {};
 let currentPayouts = [];
+let budgetItems = [];
 let countdownInterval = null;
 let pollInterval = null;
 let currentAuthAction = "login"; // "login" or "signup"
@@ -312,6 +313,53 @@ function setupEventHandlers() {
             cancelInlineEdit();
         }
     });
+
+    // Budget Designer Modal Handlers
+    const budgetDesignerModal = document.getElementById("budget-designer-modal");
+    
+    document.getElementById("open-budget-designer-btn").addEventListener("click", () => {
+        document.getElementById("new-category-name").value = "";
+        document.getElementById("new-category-amount").value = "";
+        budgetDesignerModal.classList.add("active");
+        renderBudgetBreakdown();
+    });
+    
+    document.getElementById("close-budget-designer-btn").addEventListener("click", () => {
+        budgetDesignerModal.classList.remove("active");
+    });
+    
+    budgetDesignerModal.addEventListener("click", (e) => {
+        if (e.target === budgetDesignerModal) budgetDesignerModal.classList.remove("active");
+    });
+    
+    // Add Category Form Submit
+    document.getElementById("add-category-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const category = document.getElementById("new-category-name").value.trim();
+        const amount = parseFloat(document.getElementById("new-category-amount").value);
+        if (!category || isNaN(amount) || amount <= 0) return;
+        
+        try {
+            const res = await fetch("/api/budget/items", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ category, amount })
+            });
+            if (res.status === 401) return showAuthScreen();
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Failed to add category.");
+            }
+            
+            document.getElementById("new-category-name").value = "";
+            document.getElementById("new-category-amount").value = "";
+            
+            pollDashboardData();
+        } catch (err) {
+            console.error(err);
+            alert(err.message || "Failed to save category.");
+        }
+    });
 }
 
 // Shows/Hides Daraja fields in settings form
@@ -618,4 +666,96 @@ function pollDashboardData() {
     if (!isAuthenticated) return;
     fetchSettings();
     fetchPayouts();
+    fetchBudgetItems();
 }
+
+// Fetch user's custom budget categories
+async function fetchBudgetItems() {
+    try {
+        const res = await fetch("/api/budget/items");
+        if (res.status === 401) return showAuthScreen();
+        const data = await res.json();
+        budgetItems = data;
+        
+        renderBudgetBreakdown();
+    } catch (err) {
+        console.error("Error fetching budget items:", err);
+    }
+}
+
+// Render the breakdown pills in the Daily Budget card and inside the Budget Designer modal
+function renderBudgetBreakdown() {
+    const container = document.getElementById("budget-breakdown-container");
+    const designerList = document.getElementById("designer-category-list");
+    const designerTotal = document.getElementById("designer-total-budget");
+    
+    // 1. Render pills on the main card
+    if (container) {
+        if (budgetItems.length === 0) {
+            container.innerHTML = "";
+            container.style.display = "none";
+        } else {
+            container.style.display = "flex";
+            container.innerHTML = budgetItems.map(item => `
+                <span class="category-pill" title="Allocated Daily">
+                    ${escapeHTML(item.category)}: <span class="category-pill-amount">KES ${item.amount.toFixed(2)}</span>
+                </span>
+            `).join("");
+        }
+    }
+    
+    // 2. Render rows inside the designer modal list
+    if (designerList) {
+        if (budgetItems.length === 0) {
+            designerList.innerHTML = `<div class="empty-state" style="padding: 1.5rem 0; color: var(--text-muted); text-align: center; font-style: italic;">No categories defined. Add one below to start.</div>`;
+        } else {
+            designerList.innerHTML = budgetItems.map(item => `
+                <div class="designer-row">
+                    <div class="designer-row-info">
+                        <span class="designer-category-name">${escapeHTML(item.category)}</span>
+                        <span class="designer-category-val">Daily allocation: <span>KES ${item.amount.toFixed(2)}</span></span>
+                    </div>
+                    <button class="icon-link-btn cancel-btn" onclick="deleteCategory(${item.id})" title="Delete allocation category">
+                        <i data-lucide="trash-2" style="width: 1.1rem; height: 1.1rem;"></i>
+                    </button>
+                </div>
+            `).join("");
+            // Re-render Lucide icons for trash bin
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
+    }
+    
+    // 3. Render total sum in modal
+    if (designerTotal) {
+        const totalSum = budgetItems.reduce((acc, curr) => acc + curr.amount, 0);
+        designerTotal.innerText = `KES ${totalSum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+}
+
+// Simple HTML Escaper for security
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}
+
+// Call API to delete budget category allocation item
+async function deleteCategory(itemId) {
+    if (!confirm("Are you sure you want to delete this category?")) return;
+    
+    try {
+        const res = await fetch(`/api/budget/items/${itemId}`, { method: "DELETE" });
+        if (res.status === 401) return showAuthScreen();
+        if (!res.ok) throw new Error("Deletion failed");
+        
+        pollDashboardData();
+    } catch (err) {
+        console.error(err);
+        alert("Failed to delete category.");
+    }
+}
+
+// Attach to window so onclick attribute can bind successfully
+window.deleteCategory = deleteCategory;

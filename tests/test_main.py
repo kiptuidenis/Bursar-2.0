@@ -29,6 +29,7 @@ def clean_db():
     cursor.execute("DELETE FROM settings")
     cursor.execute("DELETE FROM payouts")
     cursor.execute("DELETE FROM logs")
+    cursor.execute("DELETE FROM budget_items")
     cursor.execute("PRAGMA foreign_keys = ON")
     conn.commit()
     yield
@@ -208,3 +209,58 @@ def test_b2c_callbacks_success_and_failure():
     payout_fail = db.get_payouts(user_id=user_id)[0]
     assert payout_fail["status"] == "FAILED"
     assert db.get_settings(user_id=user_id)["balance"] == 700.0  # 450 + 250 refund
+
+def test_budget_items_api_flow():
+    # Register and login a user to get session cookie
+    signup_res = client.post("/api/auth/signup", json={"phone_number": "0722334455", "password": "passwordpin"})
+    assert signup_res.status_code == 200
+    login_res = client.post("/api/auth/login", json={"phone_number": "0722334455", "password": "passwordpin"})
+    assert login_res.status_code == 200
+    
+    # 1. Fetch budget items (should be empty initially)
+    fetch_res = client.get("/api/budget/items")
+    assert fetch_res.status_code == 200
+    assert fetch_res.json() == []
+    
+    # 2. Add budget item
+    add_payload = {"category": "Food", "amount": 350.0}
+    add_res = client.post("/api/budget/items", json=add_payload)
+    assert add_res.status_code == 200
+    assert add_res.json()["status"] == "success"
+    
+    # Verify settings daily_budget updated
+    settings_res = client.get("/api/settings")
+    assert settings_res.json()["daily_budget"] == 350.0
+    
+    # 3. Add second budget item
+    add_res2 = client.post("/api/budget/items", json={"category": "Fare", "amount": 150.0})
+    assert add_res2.status_code == 200
+    
+    # Verify total daily budget
+    settings_res2 = client.get("/api/settings")
+    assert settings_res2.json()["daily_budget"] == 500.0
+    
+    # Get items list
+    items = client.get("/api/budget/items").json()
+    assert len(items) == 2
+    
+    # 4. Delete item
+    fare_item = next(item for item in items if item["category"] == "Fare")
+    del_res = client.delete(f"/api/budget/items/{fare_item['id']}")
+    assert del_res.status_code == 200
+    
+    # Verify total daily budget updated
+    settings_res3 = client.get("/api/settings")
+    assert settings_res3.json()["daily_budget"] == 350.0
+
+def test_budget_items_api_unauthorized():
+    # Instantiate a clean client to ensure no session cookies exist
+    local_client = TestClient(app)
+    
+    # Try fetching without auth
+    res = local_client.get("/api/budget/items")
+    assert res.status_code == 401
+    
+    # Try adding without auth
+    res_add = local_client.post("/api/budget/items", json={"category": "Test", "amount": 100.0})
+    assert res_add.status_code == 401

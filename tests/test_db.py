@@ -123,3 +123,37 @@ def test_system_logs_isolation(db):
     assert len(logs2) == 1
     assert logs2[0]["message"] == "User 2 event"
     assert logs2[0]["level"] == "ERROR"
+
+def test_budget_items_operations(db):
+    user1_id = db.create_user("254712345678", "pass1")
+    user2_id = db.create_user("254711223344", "pass2")
+    
+    # Verify both start with empty allocations
+    items1 = db.get_budget_items(user1_id)
+    items2 = db.get_budget_items(user2_id)
+    assert len(items1) == 0
+    assert len(items2) == 0
+    
+    # Add items for user 1
+    id1 = db.add_or_update_budget_item(user1_id, "Food", 300.0)
+    id2 = db.add_or_update_budget_item(user1_id, "Fare", 150.0)
+    assert id1 is not None
+    assert id2 is not None
+    
+    # Verify sum in daily_budget settings
+    settings1 = db.get_settings(user1_id)
+    assert settings1["daily_budget"] == 450.0
+    
+    # Verify multi-tenant isolation (user 2 still has daily_budget 0)
+    settings2 = db.get_settings(user2_id)
+    assert settings2["daily_budget"] == 0.0
+    
+    # Update category amount for user 1
+    db.add_or_update_budget_item(user1_id, "Food", 350.0)
+    settings1_updated = db.get_settings(user1_id)
+    assert settings1_updated["daily_budget"] == 500.0
+    
+    # Delete item and verify recalculation
+    db.delete_budget_item(user1_id, id2) # delete Fare
+    settings1_deleted = db.get_settings(user1_id)
+    assert settings1_deleted["daily_budget"] == 350.0

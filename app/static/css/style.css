@@ -898,4 +898,93 @@ body {
     -moz-appearance: textfield;
 }
 
+/* Budget Designer Styles */
+.card-body-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+    width: 100%;
+}
+
+.category-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-glass);
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: var(--transition-smooth);
+}
+
+.category-pill:hover {
+    border-color: rgba(142, 68, 255, 0.3);
+    color: var(--text-primary);
+    background: rgba(142, 68, 255, 0.08);
+}
+
+.category-pill-amount {
+    color: var(--color-accent-violet);
+    font-weight: 600;
+}
+
+/* Designer Rows in Modal */
+.category-designer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 0.4rem;
+}
+
+.designer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-glass);
+    padding: 0.6rem 1rem;
+    border-radius: 0.6rem;
+    transition: var(--transition-smooth);
+}
+
+.designer-row:hover {
+    border-color: var(--border-glass-focus);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.designer-row-info {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.designer-category-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.designer-category-val {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.designer-category-val span {
+    color: var(--color-accent-violet);
+    font-weight: 600;
+}
+
+.designer-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+
 
