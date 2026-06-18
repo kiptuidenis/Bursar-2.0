@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bursar 2.0 — Premium Personal Money Manager</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- CSS Style -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <i data-lucide="wallet" class="logo-icon"></i>
+                <div class="logo-text">
+                    <h1>BURSAR <span class="version-tag">2.0</span></h1>
+                    <p class="subtitle">Automated Micro-Allowance Scheduler</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="status-badge" id="mode-badge">
+                    <span class="pulse-dot"></span>
+                    <span id="current-mode-text">Simulation Mode</span>
+                </div>
+                <div class="user-badge" id="user-badge" style="display: none;">
+                    <i data-lucide="user"></i>
+                    <span id="user-phone-number"></span>
+                </div>
+                <button class="icon-btn" id="toggle-settings-btn" title="Toggle Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+                <button class="icon-btn logout-btn" id="logout-btn" title="Log Out" style="display: none;">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <main class="dashboard-grid">
+            <!-- Balance Card -->
+            <section class="metric-card glass-panel" id="balance-card">
+                <div class="card-header">
+                    <span class="card-title">Wallet Balance</span>
+                    <i data-lucide="coins" class="card-icon accent-emerald"></i>
+                </div>
+                <div class="card-body">
+                    <span class="currency">KES</span>
+                    <span class="amount-value" id="wallet-balance">0.00</span>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-primary" id="open-deposit-btn">
+                        <i data-lucide="plus-circle"></i> Deposit Funds
+                    </button>
+                </div>
+            </section>
+
+            <!-- Daily Budget Card -->
+            <section class="metric-card glass-panel" id="budget-card">
+                <div class="card-header">
+                    <span class="card-title">Daily Budget</span>
+                    <div class="card-header-actions">
+                        <button class="icon-link-btn" id="edit-budget-btn" title="Edit Budget">
+                            <i data-lucide="edit-3"></i>
+                        </button>
+                        <div id="inline-budget-controls" style="display: none;">
+                            <button class="icon-link-btn save-btn" id="save-budget-btn" title="Save"><i data-lucide="check"></i></button>
+                            <button class="icon-link-btn cancel-btn" id="cancel-budget-btn" title="Cancel"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <span class="currency" id="budget-currency-label">KES</span>
+                    <span class="amount-value" id="daily-budget-value">0.00</span>
+                    <input type="number" id="inline-budget-input" class="inline-amount-input" style="display: none;" min="0" step="any">
+                </div>
+                <div class="card-footer">
+                    <span class="footer-info" id="payout-time-info">Payout at 08:00</span>
+                </div>
+            </section>
+
+            <!-- Distribution Countdown Card -->
+            <section class="metric-card glass-panel" id="countdown-card">
+                <div class="card-header">
+                    <span class="card-title">Next Payout</span>
+                    <i data-lucide="clock" class="card-icon accent-violet"></i>
+                </div>
+                <div class="card-body">
+                    <span class="amount-value countdown-value" id="countdown-timer">--h --m --s</span>
+                </div>
+            </section>
+        </main>
+
+        <!-- Dynamic Content Section -->
+        <div class="content-row">
+            <!-- Payout History Table -->
+            <section class="history-section glass-panel">
+                <div class="section-header">
+                    <h2><i data-lucide="history"></i> Distribution Payouts</h2>
+                    <span class="table-count" id="payout-count-badge">0 total</span>
+                </div>
+                <div class="table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Recipient</th>
+                                <th>M-Pesa Ref</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payout-history-body">
+                            <tr>
+                                <td colspan="5" class="empty-state">No payouts recorded yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Console Log Output -->
+            <section class="logs-section glass-panel">
+                <div class="section-header">
+                    <h2><i data-lucide="terminal"></i> System Activity Logs</h2>
+                    <button class="text-link-btn" id="clear-logs-btn">Clear View</button>
+                </div>
+                <div class="console-box" id="logs-console">
+                    <div class="log-line log-info">[System] Console initialized... Ready.</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal-overlay" id="deposit-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>Deposit Money</h3>
+                <button class="close-btn" id="close-deposit-btn">&times;</button>
+            </div>
+            <form id="deposit-form">
+                <div class="form-group">
+                    <label for="deposit-amount">Amount (KES)</label>
+                    <input type="number" id="deposit-amount" placeholder="e.g. 5000" min="1" step="any" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Confirm Deposit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Overlay Drawer -->
+    <div class="drawer-overlay" id="settings-drawer">
+        <div class="drawer-content glass-panel">
+            <div class="drawer-header">
+                <h3><i data-lucide="sliders-horizontal"></i> Configuration Settings</h3>
+                <button class="close-btn" id="close-settings-btn">&times;</button>
+            </div>
+            <form id="settings-form" class="drawer-form">
+                <!-- Mode Choice -->
+                <div class="form-group">
+                    <label>Application Mode</label>
+                    <div class="mode-selector">
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="simulation" checked>
+                            <span class="mode-option-label">Simulation</span>
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="sandbox">
+                            <span class="mode-option-label">Sandbox</span>
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="live">
+                            <span class="mode-option-label">Live M-Pesa</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Core Wallet Config -->
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="settings-budget">Daily Budget (KES)</label>
+                        <input type="number" id="settings-budget" min="0" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-time">Payout Time (HH:MM)</label>
+                        <input type="time" id="settings-time" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="settings-phone">Target Mobile Number (254...)</label>
+                    <input type="text" id="settings-phone" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
+                </div>
+
+                <!-- API Credentials (only visible when not in simulation) -->
+                <div class="credentials-group" id="mpesa-credentials-fields">
+                    <h4 class="group-title">Safaricom Daraja API Keys</h4>
+                    
+                    <div class="form-group">
+                        <label for="settings-key">Consumer Key</label>
+                        <input type="text" id="settings-key" placeholder="Enter Consumer Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-secret">Consumer Secret</label>
+                        <input type="password" id="settings-secret" placeholder="Enter Consumer Secret">
+                    </div>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="settings-shortcode">B2C Shortcode</label>
+                            <input type="text" id="settings-shortcode" placeholder="e.g. 600298">
+                        </div>
+                        <div class="form-group">
+                            <label for="settings-initiator">Initiator Username</label>
+                            <input type="text" id="settings-initiator" placeholder="e.g. testapi">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="settings-password">Initiator Password</label>
+                        <input type="password" id="settings-password" placeholder="Enter Initiator Password">
+                    </div>
+
+                    <h4 class="group-title">Callback Endpoints</h4>
+                    <div class="form-group">
+                        <label for="settings-result-url">B2C Result URL (HTTPS required)</label>
+                        <input type="url" id="settings-result-url" placeholder="https://domain.com/api/callbacks/b2c-result">
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-timeout-url">B2C Timeout URL (HTTPS required)</label>
+                        <input type="url" id="settings-timeout-url" placeholder="https://domain.com/api/callbacks/b2c-timeout">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">Save Configuration</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Authentication Overlay -->
+    <div class="auth-overlay" id="auth-overlay">
+        <div class="auth-card glass-panel">
+            <div class="auth-header">
+                <i data-lucide="wallet" class="logo-icon auth-logo-icon"></i>
+                <h2>BURSAR <span class="version-tag">2.0</span></h2>
+                <p class="subtitle" id="auth-subtitle">Log in to manage your daily allowances</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login">Log In</button>
+                <button class="auth-tab" id="tab-signup">Register</button>
+            </div>
+            
+            <form id="auth-form" class="auth-form">
+                <div class="form-group">
+                    <label for="auth-phone">Safaricom Phone Number</label>
+                    <input type="text" id="auth-phone" placeholder="e.g. 0712345678 or 254712345678" required>
+                </div>
+                <div class="form-group">
+                    <label for="auth-password" id="password-label">Password PIN</label>
+                    <input type="password" id="auth-password" placeholder="Enter password (min 4 chars)" required>
+                </div>
+                <div class="error-msg" id="auth-error-msg" style="display: none;"></div>
+                <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>

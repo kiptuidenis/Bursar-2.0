@@ -1,0 +1,24 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite Database Files
+*.db
+*.db-journal
+
+# Testing Cache
+.pytest_cache/
+
+# Local Environment Variables
+.env
+
+# Safaricom Certificates
+SandboxCertificate.cer
+ProductionCertificate.cer
