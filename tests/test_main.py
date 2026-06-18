@@ -320,3 +320,27 @@ def test_locking_api_constraints():
     # Budget is locked now
     assert c2.get("/api/settings").json()["is_budget_locked"] is True
 
+def test_settings_disbursement_dates():
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000003", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000003", "password": "pinpassword"})
+    
+    # 1. Invalid date formats
+    res1 = c.post("/api/settings", json={"start_date": "20-06-2026"})
+    assert res1.status_code == 400
+    
+    res2 = c.post("/api/settings", json={"end_date": "2026/06/25"})
+    assert res2.status_code == 400
+    
+    # 2. End date earlier than start date
+    res3 = c.post("/api/settings", json={"start_date": "2026-06-25", "end_date": "2026-06-20"})
+    assert res3.status_code == 400
+    
+    # 3. Successful update
+    res4 = c.post("/api/settings", json={"start_date": "2026-06-20", "end_date": "2026-06-25"})
+    assert res4.status_code == 200
+    settings = c.get("/api/settings").json()
+    assert settings["start_date"] == "2026-06-20"
+    assert settings["end_date"] == "2026-06-25"
+
+

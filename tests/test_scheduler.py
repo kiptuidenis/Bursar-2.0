@@ -122,3 +122,37 @@ async def test_scheduler_rollback_on_mpesa_error(db):
     assert len(payouts) == 1
     assert payouts[0]["status"] == "FAILED"
     assert "Connection Timeout" in payouts[0]["error_message"]
+
+@pytest.mark.asyncio
+async def test_scheduler_date_bounds(db):
+    user_id = db.create_user("254712345678", "pass")
+    db.update_settings(
+        user_id, 
+        balance=1000.0, 
+        daily_budget=100.0, 
+        payout_time="08:00",
+        start_date="2026-06-20",
+        end_date="2026-06-25"
+    )
+    
+    mock_client = AsyncMock()
+    mock_client.send_b2c_payout.return_value = {
+        "ConversationID": "mock_conv",
+        "ResponseCode": "0"
+    }
+    
+    # Case 1: Before start date (should not trigger)
+    t1 = datetime.datetime(2026, 6, 19, 8, 5, 0)
+    assert await check_and_trigger_payout(db, mock_client, t1, user_id=user_id) is False
+    
+    # Case 2: During active range (should trigger)
+    t2 = datetime.datetime(2026, 6, 21, 8, 5, 0)
+    assert await check_and_trigger_payout(db, mock_client, t2, user_id=user_id) is True
+    
+    # Reset balance and payouts for Case 3
+    db.update_settings(user_id, balance=1000.0)
+    
+    # Case 3: After end date (should not trigger)
+    t3 = datetime.datetime(2026, 6, 26, 8, 5, 0)
+    assert await check_and_trigger_payout(db, mock_client, t3, user_id=user_id) is False
+

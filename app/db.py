@@ -60,6 +60,10 @@ class DatabaseManager:
                 mpesa_initiator_password TEXT DEFAULT '',
                 mpesa_b2c_result_url TEXT DEFAULT '',
                 mpesa_b2c_timeout_url TEXT DEFAULT '',
+                budget_locked_until TEXT DEFAULT '',
+                deposit_locked_until TEXT DEFAULT '',
+                start_date TEXT DEFAULT '',
+                end_date TEXT DEFAULT '',
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
@@ -114,6 +118,10 @@ class DatabaseManager:
             cursor.execute("ALTER TABLE settings ADD COLUMN budget_locked_until TEXT DEFAULT ''")
         if "deposit_locked_until" not in columns:
             cursor.execute("ALTER TABLE settings ADD COLUMN deposit_locked_until TEXT DEFAULT ''")
+        if "start_date" not in columns:
+            cursor.execute("ALTER TABLE settings ADD COLUMN start_date TEXT DEFAULT ''")
+        if "end_date" not in columns:
+            cursor.execute("ALTER TABLE settings ADD COLUMN end_date TEXT DEFAULT ''")
             
         conn.commit()
 

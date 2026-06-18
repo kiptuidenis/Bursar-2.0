@@ -30,6 +30,17 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
     if daily_budget <= 0:
         return False
         
+    # Check start and end date bounds
+    start_date_str = settings.get("start_date", "")
+    end_date_str = settings.get("end_date", "")
+    today_date_str = current_time.strftime("%Y-%m-%d")
+    
+    if start_date_str and today_date_str < start_date_str:
+        return False
+        
+    if end_date_str and today_date_str > end_date_str:
+        return False
+        
     # 2. Check current time vs payout_time
     try:
         hour, minute = map(int, payout_time_str.split(":"))

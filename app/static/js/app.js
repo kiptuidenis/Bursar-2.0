@@ -138,12 +138,16 @@ function setupEventHandlers() {
         const daily_budget = parseFloat(document.getElementById("settings-budget").value);
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value;
+        const start_date = document.getElementById("settings-start-date").value || "";
+        const end_date = document.getElementById("settings-end-date").value || "";
         
         const payload = {
             mode,
             daily_budget,
             payout_time,
             phone_number,
+            start_date,
+            end_date,
             mpesa_consumer_key: document.getElementById("settings-key").value,
             mpesa_consumer_secret: document.getElementById("settings-secret").value,
             mpesa_shortcode: document.getElementById("settings-shortcode").value,
@@ -446,6 +450,8 @@ function updateDashboardMetrics(settings) {
 
     document.getElementById(`settings-time`).value = settings.payout_time || "08:00";
     document.getElementById(`settings-phone`).value = settings.phone_number || "";
+    document.getElementById(`settings-start-date`).value = settings.start_date || "";
+    document.getElementById(`settings-end-date`).value = settings.end_date || "";
     
     document.getElementById(`settings-key`).value = settings.mpesa_consumer_key || "";
     document.getElementById(`settings-secret`).value = settings.mpesa_consumer_secret || "";
