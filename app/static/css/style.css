@@ -1048,6 +1048,58 @@ body {
     background: rgba(142, 68, 255, 0.45);
 }
 
+/* Toggle Switch Styles */
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.08);
+    transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 12px;
+    border: 1px solid var(--border-glass);
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ffffff;
+    transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.switch-toggle input:checked + .switch-slider {
+    background-color: rgba(142, 68, 255, 0.35);
+    border-color: rgba(142, 68, 255, 0.6);
+}
+
+.switch-toggle input:checked + .switch-slider:before {
+    transform: translateX(20px);
+    background-color: #ffffff;
+    box-shadow: 0 0 10px rgba(142, 68, 255, 0.5);
+}
+
 
 
 

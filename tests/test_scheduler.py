@@ -33,7 +33,7 @@ async def test_scheduler_does_not_trigger_before_scheduled_time(db):
     user_id = db.create_user("254712345678", "pass")
     
     # Setup settings: Balance 1000, Budget 100, Payout at 08:00, current time 07:59
-    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00")
+    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00", mode="simulation")
     
     current_time = datetime.datetime(2026, 6, 18, 7, 59, 0)
     mock_client = AsyncMock()
@@ -47,7 +47,7 @@ async def test_scheduler_does_not_trigger_before_scheduled_time(db):
 @pytest.mark.asyncio
 async def test_scheduler_triggers_after_scheduled_time(db):
     user_id = db.create_user("254712345678", "pass")
-    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00")
+    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00", mode="simulation")
     
     current_time = datetime.datetime(2026, 6, 18, 8, 1, 0)
     mock_client = AsyncMock()
@@ -72,7 +72,7 @@ async def test_scheduler_triggers_after_scheduled_time(db):
 @pytest.mark.asyncio
 async def test_scheduler_double_spend_protection(db):
     user_id = db.create_user("254712345678", "pass")
-    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00")
+    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00", mode="simulation")
     
     # Pre-insert payout
     db.create_payout(user_id, "2026-06-18", 100.0, "254712345678", "SUCCESS", "existing_conv")
@@ -90,7 +90,7 @@ async def test_scheduler_double_spend_protection(db):
 @pytest.mark.asyncio
 async def test_scheduler_insufficient_balance(db):
     user_id = db.create_user("254712345678", "pass")
-    db.update_settings(user_id, balance=50.0, daily_budget=100.0, payout_time="08:00")
+    db.update_settings(user_id, balance=50.0, daily_budget=100.0, payout_time="08:00", mode="simulation")
     
     current_time = datetime.datetime(2026, 6, 18, 8, 15, 0)
     mock_client = AsyncMock()
@@ -107,7 +107,7 @@ async def test_scheduler_insufficient_balance(db):
 @pytest.mark.asyncio
 async def test_scheduler_rollback_on_mpesa_error(db):
     user_id = db.create_user("254712345678", "pass")
-    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00")
+    db.update_settings(user_id, balance=1000.0, daily_budget=100.0, payout_time="08:00", mode="simulation")
     
     current_time = datetime.datetime(2026, 6, 18, 8, 5, 0)
     mock_client = AsyncMock()
@@ -132,7 +132,8 @@ async def test_scheduler_date_bounds(db):
         daily_budget=100.0, 
         payout_time="08:00",
         start_date="2026-06-20",
-        end_date="2026-06-25"
+        end_date="2026-06-25",
+        mode="simulation"
     )
     
     mock_client = AsyncMock()

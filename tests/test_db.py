@@ -55,18 +55,18 @@ def test_settings_isolation(db):
     assert settings2["balance"] == 0.0
     
     # Update settings for user 1
-    db.update_settings(user1_id, balance=3500.0, daily_budget=150.0, mode="sandbox")
+    db.update_settings(user1_id, balance=3500.0, daily_budget=150.0, mode="live")
     
     # Verify settings updated for user 1, but user 2 remains unchanged
     s1 = db.get_settings(user1_id)
     s2 = db.get_settings(user2_id)
     assert s1["balance"] == 3500.0
     assert s1["daily_budget"] == 150.0
-    assert s1["mode"] == "sandbox"
+    assert s1["mode"] == "live"
     
     assert s2["balance"] == 0.0
     assert s2["daily_budget"] == 0.0
-    assert s2["mode"] == "simulation"
+    assert s2["mode"] == "sandbox"
 
 def test_balance_adjustment_isolation(db):
     user1_id = db.create_user("254712345678", "pass1")

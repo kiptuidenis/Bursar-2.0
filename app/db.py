@@ -52,7 +52,7 @@ class DatabaseManager:
                 daily_budget REAL DEFAULT 0.0,
                 phone_number TEXT DEFAULT '',
                 payout_time TEXT DEFAULT '08:00',
-                mode TEXT DEFAULT 'simulation',
+                mode TEXT DEFAULT 'sandbox',
                 mpesa_consumer_key TEXT DEFAULT '',
                 mpesa_consumer_secret TEXT DEFAULT '',
                 mpesa_shortcode TEXT DEFAULT '',
@@ -122,6 +122,9 @@ class DatabaseManager:
             cursor.execute("ALTER TABLE settings ADD COLUMN start_date TEXT DEFAULT ''")
         if "end_date" not in columns:
             cursor.execute("ALTER TABLE settings ADD COLUMN end_date TEXT DEFAULT ''")
+            
+        # Migrate any legacy 'simulation' modes to 'sandbox'
+        cursor.execute("UPDATE settings SET mode = 'sandbox' WHERE mode = 'simulation'")
             
         conn.commit()
 

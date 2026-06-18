@@ -134,7 +134,7 @@ function setupEventHandlers() {
     document.getElementById("settings-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        const mode = currentSettings.mode || "simulation";
+        const mode = document.getElementById("settings-live-mode").checked ? "live" : "sandbox";
         const daily_budget = parseFloat(document.getElementById("settings-budget").value);
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value;
@@ -467,10 +467,11 @@ function updateDashboardMetrics(settings) {
     document.getElementById(`settings-result-url`).value = settings.mpesa_b2c_result_url || "";
     document.getElementById(`settings-timeout-url`).value = settings.mpesa_b2c_timeout_url || "";
 
-    const radio = document.querySelector(`input[name="mode"][value="${settings.mode || "simulation"}"]`);
-    if (radio) radio.checked = true;
-
-    toggleCredentialsFields(settings.mode || "simulation");
+    const liveModeCheckbox = document.getElementById("settings-live-mode");
+    if (liveModeCheckbox) {
+        liveModeCheckbox.checked = (settings.mode === "live");
+    }
+    toggleCredentialsFields(settings.mode || "sandbox");
 }
 
 // Fetch historical payout transaction rows
