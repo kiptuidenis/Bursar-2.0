@@ -170,6 +170,10 @@ def get_settings(user_id: int = Depends(get_current_user_id), db: DatabaseManage
             masked[field] = "********"
         else:
             masked[field] = ""
+            
+    # Add derived lock flags
+    masked["is_budget_locked"] = db.is_budget_locked(user_id)
+    masked["is_deposit_locked"] = db.is_deposit_locked(user_id)
     return masked
 
 @app.post("/api/settings")
@@ -179,6 +183,21 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
         raise HTTPException(status_code=400, detail="No settings provided to update")
         
     current = db.get_settings(user_id)
+    
+    # 1. Enforce budget lock on daily_budget updates
+    if "daily_budget" in updates:
+        new_val = updates["daily_budget"]
+        old_val = current.get("daily_budget", 0.0) if current else 0.0
+        if new_val != old_val and db.is_budget_locked(user_id):
+            raise HTTPException(status_code=400, detail="Daily budget is locked until the end of the month.")
+            
+    # 2. Enforce deposit lock on balance updates (reject decreases)
+    if "balance" in updates:
+        new_bal = updates["balance"]
+        old_bal = current.get("balance", 0.0) if current else 0.0
+        if new_bal < old_bal and db.is_deposit_locked(user_id):
+            raise HTTPException(status_code=400, detail="Deposits are locked and balance cannot be manually decreased until the end of the month.")
+            
     for field in ["mpesa_consumer_secret", "mpesa_initiator_password"]:
         if updates.get(field) == "********":
             if current and current.get(field):
@@ -188,15 +207,36 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
                 
     db.update_settings(user_id, **updates)
     db.log_event(user_id, "INFO", "Wallet and API configuration updated.")
-    return {"status": "success", "settings": db.get_settings(user_id)}
+    
+    res = db.get_settings(user_id)
+    # Expose derived lock flags in return payload
+    res_dict = dict(res) if res else {}
+    res_dict["is_budget_locked"] = db.is_budget_locked(user_id)
+    res_dict["is_deposit_locked"] = db.is_deposit_locked(user_id)
+    return {"status": "success", "settings": res_dict}
 
 @app.post("/api/deposit")
 def deposit_funds(payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     db.adjust_balance(user_id, payload.amount)
     db.log_event(user_id, "INFO", f"Deposited KES {payload.amount:.2f} into wallet.")
     
-    new_balance = db.get_settings(user_id).get("balance", 0.0)
-    return {"status": "success", "new_balance": new_balance}
+    # Auto-lock deposit for the month
+    db.lock_deposit(user_id)
+    
+    # Auto-lock budget if user already has budget categories configured
+    items = db.get_budget_items(user_id)
+    if items:
+        db.lock_budget(user_id)
+        db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+        
+    settings = db.get_settings(user_id)
+    new_balance = settings.get("balance", 0.0)
+    return {
+        "status": "success", 
+        "new_balance": new_balance,
+        "is_budget_locked": db.is_budget_locked(user_id),
+        "is_deposit_locked": db.is_deposit_locked(user_id)
+    }
 
 @app.get("/api/payouts")
 def list_payouts(limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
@@ -214,6 +254,9 @@ def list_budget_items(user_id: int = Depends(get_current_user_id), db: DatabaseM
 
 @app.post("/api/budget/items")
 def add_or_update_budget_item(payload: BudgetItemPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    if db.is_budget_locked(user_id):
+        raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+        
     category = payload.category.strip()
     if not category:
         raise HTTPException(status_code=400, detail="Category name cannot be empty")
@@ -224,10 +267,22 @@ def add_or_update_budget_item(payload: BudgetItemPayload, user_id: int = Depends
 
 @app.delete("/api/budget/items/{item_id}")
 def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    if db.is_budget_locked(user_id):
+        raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+        
     deleted = db.delete_budget_item(user_id, item_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Budget item not found")
     return {"status": "success", "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
+
+@app.post("/api/budget/lock")
+def lock_budget_endpoint(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    items = db.get_budget_items(user_id)
+    if not items:
+        raise HTTPException(status_code=400, detail="Cannot lock an empty budget. Please create budget items first.")
+    db.lock_budget(user_id)
+    db.log_event(user_id, "INFO", "Budget configuration locked until the end of the month.")
+    return {"status": "success", "budget_locked_until": db.get_settings(user_id).get("budget_locked_until", "")}
 
 @app.post("/api/payout/trigger")
 async def trigger_payout_manually(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):

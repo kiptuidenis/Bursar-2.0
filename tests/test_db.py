@@ -157,3 +157,24 @@ def test_budget_items_operations(db):
     db.delete_budget_item(user1_id, id2) # delete Fare
     settings1_deleted = db.get_settings(user1_id)
     assert settings1_deleted["daily_budget"] == 350.0
+
+def test_budget_and_deposit_locking(db):
+    user_id = db.create_user("254712345678", "pass1")
+    
+    # Initially unlocked
+    assert db.is_budget_locked(user_id) is False
+    assert db.is_deposit_locked(user_id) is False
+    
+    # Lock budget
+    db.lock_budget(user_id)
+    assert db.is_budget_locked(user_id) is True
+    
+    # Lock deposit
+    db.lock_deposit(user_id)
+    assert db.is_deposit_locked(user_id) is True
+    
+    # Verify values stored
+    settings = db.get_settings(user_id)
+    assert settings["budget_locked_until"] != ""
+    assert settings["deposit_locked_until"] != ""
+

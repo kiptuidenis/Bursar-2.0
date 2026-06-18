@@ -264,3 +264,59 @@ def test_budget_items_api_unauthorized():
     # Try adding without auth
     res_add = local_client.post("/api/budget/items", json={"category": "Test", "amount": 100.0})
     assert res_add.status_code == 401
+
+def test_locking_api_constraints():
+    c = TestClient(app)
+    # 1. Signup & login
+    c.post("/api/auth/signup", json={"phone_number": "254700000001", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000001", "password": "pinpassword"})
+    
+    # Verify settings are initially unlocked
+    settings_res = c.get("/api/settings").json()
+    assert settings_res["is_budget_locked"] is False
+    assert settings_res["is_deposit_locked"] is False
+    
+    # Add a budget item
+    add_item_res = c.post("/api/budget/items", json={"category": "Transport", "amount": 200.0})
+    assert add_item_res.status_code == 200
+    
+    # Now deposit funds (this should auto-lock both because budget items exist)
+    dep_res = c.post("/api/deposit", json={"amount": 1000.0})
+    assert dep_res.status_code == 200
+    assert dep_res.json()["is_budget_locked"] is True
+    assert dep_res.json()["is_deposit_locked"] is True
+    
+    # 2. Try adding another budget item (should fail with HTTP 400)
+    fail_add = c.post("/api/budget/items", json={"category": "Food", "amount": 300.0})
+    assert fail_add.status_code == 400
+    assert "locked" in fail_add.json()["detail"].lower()
+    
+    # Try deleting the existing budget item (should fail with HTTP 400)
+    items = c.get("/api/budget/items").json()
+    item_id = items[0]["id"]
+    fail_del = c.delete(f"/api/budget/items/{item_id}")
+    assert fail_del.status_code == 400
+    
+    # 3. Try changing daily budget directly in settings (should fail with HTTP 400)
+    fail_settings = c.post("/api/settings", json={"daily_budget": 500.0})
+    assert fail_settings.status_code == 400
+    
+    # 4. Try manual budget lock endpoint
+    # Create another client, signup and login
+    c2 = TestClient(app)
+    c2.post("/api/auth/signup", json={"phone_number": "254700000002", "password": "pinpassword"})
+    c2.post("/api/auth/login", json={"phone_number": "254700000002", "password": "pinpassword"})
+    
+    # Try locking empty budget (should fail)
+    fail_lock = c2.post("/api/budget/lock")
+    assert fail_lock.status_code == 400
+    
+    # Add item and lock manually
+    c2.post("/api/budget/items", json={"category": "Savings", "amount": 500.0})
+    lock_res = c2.post("/api/budget/lock")
+    assert lock_res.status_code == 200
+    assert lock_res.json()["budget_locked_until"] != ""
+    
+    # Budget is locked now
+    assert c2.get("/api/settings").json()["is_budget_locked"] is True
+

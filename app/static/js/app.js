@@ -360,6 +360,29 @@ function setupEventHandlers() {
             alert(err.message || "Failed to save category.");
         }
     });
+
+    // Lock Budget Button Handler
+    const lockBudgetBtn = document.getElementById("lock-budget-btn");
+    if (lockBudgetBtn) {
+        lockBudgetBtn.addEventListener("click", async () => {
+            if (!confirm("Are you sure you want to finalize and lock your budget? Once locked, you cannot add or delete allocation categories until the first day of next month.")) {
+                return;
+            }
+            try {
+                const res = await fetch("/api/budget/lock", { method: "POST" });
+                if (res.status === 401) return showAuthScreen();
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Failed to lock budget.");
+                }
+                alert("Budget successfully finalized and locked for this month! 🔒");
+                pollDashboardData();
+            } catch (err) {
+                console.error(err);
+                alert(err.message || "Failed to lock budget.");
+            }
+        });
+    }
 }
 
 // Shows/Hides Daraja fields in settings form
@@ -399,7 +422,28 @@ function updateDashboardMetrics(settings) {
     
     document.getElementById("payout-time-info").innerText = `Payout at ${settings.payout_time || "08:00"} to ${settings.phone_number || "none"}`;
 
-    document.getElementById(`settings-budget`).value = settings.daily_budget || 0;
+    const settingsBudgetInput = document.getElementById("settings-budget");
+    if (settingsBudgetInput) {
+        settingsBudgetInput.value = settings.daily_budget || 0;
+        if (settings.is_budget_locked) {
+            settingsBudgetInput.disabled = true;
+            settingsBudgetInput.title = "Budget is locked until the end of the month.";
+        } else {
+            settingsBudgetInput.disabled = false;
+            settingsBudgetInput.title = "";
+        }
+    }
+
+    const editBudgetBtn = document.getElementById("edit-budget-btn");
+    const budgetLockBadge = document.getElementById("budget-lock-badge");
+    if (settings.is_budget_locked) {
+        if (editBudgetBtn) editBudgetBtn.style.display = "none";
+        if (budgetLockBadge) budgetLockBadge.style.display = "inline-flex";
+    } else {
+        if (editBudgetBtn) editBudgetBtn.style.display = "inline-flex";
+        if (budgetLockBadge) budgetLockBadge.style.display = "none";
+    }
+
     document.getElementById(`settings-time`).value = settings.payout_time || "08:00";
     document.getElementById(`settings-phone`).value = settings.phone_number || "";
     
@@ -688,6 +732,9 @@ function renderBudgetBreakdown() {
     const designerList = document.getElementById("designer-category-list");
     const designerTotal = document.getElementById("designer-total-budget");
     
+    // Check lock states
+    const isLocked = currentSettings && currentSettings.is_budget_locked;
+    
     // Render rows inside the designer modal list
     if (designerList) {
         if (budgetItems.length === 0) {
@@ -699,9 +746,11 @@ function renderBudgetBreakdown() {
                         <span class="designer-category-name">${escapeHTML(item.category)}</span>
                         <span class="designer-category-val">Daily allocation: <span>KES ${item.amount.toFixed(2)}</span></span>
                     </div>
+                    ${isLocked ? '' : `
                     <button class="icon-link-btn cancel-btn" onclick="deleteCategory(${item.id})" title="Delete allocation category">
                         <i data-lucide="trash-2" style="width: 1.1rem; height: 1.1rem;"></i>
                     </button>
+                    `}
                 </div>
             `).join("");
             // Re-render Lucide icons for trash bin
@@ -711,10 +760,44 @@ function renderBudgetBreakdown() {
         }
     }
     
-    // 3. Render total sum in modal
+    // Render total sum in modal
     if (designerTotal) {
         const totalSum = budgetItems.reduce((acc, curr) => acc + curr.amount, 0);
         designerTotal.innerText = `KES ${totalSum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    
+    // Handle lock banner and add form states
+    const lockNotice = document.getElementById("budget-creator-lock-notice");
+    const lockNoticeText = document.getElementById("budget-lock-notice-text");
+    const lockBtn = document.getElementById("lock-budget-btn");
+    const addForm = document.getElementById("add-category-form");
+
+    if (isLocked) {
+        if (lockNotice) {
+            lockNotice.style.display = "flex";
+            if (lockNoticeText) {
+                lockNoticeText.innerHTML = `<strong>Locked:</strong> Allocations are locked until the end of the month to prevent overspending.`;
+            }
+        }
+        if (lockBtn) lockBtn.style.display = "none";
+        if (addForm) {
+            const inputs = addForm.querySelectorAll("input, button");
+            inputs.forEach(el => el.disabled = true);
+        }
+    } else {
+        if (lockNotice) lockNotice.style.display = "none";
+        if (addForm) {
+            const inputs = addForm.querySelectorAll("input, button");
+            inputs.forEach(el => el.disabled = false);
+        }
+        if (lockBtn) {
+            // Only show lock button if we have items
+            if (budgetItems.length > 0) {
+                lockBtn.style.display = "block";
+            } else {
+                lockBtn.style.display = "none";
+            }
+        }
     }
 }
 

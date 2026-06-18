@@ -107,6 +107,14 @@ class DatabaseManager:
             )
         """)
         
+        # Add dynamic locking columns to settings if they do not exist
+        cursor.execute("PRAGMA table_info(settings)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "budget_locked_until" not in columns:
+            cursor.execute("ALTER TABLE settings ADD COLUMN budget_locked_until TEXT DEFAULT ''")
+        if "deposit_locked_until" not in columns:
+            cursor.execute("ALTER TABLE settings ADD COLUMN deposit_locked_until TEXT DEFAULT ''")
+            
         conn.commit()
 
     # Cryptographic Hashing Helpers
@@ -219,6 +227,57 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute("UPDATE settings SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
         conn.commit()
+
+    def is_budget_locked(self, user_id: int) -> bool:
+        """Check if the user's budget allocations are locked for the current calendar month."""
+        settings = self.get_settings(user_id)
+        if not settings:
+            return False
+        locked_until = settings.get("budget_locked_until", "")
+        if not locked_until:
+            return False
+        import datetime
+        try:
+            lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
+            return datetime.date.today() < lock_date
+        except ValueError:
+            return False
+
+    def is_deposit_locked(self, user_id: int) -> bool:
+        """Check if the user's deposited funds are locked for the current calendar month."""
+        settings = self.get_settings(user_id)
+        if not settings:
+            return False
+        locked_until = settings.get("deposit_locked_until", "")
+        if not locked_until:
+            return False
+        import datetime
+        try:
+            lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
+            return datetime.date.today() < lock_date
+        except ValueError:
+            return False
+
+    def _get_first_of_next_month(self) -> str:
+        """Calculate the first day of the next calendar month as 'YYYY-MM-DD'."""
+        import datetime
+        dt = datetime.date.today()
+        if dt.month == 12:
+            next_month = datetime.date(dt.year + 1, 1, 1)
+        else:
+            next_month = datetime.date(dt.year, dt.month + 1, 1)
+        return next_month.strftime("%Y-%m-%d")
+
+    def lock_budget(self, user_id: int) -> None:
+        """Lock the budget configuration until the first day of the next calendar month."""
+        lock_date = self._get_first_of_next_month()
+        self.update_settings(user_id, budget_locked_until=lock_date)
+
+    def lock_deposit(self, user_id: int) -> None:
+        """Lock the deposit balance until the first day of the next calendar month."""
+        lock_date = self._get_first_of_next_month()
+        self.update_settings(user_id, deposit_locked_until=lock_date)
+
 
     # Payout Operations (Isolated per user)
     def create_payout(self, user_id: int, payout_date: str, amount: float, phone_number: str, 

@@ -63,7 +63,12 @@
             <!-- Daily Budget Card -->
             <section class="metric-card glass-panel" id="budget-card">
                 <div class="card-header">
-                    <span class="card-title">Daily Budget</span>
+                    <span class="card-title">
+                        Daily Budget
+                        <span id="budget-lock-badge" class="lock-badge" style="display: none;">
+                            <i data-lucide="lock" style="width: 0.75rem; height: 0.75rem;"></i> Locked
+                        </span>
+                    </span>
                     <div class="card-header-actions">
                         <button class="icon-link-btn" id="edit-budget-btn" title="Edit Budget">
                             <i data-lucide="edit-3"></i>
@@ -151,6 +156,10 @@
                     <label for="deposit-amount">Amount (KES)</label>
                     <input type="number" id="deposit-amount" placeholder="e.g. 5000" min="1" step="any" required>
                 </div>
+                <div class="info-alert lock-warning-alert" style="margin-bottom: 1.2rem; display: flex; align-items: flex-start; gap: 0.5rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+                    <i data-lucide="alert-triangle" style="color: var(--color-accent-orange); shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
+                    <span><strong>Lock Notice:</strong> Once deposited, funds are final and locked until the end of the month. They can only be distributed via daily payouts.</span>
+                </div>
                 <button type="submit" class="btn btn-primary btn-block">Confirm Deposit</button>
             </form>
         </div>
@@ -165,6 +174,11 @@
             </div>
             <div class="designer-body" style="display: flex; flex-direction: column; gap: 1rem;">
                 <p class="subtitle" style="margin-bottom: 0.5rem;">Segment your daily budget into custom categories (e.g. food, transport).</p>
+                
+                <div id="budget-creator-lock-notice" class="info-alert lock-warning-alert" style="display: none; margin-bottom: 0.5rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted); align-items: flex-start; gap: 0.5rem;">
+                    <i data-lucide="lock" style="color: #ef4444; shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
+                    <span id="budget-lock-notice-text"></span>
+                </div>
                 
                 <!-- Category List -->
                 <div class="category-designer-list" id="designer-category-list">
@@ -188,9 +202,14 @@
                     </button>
                 </form>
             </div>
-            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
-                <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
-                <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
+            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
+                    <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
+                </div>
+                <button id="lock-budget-btn" class="btn btn-block" style="display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.12); color: #f59e0b; padding: 0.65rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                    <i data-lucide="lock" style="width: 1rem; height: 1rem; vertical-align: middle; margin-right: 0.3rem; display: inline-block;"></i> Lock & Finalize Budget
+                </button>
             </div>
         </div>
     </div>
