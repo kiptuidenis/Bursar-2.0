@@ -932,12 +932,26 @@ body {
     font-weight: 600;
 }
 
+/* Budget Creator / Designer Styles */
+#budget-designer-modal .modal-content {
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#budget-designer-modal .designer-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 0.5rem;
+}
+
 /* Designer Rows in Modal */
 .category-designer-list {
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-    max-height: 220px;
+    max-height: 180px; /* Constrain list height to keep modal layout clean and tidy */
     overflow-y: auto;
     padding-right: 0.4rem;
 }
@@ -1002,6 +1016,27 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+/* Custom Scrollbar Styles for Glassmorphic Theme */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(142, 68, 255, 0.25);
+    border-radius: 3px;
+    transition: var(--transition-smooth);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(142, 68, 255, 0.45);
 }
 
 
