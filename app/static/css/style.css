@@ -1111,6 +1111,108 @@ body {
     100% { transform: scale(0.9); opacity: 0.2; }
 }
 
+/* Media Queries for Mobile Responsiveness */
+@media (max-width: 768px) {
+    body {
+        min-height: auto;
+    }
+    
+    .app-container {
+        padding: 1rem;
+    }
+    
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.25rem;
+        margin-bottom: 1.75rem;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+    
+    .logo-text h1 {
+        font-size: 1.5rem;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .metric-card {
+        padding: 1.4rem;
+        min-height: 180px;
+    }
+    
+    .amount-value {
+        font-size: 2.1rem;
+    }
+    
+    .countdown-value {
+        font-size: 1.8rem;
+    }
+    
+    .content-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .history-section, .chart-section {
+        padding: 1.4rem;
+        min-height: 350px;
+    }
+    
+    /* Responsive table columns hiding for mobile */
+    .history-table th:nth-child(3), 
+    .history-table td:nth-child(3),
+    .history-table th:nth-child(4), 
+    .history-table td:nth-child(4) {
+        display: none;
+    }
+    
+    /* Prevent iOS auto-zoom on inputs */
+    .form-group input, 
+    .inline-amount-input {
+        font-size: 1rem !important;
+    }
+    
+    /* Full-screen drawer layout on mobile */
+    .drawer-content {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 0;
+        padding: 1.5rem;
+    }
+    
+    .drawer-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .btn {
+        padding: 0.8rem 1.2rem;
+    }
+    
+    .icon-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+    
+    .modal-content {
+        padding: 1.5rem;
+        max-width: 95%;
+    }
+}
+
 
 
 
