@@ -432,10 +432,65 @@ body {
 
 .chart-section {
     min-height: 320px;
+    display: flex;
+    flex-direction: column;
 }
 
 .history-section {
     min-height: 465px;
+}
+
+/* Custom Chart Legend Styles */
+.chart-legend-container {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-glass);
+    width: 100%;
+}
+
+.legend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-glass);
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: var(--transition-smooth);
+}
+
+.legend-pill:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-glass-focus);
+}
+
+.legend-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-label {
+    color: var(--text-muted);
+}
+
+.legend-value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.legend-percent {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
 }
 
 .section-header {

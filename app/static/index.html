@@ -111,11 +111,12 @@
                 <!-- Interactive Balance Chart -->
                 <section class="chart-section glass-panel">
                     <div class="section-header">
-                        <h2><i data-lucide="line-chart"></i> Balance & Budget Pacing</h2>
+                        <h2><i data-lucide="pie-chart"></i> Wallet Breakdown</h2>
                     </div>
-                    <div class="chart-container">
+                    <div class="chart-container" style="position: relative; flex-grow: 1; min-height: 220px;">
                         <canvas id="balance-chart"></canvas>
                     </div>
+                    <div id="chart-legend" class="chart-legend-container" style="margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;"></div>
                 </section>
             </div>
             

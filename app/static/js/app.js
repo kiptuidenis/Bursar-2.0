@@ -558,109 +558,83 @@ async function fetchPayouts() {
         refreshChart();
     } catch (err) {
         console.error("Error fetching payouts:", err);
-    }
-}
-
-// Calculate 7-day balance trend
-function calculate7DayBalanceTrend(currentBalance, payouts) {
-    const dates = [];
-    const balances = new Array(7).fill(0);
-    
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        dates.push(`${yyyy}-${mm}-${dd}`);
-    }
-    
-    const hasSuccessfulPayouts = payouts.some(p => p.status === "SUCCESS");
-    
-    if (!hasSuccessfulPayouts) {
-        // Mock a pacing line based on daily budget
-        const dailyBudget = currentSettings.daily_budget || 500;
-        let runningBalance = currentBalance;
-        if (currentBalance === 0) {
-            runningBalance = dailyBudget * 3;
-        }
-        for (let i = 6; i >= 0; i--) {
-            balances[i] = runningBalance;
-            runningBalance += dailyBudget;
-        }
-    } else {
-        // Group successful payouts by date
-        const payoutsByDate = {};
-        payouts.forEach(p => {
-            if (p.status === "SUCCESS") {
-                const dateKey = p.payout_date;
-                payoutsByDate[dateKey] = (payoutsByDate[dateKey] || 0) + parseFloat(p.amount);
-            }
-        });
-        
-        let runningBalance = currentBalance;
-        for (let i = 6; i >= 0; i--) {
-            balances[i] = runningBalance;
-            const dateStr = dates[i];
-            if (payoutsByDate[dateStr]) {
-                runningBalance += payoutsByDate[dateStr];
-            }
-        }
-    }
-    
-    return { dates, balances };
-}
-
-// Render interactive Chart.js pacing area chart
+ // Render interactive Chart.js spent vs remaining doughnut chart
 function renderBalanceChart(payouts, settings) {
     const canvas = document.getElementById("balance-chart");
     if (!canvas) return;
     
-    const { dates, balances } = calculate7DayBalanceTrend(settings.balance || 0, payouts);
+    let remaining = parseFloat(settings.balance || 0);
+    let spent = payouts.filter(p => p.status === "SUCCESS").reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0);
     
-    const formattedLabels = dates.map(dStr => {
-        const parts = dStr.split('-');
-        const d = new Date(parts[0], parts[1] - 1, parts[2]);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
+    // Fallback if both are zero to render a clean, empty available circle
+    let chartData = [spent, remaining];
+    let isDefaultEmpty = spent === 0 && remaining === 0;
+    if (isDefaultEmpty) {
+        chartData = [0, 100]; // 100% default placeholder for remaining
+    }
+    
+    // Update custom HTML legend
+    const legendContainer = document.getElementById("chart-legend");
+    if (legendContainer) {
+        const total = spent + remaining;
+        const spentPercent = total > 0 ? ((spent / total) * 100).toFixed(0) : 0;
+        const remainingPercent = total > 0 ? ((remaining / total) * 100).toFixed(0) : (isDefaultEmpty ? 0 : 100);
+        
+        legendContainer.innerHTML = `
+            <div class="legend-pill" title="Current Wallet Balance available for future payouts">
+                <span class="legend-color-dot" style="background-color: var(--color-accent-emerald);"></span>
+                <span class="legend-label">Remaining:</span>
+                <span class="legend-value">KES ${remaining.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span class="legend-percent">${remainingPercent}%</span>
+            </div>
+            <div class="legend-pill" title="Sum of successful daily payout distributions">
+                <span class="legend-color-dot" style="background-color: var(--color-accent-violet);"></span>
+                <span class="legend-label">Spent:</span>
+                <span class="legend-value">KES ${spent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span class="legend-percent">${spentPercent}%</span>
+            </div>
+        `;
+    }
     
     const ctx = canvas.getContext("2d");
     
     if (balanceChartInstance) {
-        balanceChartInstance.data.labels = formattedLabels;
-        balanceChartInstance.data.datasets[0].data = balances;
+        balanceChartInstance.data.datasets[0].data = chartData;
         balanceChartInstance.update();
     } else {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(142, 68, 255, 0.25)'); // Violet accent glow
-        gradient.addColorStop(1, 'rgba(59, 113, 254, 0.0)');   // Transparent indigo
-        
         balanceChartInstance = new Chart(ctx, {
-            type: 'line',
+            type: 'doughnut',
             data: {
-                labels: formattedLabels,
+                labels: ['Spent', 'Remaining'],
                 datasets: [{
-                    label: 'Wallet Balance',
-                    data: balances,
-                    borderColor: '#8e44ff',
-                    borderWidth: 3,
-                    pointBackgroundColor: '#3b71fe',
-                    pointBorderColor: 'rgba(255, 255, 255, 0.8)',
-                    pointHoverBackgroundColor: '#ffffff',
-                    pointHoverBorderColor: '#8e44ff',
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    backgroundColor: gradient,
-                    tension: 0.4
+                    data: chartData,
+                    backgroundColor: [
+                        'rgba(142, 68, 255, 0.75)', // Spent: Violet Accent
+                        'rgba(16, 185, 129, 0.75)'  // Remaining: Emerald Accent
+                    ],
+                    borderColor: [
+                        'rgba(142, 68, 255, 0.15)',
+                        'rgba(16, 185, 129, 0.15)'
+                    ],
+                    borderWidth: 2,
+                    hoverBackgroundColor: [
+                        'rgba(142, 68, 255, 0.95)',
+                        'rgba(16, 185, 129, 0.95)'
+                    ],
+                    hoverBorderColor: [
+                        'rgba(142, 68, 255, 0.4)',
+                        'rgba(16, 185, 129, 0.4)'
+                    ],
+                    hoverOffset: 12
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '70%', // Donut thickness
                 plugins: {
                     legend: {
-                        display: false
+                        display: false // Hide default legend to use our premium custom HTML UI legends
                     },
                     tooltip: {
                         backgroundColor: 'rgba(18, 22, 37, 0.95)',
@@ -676,41 +650,17 @@ function renderBalanceChart(payouts, settings) {
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
                         padding: 10,
-                        displayColors: false,
+                        displayColors: true,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        boxPadding: 4,
                         callbacks: {
                             label: function(context) {
-                                return 'Balance: KES ' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.03)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: 'rgba(255, 255, 255, 0.5)',
-                            font: {
-                                family: 'Outfit',
-                                size: 11
-                            }
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.03)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: 'rgba(255, 255, 255, 0.5)',
-                            font: {
-                                family: 'Outfit',
-                                size: 11
-                            },
-                            callback: function(value) {
-                                return 'KES ' + value.toLocaleString();
+                                let val = context.raw;
+                                if (isDefaultEmpty && context.dataIndex === 1) {
+                                    val = 0; // Show 0 for default placeholder
+                                }
+                                return ` ${context.label}: KES ${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                             }
                         }
                     }
