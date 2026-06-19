@@ -41,8 +41,8 @@
             </div>
         </header>
 
-        <!-- Main Dashboard Grid -->
-        <main class="dashboard-grid">
+        <!-- Top Metrics Row -->
+        <div class="metrics-row">
             <!-- Balance Card -->
             <section class="metric-card glass-panel" id="balance-card">
                 <div class="card-header">
@@ -85,28 +85,41 @@
                     <input type="number" id="inline-budget-input" class="inline-amount-input" style="display: none;" min="0" step="any">
                 </div>
                 <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span class="footer-info" id="payout-time-info">Payout at 08:00</span>
+                    <span class="footer-info" id="payout-time-info">Payout: 08:00</span>
                     <button class="text-link-btn" id="open-budget-designer-btn" title="Create budget allocation categories">
                         <i data-lucide="sliders" style="width: 0.95rem; height: 0.95rem; vertical-align: middle; margin-right: 0.2rem;"></i> Create
                     </button>
                 </div>
             </section>
+        </div>
 
-            <!-- Distribution Countdown Card -->
-            <section class="metric-card glass-panel" id="countdown-card">
-                <div class="card-header">
-                    <span class="card-title">Next Payout</span>
-                    <i data-lucide="clock" class="card-icon accent-violet"></i>
-                </div>
-                <div class="card-body">
-                    <span class="amount-value countdown-value" id="countdown-timer">--h --m --s</span>
-                </div>
-            </section>
-        </main>
-
-        <!-- Dynamic Content Section -->
-        <div class="content-row">
-            <!-- Payout History Table -->
+        <!-- Dashboard Layout Grid -->
+        <div class="dashboard-layout-grid">
+            <!-- Left Column: Next Payout & Pacing Chart -->
+            <div class="layout-left-col">
+                <!-- Distribution Countdown Card -->
+                <section class="metric-card glass-panel" id="countdown-card">
+                    <div class="card-header">
+                        <span class="card-title">Next Payout</span>
+                        <i data-lucide="clock" class="card-icon accent-violet"></i>
+                    </div>
+                    <div class="card-body">
+                        <span class="amount-value countdown-value" id="countdown-timer">--h --m --s</span>
+                    </div>
+                </section>
+                
+                <!-- Interactive Balance Chart -->
+                <section class="chart-section glass-panel">
+                    <div class="section-header">
+                        <h2><i data-lucide="line-chart"></i> Balance & Budget Pacing</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="balance-chart"></canvas>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- Right Column: Payout History Table -->
             <section class="history-section glass-panel">
                 <div class="section-header">
                     <h2><i data-lucide="history"></i> Distribution Payouts</h2>
@@ -129,16 +142,6 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-            </section>
-
-            <!-- Interactive Balance Chart -->
-            <section class="chart-section glass-panel">
-                <div class="section-header">
-                    <h2><i data-lucide="line-chart"></i> Balance & Budget Pacing</h2>
-                </div>
-                <div class="chart-container">
-                    <canvas id="balance-chart"></canvas>
                 </div>
             </section>
         </div>

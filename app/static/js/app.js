@@ -19,6 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Start countdown timer immediately (ticks client-side)
     startCountdownTimer();
+
+    // Initialize lucide icons for static elements
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 });
 
 // Check if user session cookie is valid
@@ -34,6 +39,11 @@ async function checkAuth() {
             document.getElementById("user-phone-number").innerText = user.phone_number;
             document.getElementById("user-badge").style.display = "flex";
             document.getElementById("logout-btn").style.display = "inline-flex";
+
+            // Initialize/refresh icons when UI state changes
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
 
             // Load user data
             pollDashboardData();
@@ -477,7 +487,7 @@ function updateDashboardMetrics(settings) {
         document.getElementById("daily-budget-value").innerText = parseFloat(settings.daily_budget || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     
-    document.getElementById("payout-time-info").innerText = `Payout at ${settings.payout_time || "08:00"} to ${settings.phone_number || "none"}`;
+    document.getElementById("payout-time-info").innerText = `Payout: ${settings.payout_time || "08:00"}`;
 
     const settingsBudgetInput = document.getElementById("settings-budget");
     if (settingsBudgetInput) {

@@ -128,13 +128,52 @@ body {
 
 /* Glassmorphism Panel Template */
 .glass-panel {
-    background: var(--bg-glass);
+    position: relative; /* Ensure absolute top-border fits correctly */
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), var(--bg-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border-glass);
     border-radius: 1.2rem;
-    box-shadow: var(--shadow-premium);
+    box-shadow: var(--shadow-premium), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
     transition: var(--transition-smooth);
+    overflow: hidden; /* Clips the top accent line border-radius correctly */
+}
+
+/* Premium Top Border Edge Glow */
+.glass-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    z-index: 2;
+    pointer-events: none;
+}
+
+#balance-card::before {
+    background: linear-gradient(90deg, transparent, var(--color-accent-emerald), transparent);
+}
+
+#budget-card::before {
+    background: linear-gradient(90deg, transparent, var(--color-accent-violet), transparent);
+}
+
+#countdown-card::before {
+    background: linear-gradient(90deg, transparent, var(--color-accent-indigo), transparent);
+}
+
+.history-section::before {
+    background: linear-gradient(90deg, transparent, var(--color-accent-violet), transparent);
+}
+
+.chart-section::before {
+    background: linear-gradient(90deg, transparent, var(--color-accent-indigo), transparent);
+}
+
+.auth-card::before {
+    background: linear-gradient(90deg, transparent, var(--color-accent-violet), var(--color-accent-indigo), transparent);
 }
 
 /* Status Badge */
@@ -181,12 +220,30 @@ body {
     box-shadow: 0 0 8px var(--color-accent-emerald);
 }
 
-/* Primary Dashboard Cards Grid */
-.dashboard-grid {
+/* Top Metrics Row */
+.metrics-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Dashboard Layout Grid */
+.dashboard-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
     gap: 1.5rem;
     margin-bottom: 2rem;
+}
+
+.layout-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+#countdown-card {
+    min-height: 130px;
 }
 
 .metric-card {
@@ -200,8 +257,27 @@ body {
 }
 
 .metric-card:hover {
+    transform: translateY(-5px);
+}
+
+#balance-card:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: var(--shadow-premium), 0 12px 30px rgba(16, 185, 129, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+#budget-card:hover {
+    border-color: rgba(142, 68, 255, 0.4);
+    box-shadow: var(--shadow-premium), 0 12px 30px rgba(142, 68, 255, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+#countdown-card:hover {
+    border-color: rgba(59, 113, 254, 0.4);
+    box-shadow: var(--shadow-premium), 0 12px 30px rgba(59, 113, 254, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.history-section:hover, .chart-section:hover {
     border-color: var(--border-glass-focus);
-    transform: translateY(-4px);
+    box-shadow: var(--shadow-premium), 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .card-header {
@@ -212,16 +288,17 @@ body {
 }
 
 .card-title {
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
 }
 
 .card-icon {
     width: 1.5rem;
     height: 1.5rem;
+    filter: drop-shadow(0 0 6px currentColor);
 }
 
 .accent-emerald { color: var(--color-accent-emerald); }
@@ -347,24 +424,18 @@ body {
     text-decoration: underline;
 }
 
-/* Content Row Split Section */
-.content-row {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 1.5rem;
-}
-
-@media (max-width: 992px) {
-    .content-row {
-        grid-template-columns: 1fr;
-    }
-}
-
 .history-section, .chart-section {
     padding: 1.8rem;
     display: flex;
     flex-direction: column;
-    min-height: 400px;
+}
+
+.chart-section {
+    min-height: 320px;
+}
+
+.history-section {
+    min-height: 465px;
 }
 
 .section-header {
@@ -751,6 +822,8 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.4s ease;
+    overflow-y: auto;          /* Enable scrollability when content exceeds screen height */
+    padding: 1.5rem 0.5rem;    /* Guard against edge-clipping on small viewports */
 }
 
 .auth-overlay.active {
@@ -765,6 +838,7 @@ body {
     text-align: center;
     transform: scale(0.95);
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    margin: auto;              /* Centers card dynamically inside scrolling flex context */
 }
 
 .auth-overlay.active .auth-card {
@@ -1154,33 +1228,75 @@ body {
         font-size: 1.5rem;
     }
     
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+    .metrics-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.6rem !important;
+        margin-bottom: 0.8rem !important;
+    }
+    
+    .dashboard-layout-grid {
+        display: grid;
+        grid-template-columns: 1fr !important;
+        gap: 0.8rem !important;
+    }
+    
+    .layout-left-col {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem !important;
+    }
+    
+    #countdown-card {
+        min-height: 110px !important;
     }
     
     .metric-card {
-        padding: 1.4rem;
-        min-height: 180px;
+        padding: 0.85rem !important;
+        min-height: 140px !important;
+    }
+    
+    .card-title {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        flex-wrap: wrap !important;
     }
     
     .amount-value {
-        font-size: 2.1rem;
+        font-size: clamp(1.3rem, 5.5vw, 1.8rem) !important;
     }
     
     .countdown-value {
-        font-size: 1.8rem;
+        font-size: clamp(1.4rem, 6vw, 1.8rem) !important;
     }
     
-    .content-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+    .currency {
+        font-size: 0.95rem !important;
     }
     
-    .history-section, .chart-section {
-        padding: 1.4rem;
-        min-height: 350px;
+    .metric-card .btn {
+        padding: 0.55rem 0.75rem !important;
+        font-size: 0.78rem !important;
+        border-radius: 0.6rem !important;
+    }
+    
+    .metric-card .text-link-btn {
+        font-size: 0.78rem !important;
+    }
+    
+    .metric-card .footer-info {
+        font-size: 0.75rem !important;
+    }
+    
+    .chart-section {
+        padding: 1rem !important;
+        min-height: 280px !important;
+    }
+    
+    .history-section {
+        padding: 1rem !important;
+        min-height: auto !important;
     }
     
     /* Responsive table columns hiding for mobile */
@@ -1223,27 +1339,64 @@ body {
         height: 2.75rem;
     }
     
+    .modal-overlay {
+        overflow-y: auto !important;
+        padding: 2rem 0.5rem !important;
+        align-items: flex-start !important; /* Enable top-down layout for scrolling */
+    }
+
     .modal-content {
         padding: 1.5rem;
         max-width: 95%;
+        margin: auto !important; /* Enable vertical alignment & scroll boundary security */
     }
     
     /* Responsive modal content overrides */
     #budget-designer-modal-content {
         padding: 1.5rem !important;
         max-width: 95% !important;
+        margin: auto !important;
     }
     
     #deposit-polling-modal-content {
         padding: 1.5rem 1.2rem !important;
         max-width: 95% !important;
         gap: 1rem !important;
+        margin: auto !important;
     }
     
     /* Force lock dates section date inputs to stack on mobile */
     #designer-lock-dates-section .form-grid {
         grid-template-columns: 1fr !important;
         gap: 0.6rem !important;
+    }
+
+    /* Phase 1: Mobile Auth Screen Adjustments */
+    .auth-card {
+        padding: 1.5rem !important; /* Reduce padding from 2.5rem to 1.5rem */
+        width: 95% !important;
+    }
+    
+    .auth-logo-icon {
+        width: 2.2rem !important; /* Scale down logo icon */
+        height: 2.2rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .auth-card h2 {
+        font-size: 1.4rem !important; /* Scale down heading font */
+    }
+    
+    .auth-card .subtitle {
+        font-size: 0.78rem !important;
+    }
+    
+    .auth-tabs {
+        margin: 1rem 0 !important; /* Tighten up gaps between sections */
+    }
+    
+    .auth-form .form-group {
+        margin-bottom: 1rem !important;
     }
 }
 
