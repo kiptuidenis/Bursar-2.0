@@ -629,6 +629,20 @@ async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager
     return {"status": "acknowledged"}
 
 
+@app.get("/api/diagnostics")
+async def get_diagnostics():
+    import subprocess
+    try:
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
+    except Exception:
+        commit_hash = "unknown"
+    return {
+        "version": "1.2.0",
+        "commit_hash": commit_hash,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
+
+
 # Mount static assets
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):

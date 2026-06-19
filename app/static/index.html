@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- CSS Style -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=1.2.0">
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js CDN -->
@@ -315,6 +315,11 @@
     </div>
 
     <!-- JS Logic -->
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=1.2.0"></script>
+    <script>
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    </script>
 </body>
 </html>

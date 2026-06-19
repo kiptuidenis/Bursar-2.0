@@ -408,6 +408,14 @@ body {
     background: rgba(255, 255, 255, 0.05);
 }
 
+.icon-btn svg, .icon-link-btn svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    stroke-width: 2px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+}
+
 .text-link-btn {
     background: none;
     border: none;
