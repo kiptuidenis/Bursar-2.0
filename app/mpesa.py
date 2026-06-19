@@ -42,14 +42,21 @@ class MpesaClient:
             return data["access_token"]
 
     def encrypt_password(self, cert_bytes: bytes) -> str:
-        """Encrypt the initiator password using Safaricom's public certificate (DER format)."""
+        """Encrypt the initiator password using Safaricom's public certificate."""
         if not self.initiator_password:
             raise ValueError("Initiator password is not configured.")
         if not cert_bytes:
             raise ValueError("Certificate bytes are required for password encryption.")
             
-        # Load DER certificate
-        cert = x509.load_der_x509_certificate(cert_bytes)
+        # Load certificate (detecting DER or PEM dynamically)
+        try:
+            cert = x509.load_der_x509_certificate(cert_bytes)
+        except Exception:
+            try:
+                cert = x509.load_pem_x509_certificate(cert_bytes)
+            except Exception as e:
+                raise ValueError(f"Failed to parse certificate. Ensure it is a valid PEM or DER file: {str(e)}")
+                
         public_key = cert.public_key()
         
         # Encrypt using PKCS1 v1.5 padding (Safaricom requirement)
