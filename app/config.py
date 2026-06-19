@@ -20,6 +20,7 @@ load_dotenv(".env")
 # Default to simulation mode when running tests
 if "PYTEST_CURRENT_TEST" in os.environ:
     os.environ["MPESA_MODE"] = "simulation"
+    os.environ["INTASEND_MODE"] = "simulation"
 
 # Load Configuration Properties
 MPESA_MODE = os.environ.get("MPESA_MODE", "sandbox").lower()
@@ -35,3 +36,12 @@ MPESA_B2C_TIMEOUT_URL = os.environ.get("MPESA_B2C_TIMEOUT_URL", "")
 MPESA_LNM_SHORTCODE = os.environ.get("MPESA_LNM_SHORTCODE", "174379")
 MPESA_LNM_PASSKEY = os.environ.get("MPESA_LNM_PASSKEY", "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919")
 MPESA_STK_CALLBACK_URL = os.environ.get("MPESA_STK_CALLBACK_URL", "")
+
+# Payment Gateway Routing Config
+PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mpesa").lower()
+
+# IntaSend Gateway Settings
+INTASEND_MODE = os.environ.get("INTASEND_MODE", "simulation").lower()
+INTASEND_SECRET_KEY = os.environ.get("INTASEND_SECRET_KEY", "")
+INTASEND_PUBLISHABLE_KEY = os.environ.get("INTASEND_PUBLISHABLE_KEY", "")
+

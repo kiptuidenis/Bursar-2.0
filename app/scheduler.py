@@ -97,36 +97,60 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
     # 8. Trigger M-Pesa client payment
     db.log_event(user_id, "INFO", f"Initiating {mode} payout of KES {daily_budget:.2f} for date {today_date} to {phone_number}.")
     try:
-        cert_bytes = None
-        if mpesa_client.mode != "simulation":
-            cert_filename = "SandboxCertificate.cer" if mpesa_client.mode == "sandbox" else "ProductionCertificate.cer"
-            try:
-                if os.path.exists(cert_filename):
-                    with open(cert_filename, "rb") as f:
-                        cert_bytes = f.read()
-            except Exception as ex:
-                db.log_event(user_id, "WARNING", f"Could not read cert file {cert_filename}: {str(ex)}")
-
-        from app.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
-        res = await mpesa_client.send_b2c_payout(
-            phone_number=phone_number,
-            amount=daily_budget,
-            result_url=MPESA_B2C_RESULT_URL,
-            timeout_url=MPESA_B2C_TIMEOUT_URL,
-            cert_bytes=cert_bytes
-        )
+        from app.payment_gateway import get_gateway_provider
+        provider = get_gateway_provider(settings)
         
-        response_code = res.get("ResponseCode", "")
-        conversation_id = res.get("ConversationID", "")
-        originator_conv_id = res.get("OriginatorConversationID", "")
+        if provider == "intasend":
+            from app.payment_gateway import create_intasend_client
+            client = create_intasend_client(settings)
+            res = await client.send_b2c_payout(
+                phone_number=phone_number,
+                amount=daily_budget,
+                recipient_name="Recipient",
+                narrative=f"Bursar Payout {today_date}"
+            )
+            # Normalize response for scheduler
+            tracking_id = res.get("tracking_id", "")
+            status = res.get("status", "")
+            gateway_res = {
+                "ResponseCode": "0" if status in ("Completed", "Processing", "Submitted") else "1",
+                "ResponseDescription": status,
+                "ConversationID": tracking_id,
+                "OriginatorConversationID": tracking_id
+            }
+        else:
+            cert_bytes = None
+            if mpesa_client.mode != "simulation":
+                cert_filename = "SandboxCertificate.cer" if mpesa_client.mode == "sandbox" else "ProductionCertificate.cer"
+                try:
+                    if os.path.exists(cert_filename):
+                        with open(cert_filename, "rb") as f:
+                            cert_bytes = f.read()
+                except Exception as ex:
+                    db.log_event(user_id, "WARNING", f"Could not read cert file {cert_filename}: {str(ex)}")
+
+            from app.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
+            res = await mpesa_client.send_b2c_payout(
+                phone_number=phone_number,
+                amount=daily_budget,
+                result_url=MPESA_B2C_RESULT_URL,
+                timeout_url=MPESA_B2C_TIMEOUT_URL,
+                cert_bytes=cert_bytes
+            )
+            gateway_res = res
+            
+        response_code = gateway_res.get("ResponseCode", "")
+        conversation_id = gateway_res.get("ConversationID", "")
+        originator_conv_id = gateway_res.get("OriginatorConversationID", "")
+        res_desc = gateway_res.get("ResponseDescription", "")
         
         if response_code == "0":
-            if mode == "simulation":
+            if mode == "simulation" or res_desc == "Completed":
                 status = "SUCCESS"
-                db.log_event(user_id, "INFO", f"Simulated payout of KES {daily_budget:.2f} completed successfully.")
+                db.log_event(user_id, "INFO", f"Payout of KES {daily_budget:.2f} completed successfully.")
             else:
                 status = "PENDING"
-                db.log_event(user_id, "INFO", f"M-Pesa payout request accepted. ConversationID: {conversation_id}.")
+                db.log_event(user_id, "INFO", f"Payout request accepted. ID: {conversation_id}.")
                 
             # Update the payout record details
             conn = db.connection
@@ -140,8 +164,8 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
             
             return True
         else:
-            description = res.get("ResponseDescription", "Unknown error")
-            raise Exception(f"Daraja API Error: {description} (Code: {response_code})")
+            description = gateway_res.get("ResponseDescription", "Unknown error")
+            raise Exception(f"Payment Gateway Error: {description} (Code: {response_code})")
             
     except Exception as e:
         db.adjust_balance(user_id, daily_budget)

@@ -502,5 +502,66 @@ def test_settings_payout_time_validation():
         assert "past" in res_past.json()["detail"].lower()
 
 
+def test_intasend_integration_flow(monkeypatch):
+    # Force PAYMENT_PROVIDER and INTASEND_MODE to use intasend simulation
+    from app import payment_gateway
+    monkeypatch.setattr(payment_gateway, "PAYMENT_PROVIDER", "intasend")
+    monkeypatch.setattr(payment_gateway, "INTASEND_MODE", "simulation")
+
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000007", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000007", "password": "pinpassword"})
+
+    # 1. Initiate STK Push deposit using IntaSend
+    res_init = c.post("/api/deposit/initiate", json={"amount": 3500.0})
+    assert res_init.status_code == 200
+    invoice_id = res_init.json()["checkout_request_id"]
+    assert invoice_id.startswith("sim_invoice_")
+
+    # 2. Check pending status in database
+    db = get_test_db()
+    deposit_db = db.get_deposit(invoice_id)
+    assert deposit_db["status"] == "PENDING"
+    assert deposit_db["amount"] == 3500.0
+
+    # 3. Poll status dynamically.
+    # The GET /api/deposit/status endpoint will query check_stk_status, which in simulation returns SUCCESS.
+    # It should automatically mark it SUCCESS and credit the balance.
+    res_status = c.get(f"/api/deposit/status/{invoice_id}")
+    assert res_status.status_code == 200
+    assert res_status.json()["status"] == "SUCCESS"
+
+    # Confirm balance and locking
+    settings = c.get("/api/settings").json()
+    assert settings["balance"] == 3500.0
+    assert settings["is_deposit_locked"] is True
+
+    # 4. Initiate another deposit to test the webhook callback
+    res_init2 = c.post("/api/deposit/initiate", json={"amount": 4000.0})
+    assert res_init2.status_code == 200
+    invoice_id2 = res_init2.json()["checkout_request_id"]
+
+    # Post webhook callback from IntaSend
+    webhook_payload = {
+        "invoice_id": invoice_id2,
+        "state": "COMPLETE",
+        "provider": "M-PESA",
+        "charges": "0.00",
+        "net_amount": "4000.00",
+        "currency": "KES",
+        "value": "4000.00",
+        "api_ref": "TEST_REF",
+        "challenge": "testnet"
+    }
+    res_webhook = c.post("/api/callbacks/intasend-webhook", json=webhook_payload)
+    assert res_webhook.status_code == 200
+    assert res_webhook.json()["status"] == "acknowledged"
+
+    # Check updated balance (3500 + 4000 = 7500)
+    settings = c.get("/api/settings").json()
+    assert settings["balance"] == 7500.0
+
+
+
 
 

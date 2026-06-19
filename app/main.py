@@ -250,33 +250,22 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
 
 @app.post("/api/deposit/initiate")
 async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    from app.config import (
-        MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
-        MPESA_LNM_SHORTCODE, MPESA_LNM_PASSKEY, MPESA_STK_CALLBACK_URL
-    )
     import uuid
+    from app import payment_gateway
     
     settings = db.get_settings(user_id)
     phone = settings.get("phone_number", "")
     if not phone:
         raise HTTPException(status_code=400, detail="Target phone number must be configured in settings before depositing.")
         
-    client = MpesaClient(
-        consumer_key=MPESA_CONSUMER_KEY,
-        consumer_secret=MPESA_CONSUMER_SECRET,
-        shortcode=MPESA_LNM_SHORTCODE,
-        initiator_name="",
-        initiator_password="",
-        mode="simulation" if (settings.get("mode") == "simulation" or MPESA_MODE == "simulation") else MPESA_MODE
-    )
+    api_ref = f"DEP_{uuid.uuid4().hex[:12]}"
     
     try:
-        res = await client.initiate_stk_push(
+        res = await payment_gateway.initiate_stk_push(
             phone_number=phone,
             amount=payload.amount,
-            callback_url=MPESA_STK_CALLBACK_URL,
-            passkey=MPESA_LNM_PASSKEY,
-            lnm_shortcode=MPESA_LNM_SHORTCODE
+            api_ref=api_ref,
+            user_settings=dict(settings) if settings else {}
         )
         
         response_code = res.get("ResponseCode", "")
@@ -294,10 +283,36 @@ async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_c
         raise HTTPException(status_code=500, detail=f"Failed to initiate deposit payment: {str(e)}")
 
 @app.get("/api/deposit/status/{checkout_request_id}")
-def check_deposit_status(checkout_request_id: str, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+async def check_deposit_status(checkout_request_id: str, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     deposit = db.get_deposit(checkout_request_id)
     if not deposit or deposit["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Deposit transaction not found.")
+        
+    if deposit["status"] == "PENDING":
+        from app import payment_gateway
+        settings = db.get_settings(user_id)
+        try:
+            gateway_res = await payment_gateway.check_stk_status(checkout_request_id, dict(settings) if settings else {})
+            status = gateway_res.get("status", "PENDING")
+            if status == "SUCCESS":
+                db.update_deposit_status(checkout_request_id, "SUCCESS", "POLL_VERIFIED")
+                db.adjust_balance(user_id, deposit["amount"])
+                db.log_event(user_id, "INFO", f"Deposit {checkout_request_id} verified as SUCCESS via active polling.")
+                
+                db.lock_deposit(user_id)
+                items = db.get_budget_items(user_id)
+                if items:
+                    db.lock_budget(user_id)
+                    db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+                    
+                deposit = db.get_deposit(checkout_request_id)
+            elif status == "FAILED":
+                db.update_deposit_status(checkout_request_id, "FAILED", "POLL_FAILED")
+                db.log_event(user_id, "INFO", f"Deposit {checkout_request_id} marked as FAILED via active polling.")
+                deposit = db.get_deposit(checkout_request_id)
+        except Exception as e:
+            db.log_event(user_id, "WARNING", f"Failed to poll gateway status for {checkout_request_id}: {str(e)}")
+            
     return {"status": deposit["status"], "checkout_request_id": checkout_request_id}
 
 @app.post("/api/callbacks/stk-callback")
@@ -540,6 +555,77 @@ def mpesa_b2c_timeout_callback(body: Dict[str, Any] = Body(...), db: DatabaseMan
     db.adjust_balance(user_id, payout_amount)
     db.log_event(user_id, "ERROR", f"M-Pesa B2C payout timed out for date {payout_date}. Reason: {result_desc}. KES {payout_amount:.2f} refunded.")
     
+    return {"status": "acknowledged"}
+
+
+@app.post("/api/callbacks/intasend-webhook")
+async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
+    invoice_id = body.get("invoice_id")
+    tracking_id = body.get("tracking_id")
+    
+    if invoice_id:
+        deposit = db.get_deposit(invoice_id)
+        if not deposit or deposit["status"] != "PENDING":
+            return {"status": "ignored"}
+            
+        user_id = deposit["user_id"]
+        amount = deposit["amount"]
+        
+        from app import payment_gateway
+        settings = db.get_settings(user_id)
+        try:
+            gateway_res = await payment_gateway.check_stk_status(invoice_id, dict(settings) if settings else {})
+            status = gateway_res.get("status", "PENDING")
+            if status == "SUCCESS":
+                db.update_deposit_status(invoice_id, "SUCCESS", "WEBHOOK_VERIFIED")
+                db.adjust_balance(user_id, amount)
+                db.log_event(user_id, "INFO", f"IntaSend deposit of KES {amount:.2f} completed successfully (verified). Invoice: {invoice_id}.")
+                
+                db.lock_deposit(user_id)
+                items = db.get_budget_items(user_id)
+                if items:
+                    db.lock_budget(user_id)
+                    db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+            elif status == "FAILED":
+                db.update_deposit_status(invoice_id, "FAILED")
+                db.log_event(user_id, "ERROR", f"IntaSend deposit failed (verified). Invoice: {invoice_id}.")
+        except Exception as e:
+            db.log_event(user_id, "WARNING", f"Webhook double-check failed for invoice {invoice_id}: {str(e)}")
+            
+    elif tracking_id:
+        matching_payout = db.get_payout_by_conversation_id(tracking_id)
+        if not matching_payout or matching_payout["status"] != "PENDING":
+            return {"status": "ignored"}
+            
+        user_id = matching_payout["user_id"]
+        payout_amount = matching_payout["amount"]
+        payout_date = matching_payout["payout_date"]
+        
+        from app import payment_gateway
+        settings = db.get_settings(user_id)
+        try:
+            gateway_res = await payment_gateway.check_payout_status(tracking_id, dict(settings) if settings else {})
+            status = gateway_res.get("status", "PENDING")
+            if status == "SUCCESS":
+                db.update_payout_status(
+                    conversation_id=tracking_id,
+                    status="SUCCESS",
+                    transaction_id=tracking_id,
+                    error_message=""
+                )
+                db.log_event(user_id, "INFO", f"IntaSend payout of KES {payout_amount:.2f} for date {payout_date} was completed successfully (verified). Payout ID: {tracking_id}.")
+            elif status == "FAILED":
+                db.update_payout_status(
+                    conversation_id=tracking_id,
+                    status="FAILED",
+                    transaction_id="",
+                    error_message="IntaSend disbursement failed"
+                )
+                db.adjust_balance(user_id, payout_amount)
+                db.log_event(user_id, "ERROR", f"IntaSend payout failed (verified) for date {payout_date}. KES {payout_amount:.2f} refunded.")
+        except Exception as e:
+            db.log_event(user_id, "WARNING", f"Webhook double-check failed for payout tracking_id {tracking_id}: {str(e)}")
+            
     return {"status": "acknowledged"}
 
 
