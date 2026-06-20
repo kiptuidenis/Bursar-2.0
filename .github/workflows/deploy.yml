@@ -22,11 +22,34 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Tests
+      - name: Run Python Unit Tests
         env:
           MPESA_MODE: simulation
         run: |
           python -m pytest
+
+      - name: Run Static Syntax Audits
+        run: |
+          python tests/check_js_syntax.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node Dependencies
+        run: |
+          npm install
+
+      - name: Install Playwright Browsers
+        run: |
+          npx playwright install --with-deps
+
+      - name: Run Playwright E2E Integration Tests
+        env:
+          MPESA_MODE: simulation
+        run: |
+          npm run test:e2e
 
   deploy:
     needs: test

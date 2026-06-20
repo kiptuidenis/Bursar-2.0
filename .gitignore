@@ -22,3 +22,9 @@ __pycache__/
 # Safaricom Certificates
 SandboxCertificate.cer
 ProductionCertificate.cer
+
+# Node Modules and Playwright Results
+node_modules/
+test-results/
+playwright-report/
+blob-report/
