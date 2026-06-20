@@ -322,13 +322,8 @@
                     <span id="budget-lock-notice-text"></span>
                 </div>
                 
-                <!-- Category List -->
-                <div class="category-designer-list" id="designer-category-list">
-                    <!-- Dynamic Rows: Category Name | Amount KES | Delete Button -->
-                </div>
-                
                 <!-- Add New Category Form -->
-                <form id="add-category-form" class="designer-add-form" style="margin-top: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--border-glass);">
+                <form id="add-category-form" class="designer-add-form" style="margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-glass);">
                     <div class="form-grid" style="margin-bottom: 1rem;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label for="new-category-name" style="margin-bottom: 0.3rem;">Category Name</label>
@@ -343,6 +338,11 @@
                         <i data-lucide="plus"></i> Add Category
                     </button>
                 </form>
+
+                <!-- Category List -->
+                <div class="category-designer-list" id="designer-category-list">
+                    <!-- Dynamic Rows: Category Name | Amount KES | Delete Button -->
+                </div>
             </div>
             <div class="modal-footer" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -350,20 +350,26 @@
                     <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
                 </div>
                 
-                <!-- Optional Date Range Picker inside modal lock flow -->
-                <div id="designer-lock-dates-section" style="display: none; flex-direction: column; gap: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: 0.6rem; text-align: left; width: 100%;">
-                    <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em;">
-                        <i data-lucide="calendar" style="width: 0.95rem; height: 0.95rem; color: var(--color-accent-violet);"></i> Payout Schedule (Optional)
-                    </h4>
-                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.4rem; line-height: 1.35;">Select start and end dates for daily allowance disbursements. Leave blank to start immediately and run indefinitely.</p>
-                    <div class="form-grid" style="margin-bottom: 0; gap: 0.8rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="lock-start-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">Start Date</label>
-                            <input type="date" id="lock-start-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="lock-end-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">End Date</label>
-                            <input type="date" id="lock-end-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                <!-- Collapsible Payout Schedule Section -->
+                <div id="designer-lock-dates-section" class="collapsible-schedule-container" style="display: none; flex-direction: column; gap: 0.5rem; border: 1px solid rgba(255, 255, 255, 0.06); background: rgba(255, 255, 255, 0.015); padding: 0.75rem; border-radius: 0.6rem; text-align: left; width: 100%;">
+                    <button type="button" class="schedule-toggle-hdr" id="schedule-toggle-hdr" style="background: none; border: none; padding: 0; margin: 0; width: 100%; display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--text-primary); outline: none; font-family: inherit;">
+                        <span style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em; font-family: inherit;">
+                            <i data-lucide="calendar" style="width: 0.95rem; height: 0.95rem; color: var(--color-accent-violet);"></i> Payout Schedule
+                        </span>
+                        <i data-lucide="chevron-down" id="schedule-chevron" style="width: 1rem; height: 1rem; color: var(--text-muted); transition: transform 0.25s ease;"></i>
+                    </button>
+                    
+                    <div id="schedule-collapse-body" style="display: none; margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.6rem;">
+                        <p class="text-muted" style="font-size: 0.72rem; margin-bottom: 0.6rem; line-height: 1.35;">Select start and end dates for daily allowance disbursements.</p>
+                        <div class="form-grid" style="margin-bottom: 0; gap: 0.8rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="lock-start-date" style="font-size: 0.7rem; margin-bottom: 0.3rem; display: block; color: var(--text-muted);">Start Date</label>
+                                <input type="date" id="lock-start-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="lock-end-date" style="font-size: 0.7rem; margin-bottom: 0.3rem; display: block; color: var(--text-muted);">End Date</label>
+                                <input type="date" id="lock-end-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                            </div>
                         </div>
                     </div>
                 </div>

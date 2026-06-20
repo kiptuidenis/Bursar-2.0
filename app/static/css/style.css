@@ -2868,6 +2868,21 @@ body:not(.landing-body) {
     padding-right: 0.5rem;
 }
 
+/* Collapsible Schedule section styling */
+.schedule-toggle-hdr {
+    font-family: var(--font-sans) !important;
+}
+.schedule-toggle-hdr:hover span {
+    color: var(--color-accent-violet) !important;
+}
+.schedule-toggle-hdr:hover #schedule-chevron {
+    color: var(--color-accent-violet) !important;
+}
+#schedule-chevron.expanded {
+    transform: rotate(180deg);
+    color: var(--color-accent-violet) !important;
+}
+
 /* Sidebar Responsive Styles */
 @media (max-width: 900px) {
     .sidebar-nav {
