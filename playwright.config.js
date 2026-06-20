@@ -1,10 +1,16 @@
 const { defineConfig, devices } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
+const hasVenv = fs.existsSync(path.join(__dirname, 'venv'));
 const isWin = process.platform === 'win32';
-const pythonCmd = isWin ? 'venv\\Scripts\\python' : 'venv/bin/python';
+const pythonCmd = hasVenv 
+  ? (isWin ? 'venv\\Scripts\\python' : 'venv/bin/python') 
+  : 'python';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
+  timeout: 60000, // 60 seconds test execution timeout
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
