@@ -77,18 +77,18 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
 
-    // 2. Verify sidebar is visible and not collapsed initially
+    // 2. Verify sidebar is visible and collapsed initially by default
     const sidebar = page.locator('#sidebar-nav');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).not.toHaveClass(/collapsed/);
-
-    // 3. Click the sidebar collapse button
-    await page.click('#sidebar-collapse-btn');
     await expect(sidebar).toHaveClass(/collapsed/);
 
-    // 4. Click it again to expand
+    // 3. Click the sidebar collapse button to expand
     await page.click('#sidebar-collapse-btn');
     await expect(sidebar).not.toHaveClass(/collapsed/);
+
+    // 4. Click it again to collapse
+    await page.click('#sidebar-collapse-btn');
+    await expect(sidebar).toHaveClass(/collapsed/);
 
     // 5. Test tab switching: click Transactions tab
     await page.click('[data-tab="transactions"]');

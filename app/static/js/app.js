@@ -127,10 +127,15 @@ function setupEventHandlers() {
         });
     }
 
-    // Load initial collapse state
-    const wasCollapsed = localStorage.getItem("sidebar-collapsed") === "true";
-    if (wasCollapsed && sidebar) {
-        sidebar.classList.add("collapsed");
+    // Load initial collapse state (default to true/collapsed if not set)
+    const storedCollapseState = localStorage.getItem("sidebar-collapsed");
+    const wasCollapsed = storedCollapseState === null ? true : (storedCollapseState === "true");
+    if (sidebar) {
+        if (wasCollapsed) {
+            sidebar.classList.add("collapsed");
+        } else {
+            sidebar.classList.remove("collapsed");
+        }
     }
 
     // Switch View function
