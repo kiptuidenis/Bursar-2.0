@@ -253,7 +253,7 @@ class DatabaseManager:
         cursor.execute("UPDATE settings SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
         conn.commit()
 
-    def is_budget_locked(self, user_id: int) -> bool:
+    def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if the user's budget allocations are locked for the current calendar month."""
         settings = self.get_settings(user_id)
         if not settings:
@@ -264,7 +264,8 @@ class DatabaseManager:
         import datetime
         try:
             lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            return datetime.date.today() < lock_date
+            ref_date = today or datetime.date.today()
+            return ref_date < lock_date
         except ValueError:
             return False
 

@@ -186,13 +186,7 @@ function setupEventHandlers() {
                 switchTab(tab);
             } else if (tab === "budget") {
                 // Open Budget creator Modal directly
-                const budgetModal = document.getElementById("budget-designer-modal");
-                if (budgetModal) {
-                    budgetModal.classList.add("active");
-                    if (typeof renderDesignerCategories === 'function') {
-                        renderDesignerCategories();
-                    }
-                }
+                openBudgetDesignerModal();
                 if (sidebar) sidebar.classList.remove("active");
                 if (backdrop) backdrop.classList.remove("active");
             } else if (tab === "settings") {
@@ -537,14 +531,7 @@ function setupEventHandlers() {
     const budgetDesignerModal = document.getElementById("budget-designer-modal");
     
     document.getElementById("open-budget-designer-btn").addEventListener("click", () => {
-        document.getElementById("new-category-name").value = "";
-        document.getElementById("new-category-amount").value = "";
-        const startDateInput = document.getElementById("lock-start-date");
-        const endDateInput = document.getElementById("lock-end-date");
-        if (startDateInput) startDateInput.value = currentSettings.start_date || "";
-        if (endDateInput) endDateInput.value = currentSettings.end_date || "";
-        budgetDesignerModal.classList.add("active");
-        renderBudgetBreakdown();
+        openBudgetDesignerModal();
     });
     
     document.getElementById("close-budget-designer-btn").addEventListener("click", () => {
@@ -578,22 +565,41 @@ function setupEventHandlers() {
             document.getElementById("new-category-amount").value = "";
             
             pollDashboardData();
+            // Refocus Category Name input field
+            const newCatName = document.getElementById("new-category-name");
+            if (newCatName) newCatName.focus();
         } catch (err) {
             console.error(err);
             alert(err.message || "Failed to save category.");
         }
     });
 
-    // Lock Budget Button Handler
     const lockBudgetBtn = document.getElementById("lock-budget-btn");
     if (lockBudgetBtn) {
         lockBudgetBtn.addEventListener("click", async () => {
-            if (!confirm("Are you sure you want to finalize and lock your budget? Once locked, you cannot add or delete allocation categories until the first day of next month.")) {
+            const start_date = document.getElementById("lock-start-date").value || "";
+            const end_date = document.getElementById("lock-end-date").value || "";
+            
+            if (!start_date || !end_date) {
+                alert("Please select both start and end dates for the payout schedule.");
+                // Expand the collapsible section if it was closed
+                const scheduleBody = document.getElementById("schedule-collapse-body");
+                const scheduleChevron = document.getElementById("schedule-chevron");
+                if (scheduleBody && scheduleBody.style.display === "none") {
+                    scheduleBody.style.display = "block";
+                    if (scheduleChevron) scheduleChevron.classList.add("expanded");
+                }
+                return;
+            }
+
+            if (budgetItems.length === 0) {
+                alert("Cannot lock an empty budget. Please add budget items first.");
                 return;
             }
             
-            const start_date = document.getElementById("lock-start-date").value || "";
-            const end_date = document.getElementById("lock-end-date").value || "";
+            if (!confirm("Are you sure you want to finalize and lock your budget? Once locked, you cannot add or delete allocation categories until the first day of next month.")) {
+                return;
+            }
             
             try {
                 const res = await fetch("/api/budget/lock", {
@@ -607,6 +613,11 @@ function setupEventHandlers() {
                     throw new Error(data.detail || "Failed to lock budget.");
                 }
                 alert("Budget successfully finalized and locked for this month! 🔒");
+                
+                // Close modal
+                const budgetDesignerModal = document.getElementById("budget-designer-modal");
+                if (budgetDesignerModal) budgetDesignerModal.classList.remove("active");
+                
                 pollDashboardData();
             } catch (err) {
                 console.error(err);
@@ -645,6 +656,27 @@ function setupEventHandlers() {
             }
         });
     }
+
+    // Collapsible Payout Schedule in Budget Creator Modal
+    const scheduleHdr = document.getElementById("schedule-toggle-hdr");
+    const scheduleBody = document.getElementById("schedule-collapse-body");
+    const scheduleChevron = document.getElementById("schedule-chevron");
+    
+    if (scheduleHdr) {
+        scheduleHdr.addEventListener("click", () => {
+            if (scheduleBody) {
+                const isCollapsed = scheduleBody.style.display === "none";
+                scheduleBody.style.display = isCollapsed ? "block" : "none";
+                if (scheduleChevron) {
+                    if (isCollapsed) {
+                        scheduleChevron.classList.add("expanded");
+                    } else {
+                        scheduleChevron.classList.remove("expanded");
+                    }
+                }
+            }
+        });
+    }
 }
 
 
@@ -671,7 +703,8 @@ function updateDashboardMetrics(settings) {
     
     const inlineInput = document.getElementById("inline-budget-input");
     if (inlineInput && inlineInput.style.display !== "inline-block") {
-        document.getElementById("daily-budget-value").innerText = parseFloat(settings.daily_budget || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const displayBudget = settings.is_budget_locked ? parseFloat(settings.daily_budget || 0) : 0.00;
+        document.getElementById("daily-budget-value").innerText = displayBudget.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     
     document.getElementById("payout-time-info").innerText = `Payout: ${settings.payout_time || "08:00"}`;
@@ -940,7 +973,7 @@ async function fetchBudgetItems() {
     }
 }
 
-// Render the breakdown pills in the Daily Budget card and inside the Budget Designer modal
+// Render the breakdown pills in the Daily Budget card and inside the Budget Creator modal
 function renderBudgetBreakdown() {
     const designerList = document.getElementById("designer-category-list");
     const designerTotal = document.getElementById("designer-total-budget");
@@ -951,7 +984,7 @@ function renderBudgetBreakdown() {
     
     // Render pills on the main dashboard Daily Budget card
     if (mainBreakdownList) {
-        if (budgetItems.length === 0) {
+        if (!isLocked || budgetItems.length === 0) {
             mainBreakdownList.innerHTML = `<span style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">No categories configured. Click 'Create' to begin.</span>`;
         } else {
             mainBreakdownList.innerHTML = budgetItems.map(item => `
@@ -1049,6 +1082,12 @@ function escapeHTML(str) {
 
 // Call API to delete budget category allocation item
 async function deleteCategory(itemId) {
+    const isLocked = currentSettings && currentSettings.is_budget_locked;
+    if (isLocked) {
+        alert("Budget is locked until the end of the month.");
+        return;
+    }
+    
     if (!confirm("Are you sure you want to delete this category?")) return;
     
     try {
@@ -1065,3 +1104,45 @@ async function deleteCategory(itemId) {
 
 // Attach to window so onclick attribute can bind successfully
 window.deleteCategory = deleteCategory;
+
+// Opens the Budget Creator modal and resets scroll positions & focus for optimal UX
+function openBudgetDesignerModal() {
+    const budgetModal = document.getElementById("budget-designer-modal");
+    if (!budgetModal) return;
+
+    // Reset input fields
+    const newCatName = document.getElementById("new-category-name");
+    const newCatAmount = document.getElementById("new-category-amount");
+    if (newCatName) newCatName.value = "";
+    if (newCatAmount) newCatAmount.value = "";
+
+    const startDateInput = document.getElementById("lock-start-date");
+    const endDateInput = document.getElementById("lock-end-date");
+    if (startDateInput) startDateInput.value = currentSettings.start_date || "";
+    if (endDateInput) endDateInput.value = currentSettings.end_date || "";
+    
+    // Reset collapsible schedule state to closed
+    const collBody = document.getElementById("schedule-collapse-body");
+    const collChevron = document.getElementById("schedule-chevron");
+    if (collBody) collBody.style.display = "none";
+    if (collChevron) collChevron.classList.remove("expanded");
+    
+    // Reset scroll positions of both the modal overlay and the inner designer body to 0
+    budgetModal.scrollTop = 0;
+    const designerBody = budgetModal.querySelector(".designer-body");
+    if (designerBody) designerBody.scrollTop = 0;
+
+    // Show modal
+    budgetModal.classList.add("active");
+    
+    // Render latest data
+    renderBudgetBreakdown();
+
+    // Focus on Category Name input field if budget is not locked
+    const isLocked = currentSettings && currentSettings.is_budget_locked;
+    if (!isLocked && newCatName) {
+        setTimeout(() => {
+            newCatName.focus();
+        }, 50);
+    }
+}

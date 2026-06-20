@@ -4,7 +4,7 @@ import sys
 import datetime
 import sqlite3
 from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import FastAPI, Depends, HTTPException, Body, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -174,7 +174,8 @@ def get_settings(user_id: int = Depends(get_current_user_id), db: DatabaseManage
             masked[field] = ""
             
     # Add derived lock flags
-    masked["is_budget_locked"] = db.is_budget_locked(user_id)
+    is_locked = db.is_budget_locked(user_id)
+    masked["is_budget_locked"] = is_locked
     masked["is_deposit_locked"] = db.is_deposit_locked(user_id)
     return masked
 
@@ -432,14 +433,37 @@ def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id)
         raise HTTPException(status_code=404, detail="Budget item not found")
     return {"status": "success", "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
 
+class DraftBudgetItem(BaseModel):
+    category: str = Field(..., min_length=1, max_length=100, description="Category name")
+    amount: float = Field(..., gt=0, description="Allocation amount")
+
 class BudgetLockPayload(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    items: Optional[List[DraftBudgetItem]] = None
 
 @app.post("/api/budget/lock")
 def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if payload is None:
         payload = BudgetLockPayload()
+        
+    if payload.items is not None:
+        if db.is_budget_locked(user_id):
+            raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+        
+        conn = db.connection
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM budget_items WHERE user_id = ?", (user_id,))
+        for item in payload.items:
+            category = item.category.strip()
+            if not category:
+                raise HTTPException(status_code=400, detail="Category name cannot be empty")
+            cursor.execute("""
+                INSERT INTO budget_items (user_id, category, amount)
+                VALUES (?, ?, ?)
+            """, (user_id, category, item.amount))
+        conn.commit()
+        db.recalculate_daily_budget(user_id)
         
     items = db.get_budget_items(user_id)
     if not items:

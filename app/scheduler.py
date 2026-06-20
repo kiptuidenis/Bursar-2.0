@@ -26,6 +26,10 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
     phone_number = settings.get("phone_number", "")
     mode = settings.get("mode", "simulation")
     
+    # Check if budget is locked (payouts can only run if budget is finalized and locked)
+    if not db.is_budget_locked(user_id, today=current_time.date()):
+        return False
+
     # 1. Check if daily budget is positive
     if daily_budget <= 0:
         return False
