@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bursar 2.0 — Premium Personal Money Manager</title>
+    <title>Bursar 2.0 — Conquer Impulse Spending, Day by Day</title>
+    <meta name="description" content="Drip-feed your monthly budget into daily allowances with automated, double-spend protected M-Pesa payouts. Lock in your financial discipline today.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,11 +16,17 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="landing-body">
+    <!-- Blur Glow Orbs for Mockup Background -->
     <div class="glow-bg"></div>
-    <div class="app-container">
+    <div class="glow-orb glow-green"></div>
+    <div class="glow-orb glow-purple"></div>
+    <div class="glow-orb glow-pink"></div>
+    
+    <div class="app-container landing-container">
+        
         <!-- Header -->
-        <header class="app-header">
+        <header class="app-header glass-panel landing-header" id="landing-header">
             <div class="header-logo">
                 <i data-lucide="wallet" class="logo-icon"></i>
                 <div class="logo-text">
@@ -27,250 +34,277 @@
                     <p class="subtitle">Automated Micro-Allowance Scheduler</p>
                 </div>
             </div>
-            <div class="header-actions">
-                <div class="user-badge" id="user-badge" style="display: none;">
-                    <i data-lucide="user"></i>
-                    <span id="user-phone-number"></span>
-                </div>
-                <button class="icon-btn" id="toggle-settings-btn" title="Toggle Settings">
-                    <i data-lucide="settings"></i>
-                </button>
-                <button class="icon-btn logout-btn" id="logout-btn" title="Log Out" style="display: none;">
-                    <i data-lucide="log-out"></i>
-                </button>
+            <div class="header-actions" style="display: flex; gap: 0.75rem;">
+                <a href="#login" class="btn btn-secondary" id="nav-login-btn">Log In</a>
+                <a href="#signup" class="btn btn-primary" id="nav-signup-btn">Register</a>
             </div>
         </header>
 
-        <!-- Top Metrics Row -->
-        <div class="metrics-row">
-            <!-- Balance Card -->
-            <section class="metric-card glass-panel" id="balance-card">
-                <div class="card-header">
-                    <span class="card-title">Wallet Balance</span>
-                    <i data-lucide="coins" class="card-icon accent-emerald"></i>
+        <!-- Hero Section -->
+        <section class="landing-hero" id="hero-section">
+            <div class="hero-content">
+                <span class="hero-badge"><i data-lucide="sparkles"></i> Automated Pacing Assistant</span>
+                <h1 class="hero-title">Empower Your Spending. <br><span class="gradient-text">Build Your Future.</span></h1>
+                <p class="hero-subtitle">Master your finances with automated pacing and disciplined spending habits. Bursar secures your deposits and drip-feeds your cash into daily allowances via M-Pesa. Lock in your pacing today.</p>
+                <div class="hero-actions">
+                    <a href="#signup" class="btn btn-primary btn-lg" id="hero-cta-btn">
+                        Get Started Free
+                    </a>
                 </div>
-                <div class="card-body">
-                    <span class="currency">KES</span>
-                    <span class="amount-value" id="wallet-balance">0.00</span>
-                </div>
-                <div class="card-footer">
-                    <button class="btn btn-primary" id="open-deposit-btn">
-                        <i data-lucide="plus-circle"></i> Deposit Funds
-                    </button>
-                </div>
-            </section>
+            </div>
 
-            <!-- Daily Budget Card -->
-            <section class="metric-card glass-panel" id="budget-card">
-                <div class="card-header">
-                    <span class="card-title">
-                        Daily Budget
-                        <span id="budget-lock-badge" class="lock-badge" style="display: none;">
-                            <i data-lucide="lock" style="width: 0.75rem; height: 0.75rem;"></i> Locked
-                        </span>
-                    </span>
-                    <div class="card-header-actions">
-                        <button class="icon-link-btn" id="edit-budget-btn" title="Edit Budget">
-                            <i data-lucide="edit-3"></i>
-                        </button>
-                        <div id="inline-budget-controls" style="display: none;">
-                            <button class="icon-link-btn save-btn" id="save-budget-btn" title="Save"><i data-lucide="check"></i></button>
-                            <button class="icon-link-btn cancel-btn" id="cancel-budget-btn" title="Cancel"><i data-lucide="x"></i></button>
+            <!-- Visual Showcase Sandbox -->
+            <div class="hero-visual-sandbox" id="visual-sandbox">
+                <!-- Phone Wrapper to enable overlapping notifications -->
+                <div class="phone-wrapper">
+                    <!-- Frosted Glass M-Pesa Notification Alert (Overlapping left) -->
+                    <div class="mpesa-notification-alert" id="mpesa-alert">
+                        <div class="notif-header">
+                            <div class="notif-logo">
+                                <span class="m-letter">M</span>
+                            </div>
+                            <div class="notif-meta">
+                                <span class="notif-title">Safaricom M-Pesa</span>
+                                <span class="notif-time">now</span>
+                            </div>
+                        </div>
+                        <div class="notif-body">
+                            Confirmed. KES 500 received from Bursar Daily Allowance.
+                        </div>
+                    </div>
+
+                    <!-- Phone Mockup with Notch and inner Screen -->
+                    <div class="phone-mockup" id="phone-mockup">
+                        <div class="phone-notch"></div>
+                        <div class="phone-speaker"></div>
+                        <div class="phone-screen">
+                            <!-- Status bar -->
+                            <div class="phone-status-bar">
+                                <span class="time">12:00 PM</span>
+                                <div class="status-icons">
+                                    <i data-lucide="wifi" style="width: 0.7rem; height: 0.7rem;"></i>
+                                    <i data-lucide="battery" style="width: 0.7rem; height: 0.7rem;"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Phone App Header -->
+                            <div class="phone-app-header">
+                                <i data-lucide="chevron-left" style="width: 1rem; height: 1rem;"></i>
+                                <span class="phone-header-title">Pacing Insights</span>
+                                <i data-lucide="circle-dot" style="width: 0.9rem; height: 0.9rem; color: var(--color-accent-rose);"></i>
+                            </div>
+
+                            <!-- Phone Dashboard Inner Widget -->
+                            <div class="phone-chart-card">
+                                <div class="phone-chart-header">
+                                    <span>7-Day Pacing Trend</span>
+                                    <span class="dots">...</span>
+                                </div>
+                                <div style="height: 90px; width: 100%; position: relative;">
+                                    <canvas id="phone-sim-chart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Phone Dashboard Status Info -->
+                            <div class="phone-status-info">
+                                <span class="phone-status-title">On Track</span>
+                                <span class="phone-status-desc">Your spending is below the paced limit this week.</span>
+                            </div>
+
+                            <!-- Phone Dashboard Bottom Nav -->
+                            <div class="phone-bottom-nav">
+                                <i data-lucide="home" class="active"></i>
+                                <i data-lucide="bar-chart-2"></i>
+                                <i data-lucide="clock"></i>
+                                <i data-lucide="settings"></i>
+                            </div>
+                            
+                            <div class="phone-home-indicator"></div>
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <span class="currency" id="budget-currency-label">KES</span>
-                    <span class="amount-value" id="daily-budget-value">0.00</span>
-                    <input type="number" id="inline-budget-input" class="inline-amount-input" style="display: none;" min="0" step="any">
-                </div>
-                <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span class="footer-info" id="payout-time-info">Payout: 08:00</span>
-                    <button class="text-link-btn" id="open-budget-designer-btn" title="Create budget allocation categories">
-                        <i data-lucide="sliders" style="width: 0.95rem; height: 0.95rem; vertical-align: middle; margin-right: 0.2rem;"></i> Create
-                    </button>
-                </div>
-            </section>
-        </div>
 
-        <!-- Dashboard Layout Grid -->
-        <div class="dashboard-layout-grid">
-            <!-- Left Column: Next Payout & Pacing Chart -->
-            <div class="layout-left-col">
-                <!-- Distribution Countdown Card -->
-                <section class="metric-card glass-panel" id="countdown-card">
-                    <div class="card-header">
-                        <span class="card-title">Next Payout</span>
-                        <i data-lucide="clock" class="card-icon accent-violet"></i>
+                <!-- Glassmorphic Large Pacing Widget -->
+                <div class="pacing-chart-widget" id="pacing-widget">
+                    <div class="widget-header">
+                        <h4>7-Day Pacing Trend</h4>
+                        <span class="dots">...</span>
                     </div>
-                    <div class="card-body">
-                        <span class="amount-value countdown-value" id="countdown-timer">--h --m --s</span>
+                    <div class="widget-chart-container" style="position: relative; height: 160px; width: 100%; margin-bottom: 1rem;">
+                        <canvas id="pacing-sim-chart"></canvas>
                     </div>
-                </section>
-                
-                <!-- Interactive Balance Chart -->
-                <section class="chart-section glass-panel">
-                    <div class="section-header">
-                        <h2><i data-lucide="pie-chart"></i> Wallet Breakdown</h2>
+                    <!-- Widget Bottom Info Columns -->
+                    <div class="widget-footer-info">
+                        <div class="footer-left">
+                            <span class="status-title">On Track</span>
+                            <p class="status-desc">Your spending is below the paced limit this week.</p>
+                        </div>
+                        <div class="footer-right-card">
+                            <div class="right-metric">
+                                <span class="lbl">Weekly Budget Left:</span>
+                                <span class="val">KES 3,250</span>
+                            </div>
+                            <div class="right-metric">
+                                <span class="lbl">Avg. Daily Spend:</span>
+                                <span class="val">KES 850</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="chart-container" style="position: relative; flex-grow: 1; min-height: 220px;">
-                        <canvas id="balance-chart"></canvas>
-                    </div>
-                    <div id="chart-legend" class="chart-legend-container" style="margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;"></div>
-                </section>
+                </div>
             </div>
+        </section>
+
+        <!-- Feature Matrix Table (Lump Sum vs. Paced) -->
+        <section class="landing-section" id="matrix-section">
+            <h2 class="section-title text-center">Conquer the impulse to spend</h2>
+            <p class="section-subtitle text-center">Compare how carrying a lump sum compares to automating your daily allowances with Bursar 2.0.</p>
             
-            <!-- Right Column: Payout History Table -->
-            <section class="history-section glass-panel">
-                <div class="section-header">
-                    <h2><i data-lucide="history"></i> Distribution Payouts</h2>
-                    <span class="table-count" id="payout-count-badge">0 total</span>
-                </div>
-                <div class="table-container">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Recipient</th>
-                                <th>M-Pesa Ref</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="payout-history-body">
-                            <tr>
-                                <td colspan="5" class="empty-state">No payouts recorded yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-    </div>
-
-    <!-- Deposit Modal -->
-    <div class="modal-overlay" id="deposit-modal">
-        <div class="modal-content glass-panel">
-            <div class="modal-header">
-                <h3>Deposit Money</h3>
-                <button class="close-btn" id="close-deposit-btn">&times;</button>
+            <div class="table-container glass-panel comparison-table-container">
+                <table class="comparison-table" id="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature Behavior</th>
+                            <th>Lump Sum in Wallet</th>
+                            <th class="accent-col">Paced Payouts with Bursar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Budget Durability</strong></td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> Spent by Week 2 on impulse purchases</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Guaranteed distribution over 30 days</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Spending Limits</strong></td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> Easy to override settings emotionally</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Cryptographic locks restrict changes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>M-Pesa Integration</strong></td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> Manual tracking, transfers, & fees</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Automated Daraja B2C daily direct push</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Double-Spend Safety</strong></td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> None (risk of overdrawing card/account)</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> SQLite double-spend database verification</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <form id="deposit-form">
-                <div class="form-group">
-                    <label for="deposit-amount">Amount (KES)</label>
-                    <input type="number" id="deposit-amount" placeholder="e.g. 5000" min="1" step="any" required>
-                </div>
-                <div class="info-alert lock-warning-alert" style="margin-bottom: 1.2rem; display: flex; align-items: flex-start; gap: 0.5rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
-                    <i data-lucide="alert-triangle" style="color: var(--color-accent-orange); shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
-                    <span><strong>Lock Notice:</strong> Once deposited, funds are final and locked until the end of the month. They can only be distributed via daily payouts.</span>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">Confirm Deposit</button>
-            </form>
-        </div>
-    </div>
+        </section>
 
-    <!-- Budget Designer Modal -->
-    <div class="modal-overlay" id="budget-designer-modal">
-        <div class="modal-content glass-panel" id="budget-designer-modal-content">
-            <div class="modal-header">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="sliders" style="color: var(--color-accent-violet);"></i> Budget Creator</h3>
-                <button class="close-btn" id="close-budget-designer-btn">&times;</button>
-            </div>
-            <div class="designer-body" style="display: flex; flex-direction: column; gap: 1rem;">
-                <p class="subtitle" style="margin-bottom: 0.5rem;">Segment your daily budget into custom categories (e.g. food, transport).</p>
-                
-                <div id="budget-creator-lock-notice" class="info-alert lock-warning-alert" style="display: none; margin-bottom: 0.5rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted); align-items: flex-start; gap: 0.5rem;">
-                    <i data-lucide="lock" style="color: #ef4444; shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
-                    <span id="budget-lock-notice-text"></span>
-                </div>
-                
-                <!-- Category List -->
-                <div class="category-designer-list" id="designer-category-list">
-                    <!-- Dynamic Rows: Category Name | Amount KES | Delete Button -->
-                </div>
-                
-                <!-- Add New Category Form -->
-                <form id="add-category-form" class="designer-add-form" style="margin-top: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--border-glass);">
-                    <div class="form-grid" style="margin-bottom: 1rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="new-category-name" style="margin-bottom: 0.3rem;">Category Name</label>
-                            <input type="text" id="new-category-name" placeholder="e.g. Food" required>
+        <!-- Lock Highlights Section -->
+        <section class="landing-section lock-highlights-section" id="lock-features">
+            <div class="lock-highlight-grid">
+                <div class="lock-highlight-text">
+                    <span class="section-eyebrow"><i data-lucide="shield-check"></i> Non-Negotiable Lock-In</span>
+                    <h2 class="section-title">Enforced by Code.<br>Protected Against Yourself.</h2>
+                    <p class="section-text">Bursar uses smart database constraints to physically restrict you from breaking your own promises. When you set up your wallet and configure daily payouts, your savings are safeguarded behind two locks:</p>
+                    
+                    <div class="lock-details-list">
+                        <div class="lock-detail-item">
+                            <div class="lock-icon-container"><i data-lucide="lock" style="color: var(--color-accent-amber);"></i></div>
+                            <div class="lock-detail-text">
+                                <h3>Deposit lock</h3>
+                                <p>Once deposited via Safaricom STK Push, funds are final and locked until the end of the month. They can only be spent via scheduled payouts.</p>
+                            </div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="new-category-amount" style="margin-bottom: 0.3rem;">Amount (KES)</label>
-                            <input type="number" id="new-category-amount" placeholder="e.g. 300" min="1" step="any" required>
+                        <div class="lock-detail-item">
+                            <div class="lock-icon-container"><i data-lucide="lock" style="color: var(--color-accent-violet);"></i></div>
+                            <div class="lock-detail-text">
+                                <h3>Budget lock</h3>
+                                <p>Your daily budget items cannot be modified, decreased, or added to during the month. No overrides, no emotional resets.</p>
+                            </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-block">
-                        <i data-lucide="plus"></i> Add Category
+                </div>
+
+                <div class="lock-visual-card glass-panel" id="lock-visual-card">
+                    <div class="lock-card-header">
+                        <span class="system-status"><i class="pulse-dot"></i> Live Protection</span>
+                        <span class="date-tag">July 2026</span>
+                    </div>
+                    <div class="lock-card-body">
+                        <div class="lock-metric">
+                            <span class="label">Daily Allowance</span>
+                            <span class="value">KES 500.00</span>
+                        </div>
+                        <div class="lock-metric">
+                            <span class="label">Lock status</span>
+                            <span class="status-indicator locked"><i data-lucide="lock" style="width: 0.9rem; height: 0.9rem;"></i> Enforced</span>
+                        </div>
+                        <div class="lock-progress">
+                            <div class="progress-bar-labels">
+                                <span>Day 15 of 30</span>
+                                <span>50% Completed</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 50%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="landing-section faq-section" id="faq-section">
+            <h2 class="section-title text-center">Frequently Asked Questions</h2>
+            <p class="section-subtitle text-center">Everything you need to know about the Bursar micro-allowance scheduler.</p>
+            
+            <div class="faq-accordion-container" id="faq-accordion">
+                <div class="faq-item glass-panel" id="faq-1">
+                    <button class="faq-question-btn" onclick="toggleFaq('faq-1')">
+                        <span>Is my money safe with Bursar 2.0?</span>
+                        <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
-                </form>
-            </div>
-            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
-                    <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
-                </div>
-                
-                <!-- Optional Date Range Picker inside modal lock flow -->
-                <div id="designer-lock-dates-section" style="display: none; flex-direction: column; gap: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: 0.6rem; text-align: left; width: 100%;">
-                    <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em;">
-                        <i data-lucide="calendar" style="width: 0.95rem; height: 0.95rem; color: var(--color-accent-violet);"></i> Payout Schedule (Optional)
-                    </h4>
-                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.4rem; line-height: 1.35;">Select start and end dates for daily allowance disbursements. Leave blank to start immediately and run indefinitely.</p>
-                    <div class="form-grid" style="margin-bottom: 0; gap: 0.8rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="lock-start-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">Start Date</label>
-                            <input type="date" id="lock-start-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="lock-end-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">End Date</label>
-                            <input type="date" id="lock-end-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
-                        </div>
+                    <div class="faq-answer">
+                        <p>Yes. Bursar 2.0 is a self-hosted personal finance daemon. Your credentials and database are fully hosted on your own machine. Your passwords and PINs are cryptographically hashed using industry-standard PBKDF2-HMAC-SHA256 with 100,000 iterations to isolate account records completely.</p>
                     </div>
                 </div>
-
-                <button id="lock-budget-btn" class="btn btn-block" style="display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.12); color: #f59e0b; padding: 0.65rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-                    <i data-lucide="lock" style="width: 1rem; height: 1rem; vertical-align: middle; margin-right: 0.3rem; display: inline-block;"></i> Lock & Finalize Budget
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Settings Overlay Drawer -->
-    <div class="drawer-overlay" id="settings-drawer">
-        <div class="drawer-content glass-panel">
-            <div class="drawer-header">
-                <h3><i data-lucide="sliders-horizontal"></i> Configuration Settings</h3>
-                <button class="close-btn" id="close-settings-btn">&times;</button>
-            </div>
-            <form id="settings-form" class="drawer-form">
-                <!-- Core Wallet Config -->
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="settings-budget">Daily Budget (KES)</label>
-                        <input type="number" id="settings-budget" min="0" step="any" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="settings-time">Payout Time (HH:MM)</label>
-                        <input type="time" id="settings-time" required>
+                <div class="faq-item glass-panel" id="faq-2">
+                    <button class="faq-question-btn" onclick="toggleFaq('faq-2')">
+                        <span>Can I unlock my deposits early if I need them?</span>
+                        <i data-lucide="chevron-down" class="faq-chevron"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>No. By design, once funds are deposited into a locked wallet, they cannot be manually decreased or withdrawn until the first calendar day of the next month. This cryptographic constraint is enforced directly by the database models to help you stay committed to your budget.</p>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="settings-phone">Target Mobile Number (254...)</label>
-                    <input type="text" id="settings-phone" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
+                <div class="faq-item glass-panel" id="faq-3">
+                    <button class="faq-question-btn" onclick="toggleFaq('faq-3')">
+                        <span>What happens if Safaricom's Daraja B2C API fails?</span>
+                        <i data-lucide="chevron-down" class="faq-chevron"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>If a B2C callback reports a timeout or failure at Safaricom, the background scheduler daemon automatically detects this state, refunds the daily budget allocation amount back to your locked wallet balance, and writes a system error log. It will retry payouts safely on the next scheduled run.</p>
+                    </div>
                 </div>
+                <div class="faq-item glass-panel" id="faq-4">
+                    <button class="faq-question-btn" onclick="toggleFaq('faq-4')">
+                        <span>Do I need active M-Pesa API credentials to run this?</span>
+                        <i data-lucide="chevron-down" class="faq-chevron"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Bursar 2.0 supports three modes: <strong>Simulation</strong> (fakes callbacks locally for testing and tracking balances offline), <strong>Sandbox</strong> (uses Safaricom developer accounts for verification), and <strong>Live</strong> (uses production Daraja API keys). You can configure your modes dynamically inside settings.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-
-                <button type="submit" class="btn btn-primary btn-block">Save Configuration</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Authentication Overlay -->
+        <!-- Footer -->
+        <footer class="app-footer landing-footer" id="landing-footer">
+            <div class="footer-logo">
+                <i data-lucide="wallet" style="width: 1.5rem; height: 1.5rem; color: var(--color-accent-violet);"></i>
+                <span>BURSAR 2.0</span>
+            </div>
+            <p class="copyright">&copy; 2026 Bursar. Open Source under the MIT License.</p>
+        </footer>
+    <!-- Authentication Overlay Modal -->
     <div class="auth-overlay" id="auth-overlay">
         <div class="auth-card glass-panel">
+            <button class="close-btn" id="close-auth-btn" style="position: absolute; top: 1rem; right: 1.5rem;">&times;</button>
             <div class="auth-header">
                 <i data-lucide="wallet" class="logo-icon auth-logo-icon"></i>
                 <h2>BURSAR <span class="version-tag">2.0</span></h2>
@@ -297,28 +331,268 @@
         </div>
     </div>
 
-    <!-- Deposit Polling Overlay -->
-    <div class="modal-overlay" id="deposit-polling-overlay" style="z-index: 110;">
-        <div class="modal-content glass-panel" id="deposit-polling-modal-content">
-            <div class="spinner-container" style="position: relative; width: 64px; height: 64px;">
-                <div class="glow-spinner" style="box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; border: 4px solid transparent; border-top: 4px solid var(--color-accent-violet); border-radius: 50%; animation: spin 1s linear infinite; filter: drop-shadow(0 0 8px rgba(142, 68, 255, 0.5));"></div>
-                <div class="inner-pulse" style="position: absolute; width: 44px; height: 44px; background: rgba(142, 68, 255, 0.1); border-radius: 50%; top: 10px; left: 10px; animation: pulse 2s ease-in-out infinite;"></div>
-                <i data-lucide="smartphone" style="position: absolute; width: 24px; height: 24px; color: var(--color-accent-violet); top: 20px; left: 20px;"></i>
-            </div>
-            <h3 style="font-weight: 700; color: var(--text-primary); margin-top: 0.5rem; margin-bottom: 0;">M-Pesa STK Push Sent</h3>
-            <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5; margin: 0;">We sent a payment prompt to your phone. Please check your screen, enter your M-Pesa PIN, and confirm.</p>
-            <div class="countdown-bar-container" style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; overflow: hidden; margin-top: 0.5rem;">
-                <div id="stk-progress-bar" style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--color-accent-violet), #3b71fe); transition: width 0.5s ease;"></div>
-            </div>
-            <div id="stk-status-text" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem;">Waiting for confirmation (60s)...</div>
-        </div>
     </div>
 
-    <!-- JS Logic -->
-    <script src="js/app.js?v=1.2.0"></script>
+    <!-- Script for FAQ and Simulation Charts -->
     <script>
+        // Init Lucide
         if (window.lucide) {
             window.lucide.createIcons();
+        }
+
+        // Toggle FAQ answers
+        function toggleFaq(id) {
+            const item = document.getElementById(id);
+            const allItems = document.querySelectorAll('.faq-item');
+            
+            allItems.forEach(faq => {
+                if (faq.id === id) {
+                    faq.classList.toggle('active');
+                } else {
+                    faq.classList.remove('active');
+                }
+            });
+        }
+
+        // Simulation charts
+        document.addEventListener("DOMContentLoaded", () => {
+            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            const balanceData = [7500, 6800, 6000, 5200, 4700, 4200, 3500];
+
+            // 1. Large Pacing Chart Widget
+            const canvasLarge = document.getElementById("pacing-sim-chart");
+            if (canvasLarge) {
+                const ctx = canvasLarge.getContext("2d");
+                
+                // Orange gradient for area background
+                const gradient = ctx.createLinearGradient(0, 0, 0, 160);
+                gradient.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
+                gradient.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: days,
+                        datasets: [{
+                            label: 'Wallet Balance (KES)',
+                            data: balanceData,
+                            fill: true,
+                            backgroundColor: gradient,
+                            borderColor: 'rgba(245, 158, 11, 0.85)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(245, 158, 11, 1)',
+                            pointBorderColor: 'rgba(255, 255, 255, 0.2)',
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(18, 22, 37, 0.95)',
+                                titleFont: { family: 'Outfit', size: 11, weight: '600' },
+                                bodyFont: { family: 'Outfit', size: 10 },
+                                borderColor: 'rgba(255, 255, 255, 0.08)',
+                                borderWidth: 1,
+                                padding: 6,
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` Wallet: KES ${context.raw.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    font: { family: 'Outfit', size: 9 }
+                                }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                                min: 2500,
+                                max: 7500,
+                                ticks: {
+                                    stepSize: 1000,
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    font: { family: 'Outfit', size: 9 },
+                                    callback: function(value) {
+                                        return 'KES ' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Small Phone Screen Mock Pacing Chart
+            const canvasPhone = document.getElementById("phone-sim-chart");
+            if (canvasPhone) {
+                const ctx = canvasPhone.getContext("2d");
+                
+                const gradientPhone = ctx.createLinearGradient(0, 0, 0, 90);
+                gradientPhone.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
+                gradientPhone.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: days,
+                        datasets: [{
+                            data: balanceData,
+                            fill: true,
+                            backgroundColor: gradientPhone,
+                            borderColor: 'rgba(245, 158, 11, 0.85)',
+                            borderWidth: 1.5,
+                            tension: 0.35,
+                            pointRadius: 2,
+                            pointBackgroundColor: 'rgba(245, 158, 11, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.3)',
+                                    font: { family: 'Outfit', size: 7 }
+                                }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                                ticks: {
+                                    stepSize: 2000,
+                                    color: 'rgba(255, 255, 255, 0.3)',
+                                    font: { family: 'Outfit', size: 7 }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // Open/Close Auth Modal Overlay based on Hash routing
+        const authOverlay = document.getElementById("auth-overlay");
+        const tabLogin = document.getElementById("tab-login");
+        const tabSignup = document.getElementById("tab-signup");
+        const authSubmitBtn = document.getElementById("auth-submit-btn");
+        const authSubtitle = document.getElementById("auth-subtitle");
+        const passwordLabel = document.getElementById("password-label");
+        const authPassword = document.getElementById("auth-password");
+        const errorMsg = document.getElementById("auth-error-msg");
+        const authForm = document.getElementById("auth-form");
+
+        let currentAuthAction = "login";
+
+        function showAuthOverlay(action) {
+            currentAuthAction = action;
+            authOverlay.classList.add("active");
+            errorMsg.style.display = "none";
+            
+            if (action === "login") {
+                tabLogin.classList.add("active");
+                tabSignup.classList.remove("active");
+                authSubmitBtn.innerText = "Log In";
+                authSubtitle.innerText = "Log in to manage your daily allowances";
+                passwordLabel.innerText = "Password PIN";
+                authPassword.placeholder = "Enter password (min 4 chars)";
+            } else {
+                tabSignup.classList.add("active");
+                tabLogin.classList.remove("active");
+                authSubmitBtn.innerText = "Register";
+                authSubtitle.innerText = "Create an account with your Safaricom number";
+                passwordLabel.innerText = "Create Password PIN";
+                authPassword.placeholder = "Choose password (min 4 chars)";
+            }
+        }
+
+        function closeAuthOverlay() {
+            authOverlay.classList.remove("active");
+            // Clear URL hash cleanly without forcing scroll jumps
+            history.replaceState(null, null, window.location.pathname);
+        }
+
+        // Tabbing inside modal
+        if (tabLogin) tabLogin.addEventListener("click", () => showAuthOverlay("login"));
+        if (tabSignup) tabSignup.addEventListener("click", () => showAuthOverlay("signup"));
+
+        // Close button click
+        const closeBtn = document.getElementById("close-auth-btn");
+        if (closeBtn) closeBtn.addEventListener("click", closeAuthOverlay);
+        if (authOverlay) {
+            authOverlay.addEventListener("click", (e) => {
+                if (e.target === authOverlay) closeAuthOverlay();
+            });
+        }
+
+        // Listen for URL hash changes to trigger modal
+        function handleHash() {
+            const hash = window.location.hash;
+            if (hash === "#login") {
+                showAuthOverlay("login");
+            } else if (hash === "#signup") {
+                showAuthOverlay("signup");
+            } else {
+                if (authOverlay) authOverlay.classList.remove("active");
+            }
+        }
+        window.addEventListener("hashchange", handleHash);
+        window.addEventListener("load", handleHash);
+
+        // Form submit handler
+        if (authForm) {
+            authForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                errorMsg.style.display = "none";
+
+                const phone_number = document.getElementById("auth-phone").value.trim();
+                const password = authPassword.value;
+
+                const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
+
+                try {
+                    const res = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ phone_number, password })
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        throw new Error(data.detail || "Authentication request failed.");
+                    }
+
+                    if (currentAuthAction === "signup") {
+                        // Registration succeeded, auto-login for slick UX
+                        currentAuthAction = "login";
+                        showAuthOverlay("login");
+                        authPassword.value = password;
+                        // Trigger submission again programmatically
+                        authForm.dispatchEvent(new Event("submit"));
+                    } else {
+                        // Login succeeded, redirect cleanly to /dashboard
+                        window.location.href = "/dashboard";
+                    }
+                } catch (err) {
+                    errorMsg.innerText = err.message;
+                    errorMsg.style.display = "block";
+                }
+            });
         }
     </script>
 </body>

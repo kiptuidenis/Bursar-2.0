@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bursar 2.0 — Premium Personal Money Manager</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- CSS Style -->
+    <link rel="stylesheet" href="css/style.css?v=1.2.0">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <i data-lucide="wallet" class="logo-icon"></i>
+                <div class="logo-text">
+                    <h1>BURSAR <span class="version-tag">2.0</span></h1>
+                    <p class="subtitle">Automated Micro-Allowance Scheduler</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="user-badge" id="user-badge" style="display: none;">
+                    <i data-lucide="user"></i>
+                    <span id="user-phone-number"></span>
+                </div>
+                <button class="icon-btn" id="toggle-settings-btn" title="Toggle Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+                <button class="icon-btn logout-btn" id="logout-btn" title="Log Out" style="display: none;">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Top Metrics Row -->
+        <div class="metrics-row">
+            <!-- Balance Card -->
+            <section class="metric-card glass-panel" id="balance-card">
+                <div class="card-header">
+                    <span class="card-title">Wallet Balance</span>
+                    <i data-lucide="coins" class="card-icon accent-emerald"></i>
+                </div>
+                <div class="card-body">
+                    <span class="currency">KES</span>
+                    <span class="amount-value" id="wallet-balance">0.00</span>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-primary" id="open-deposit-btn">
+                        <i data-lucide="plus-circle"></i> Deposit Funds
+                    </button>
+                </div>
+            </section>
+
+            <!-- Daily Budget Card -->
+            <section class="metric-card glass-panel" id="budget-card">
+                <div class="card-header">
+                    <span class="card-title">
+                        Daily Budget
+                        <span id="budget-lock-badge" class="lock-badge" style="display: none;">
+                            <i data-lucide="lock" style="width: 0.75rem; height: 0.75rem;"></i> Locked
+                        </span>
+                    </span>
+                    <div class="card-header-actions">
+                        <button class="icon-link-btn" id="edit-budget-btn" title="Edit Budget">
+                            <i data-lucide="edit-3"></i>
+                        </button>
+                        <div id="inline-budget-controls" style="display: none;">
+                            <button class="icon-link-btn save-btn" id="save-budget-btn" title="Save"><i data-lucide="check"></i></button>
+                            <button class="icon-link-btn cancel-btn" id="cancel-budget-btn" title="Cancel"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <span class="currency" id="budget-currency-label">KES</span>
+                    <span class="amount-value" id="daily-budget-value">0.00</span>
+                    <input type="number" id="inline-budget-input" class="inline-amount-input" style="display: none;" min="0" step="any">
+                </div>
+                <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span class="footer-info" id="payout-time-info">Payout: 08:00</span>
+                    <button class="text-link-btn" id="open-budget-designer-btn" title="Create budget allocation categories">
+                        <i data-lucide="sliders" style="width: 0.95rem; height: 0.95rem; vertical-align: middle; margin-right: 0.2rem;"></i> Create
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Dashboard Layout Grid -->
+        <div class="dashboard-layout-grid">
+            <!-- Left Column: Next Payout & Pacing Chart -->
+            <div class="layout-left-col">
+                <!-- Distribution Countdown Card -->
+                <section class="metric-card glass-panel" id="countdown-card">
+                    <div class="card-header">
+                        <span class="card-title">Next Payout</span>
+                        <i data-lucide="clock" class="card-icon accent-violet"></i>
+                    </div>
+                    <div class="card-body">
+                        <span class="amount-value countdown-value" id="countdown-timer">--h --m --s</span>
+                    </div>
+                </section>
+                
+                <!-- Interactive Balance Chart -->
+                <section class="chart-section glass-panel">
+                    <div class="section-header">
+                        <h2><i data-lucide="pie-chart"></i> Wallet Breakdown</h2>
+                    </div>
+                    <div class="chart-container" style="position: relative; flex-grow: 1; min-height: 220px;">
+                        <canvas id="balance-chart"></canvas>
+                    </div>
+                    <div id="chart-legend" class="chart-legend-container" style="margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;"></div>
+                </section>
+            </div>
+            
+            <!-- Right Column: Payout History Table -->
+            <section class="history-section glass-panel">
+                <div class="section-header">
+                    <h2><i data-lucide="history"></i> Distribution Payouts</h2>
+                    <span class="table-count" id="payout-count-badge">0 total</span>
+                </div>
+                <div class="table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Recipient</th>
+                                <th>M-Pesa Ref</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payout-history-body">
+                            <tr>
+                                <td colspan="5" class="empty-state">No payouts recorded yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal-overlay" id="deposit-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>Deposit Money</h3>
+                <button class="close-btn" id="close-deposit-btn">&times;</button>
+            </div>
+            <form id="deposit-form">
+                <div class="form-group">
+                    <label for="deposit-amount">Amount (KES)</label>
+                    <input type="number" id="deposit-amount" placeholder="e.g. 5000" min="1" step="any" required>
+                </div>
+                <div class="info-alert lock-warning-alert" style="margin-bottom: 1.2rem; display: flex; align-items: flex-start; gap: 0.5rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+                    <i data-lucide="alert-triangle" style="color: var(--color-accent-orange); shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
+                    <span><strong>Lock Notice:</strong> Once deposited, funds are final and locked until the end of the month. They can only be distributed via daily payouts.</span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Confirm Deposit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Designer Modal -->
+    <div class="modal-overlay" id="budget-designer-modal">
+        <div class="modal-content glass-panel" id="budget-designer-modal-content">
+            <div class="modal-header">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="sliders" style="color: var(--color-accent-violet);"></i> Budget Creator</h3>
+                <button class="close-btn" id="close-budget-designer-btn">&times;</button>
+            </div>
+            <div class="designer-body" style="display: flex; flex-direction: column; gap: 1rem;">
+                <p class="subtitle" style="margin-bottom: 0.5rem;">Segment your daily budget into custom categories (e.g. food, transport).</p>
+                
+                <div id="budget-creator-lock-notice" class="info-alert lock-warning-alert" style="display: none; margin-bottom: 0.5rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted); align-items: flex-start; gap: 0.5rem;">
+                    <i data-lucide="lock" style="color: #ef4444; shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
+                    <span id="budget-lock-notice-text"></span>
+                </div>
+                
+                <!-- Category List -->
+                <div class="category-designer-list" id="designer-category-list">
+                    <!-- Dynamic Rows: Category Name | Amount KES | Delete Button -->
+                </div>
+                
+                <!-- Add New Category Form -->
+                <form id="add-category-form" class="designer-add-form" style="margin-top: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--border-glass);">
+                    <div class="form-grid" style="margin-bottom: 1rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="new-category-name" style="margin-bottom: 0.3rem;">Category Name</label>
+                            <input type="text" id="new-category-name" placeholder="e.g. Food" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="new-category-amount" style="margin-bottom: 0.3rem;">Amount (KES)</label>
+                            <input type="number" id="new-category-amount" placeholder="e.g. 300" min="1" step="any" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i data-lucide="plus"></i> Add Category
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
+                    <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
+                </div>
+                
+                <!-- Optional Date Range Picker inside modal lock flow -->
+                <div id="designer-lock-dates-section" style="display: none; flex-direction: column; gap: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: 0.6rem; text-align: left; width: 100%;">
+                    <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em;">
+                        <i data-lucide="calendar" style="width: 0.95rem; height: 0.95rem; color: var(--color-accent-violet);"></i> Payout Schedule (Optional)
+                    </h4>
+                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.4rem; line-height: 1.35;">Select start and end dates for daily allowance disbursements. Leave blank to start immediately and run indefinitely.</p>
+                    <div class="form-grid" style="margin-bottom: 0; gap: 0.8rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="lock-start-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">Start Date</label>
+                            <input type="date" id="lock-start-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="lock-end-date" style="font-size: 0.72rem; margin-bottom: 0.3rem;">End Date</label>
+                            <input type="date" id="lock-end-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                        </div>
+                    </div>
+                </div>
+
+                <button id="lock-budget-btn" class="btn btn-block" style="display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.12); color: #f59e0b; padding: 0.65rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                    <i data-lucide="lock" style="width: 1rem; height: 1rem; vertical-align: middle; margin-right: 0.3rem; display: inline-block;"></i> Lock & Finalize Budget
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Overlay Drawer -->
+    <div class="drawer-overlay" id="settings-drawer">
+        <div class="drawer-content glass-panel">
+            <div class="drawer-header">
+                <h3><i data-lucide="sliders-horizontal"></i> Configuration Settings</h3>
+                <button class="close-btn" id="close-settings-btn">&times;</button>
+            </div>
+            <form id="settings-form" class="drawer-form">
+                <!-- Core Wallet Config -->
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="settings-budget">Daily Budget (KES)</label>
+                        <input type="number" id="settings-budget" min="0" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-time">Payout Time (HH:MM)</label>
+                        <input type="time" id="settings-time" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="settings-phone">Target Mobile Number (254...)</label>
+                    <input type="text" id="settings-phone" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
+                </div>
+
+
+                <button type="submit" class="btn btn-primary btn-block">Save Configuration</button>
+            </form>
+        </div>
+    </div>
+
+
+
+    <!-- Deposit Polling Overlay -->
+    <div class="modal-overlay" id="deposit-polling-overlay" style="z-index: 110;">
+        <div class="modal-content glass-panel" id="deposit-polling-modal-content">
+            <div class="spinner-container" style="position: relative; width: 64px; height: 64px;">
+                <div class="glow-spinner" style="box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; border: 4px solid transparent; border-top: 4px solid var(--color-accent-violet); border-radius: 50%; animation: spin 1s linear infinite; filter: drop-shadow(0 0 8px rgba(142, 68, 255, 0.5));"></div>
+                <div class="inner-pulse" style="position: absolute; width: 44px; height: 44px; background: rgba(142, 68, 255, 0.1); border-radius: 50%; top: 10px; left: 10px; animation: pulse 2s ease-in-out infinite;"></div>
+                <i data-lucide="smartphone" style="position: absolute; width: 24px; height: 24px; color: var(--color-accent-violet); top: 20px; left: 20px;"></i>
+            </div>
+            <h3 style="font-weight: 700; color: var(--text-primary); margin-top: 0.5rem; margin-bottom: 0;">M-Pesa STK Push Sent</h3>
+            <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5; margin: 0;">We sent a payment prompt to your phone. Please check your screen, enter your M-Pesa PIN, and confirm.</p>
+            <div class="countdown-bar-container" style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; overflow: hidden; margin-top: 0.5rem;">
+                <div id="stk-progress-bar" style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--color-accent-violet), #3b71fe); transition: width 0.5s ease;"></div>
+            </div>
+            <div id="stk-status-text" style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem;">Waiting for confirmation (60s)...</div>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script src="js/app.js?v=1.2.0"></script>
+    <script>
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

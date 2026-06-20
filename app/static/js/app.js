@@ -24,6 +24,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+
+    // Select correct auth tab based on hash routing
+    if (window.location.hash === "#signup") {
+        const tabSignup = document.getElementById("tab-signup");
+        if (tabSignup) tabSignup.click();
+    } else if (window.location.hash === "#login") {
+        const tabLogin = document.getElementById("tab-login");
+        if (tabLogin) tabLogin.click();
+    }
 });
 
 // Check if user session cookie is valid
@@ -35,7 +44,8 @@ async function checkAuth() {
             isAuthenticated = true;
             
             // Show logged-in UI elements
-            document.getElementById("auth-overlay").classList.remove("active");
+            const authOverlay = document.getElementById("auth-overlay");
+            if (authOverlay) authOverlay.classList.remove("active");
             document.getElementById("user-phone-number").innerText = user.phone_number;
             document.getElementById("user-badge").style.display = "flex";
             document.getElementById("logout-btn").style.display = "inline-flex";
@@ -61,24 +71,10 @@ async function checkAuth() {
     }
 }
 
-// Forces auth overlay display
+// Forces auth overlay display and redirects to landing page
 function showAuthScreen() {
     isAuthenticated = false;
-    document.getElementById("auth-overlay").classList.add("active");
-    document.getElementById("user-badge").style.display = "none";
-    document.getElementById("logout-btn").style.display = "none";
-    
-    // Stop dashboard polling
-    if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-    }
-
-    // Clean up chart
-    if (balanceChartInstance) {
-        balanceChartInstance.destroy();
-        balanceChartInstance = null;
-    }
+    window.location.href = "/#login";
 }
 
 // Setup DOM elements and event binders
@@ -309,10 +305,10 @@ function setupEventHandlers() {
     document.getElementById("logout-btn").addEventListener("click", async () => {
         try {
             await fetch("/api/auth/logout", { method: "POST" });
-            showAuthScreen();
+            window.location.href = "/";
         } catch (err) {
             console.error("Logout failed:", err);
-            showAuthScreen();
+            window.location.href = "/";
         }
     });
 

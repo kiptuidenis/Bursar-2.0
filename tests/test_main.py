@@ -562,6 +562,32 @@ def test_intasend_integration_flow(monkeypatch):
     assert settings["balance"] == 7500.0
 
 
+def test_dashboard_endpoint_success():
+    res = client.get("/dashboard")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+
+
+def test_dashboard_endpoint_missing(monkeypatch):
+    import os
+    original_exists = os.path.exists
+    def mock_exists(path):
+        if "dashboard.html" in path:
+            return False
+        return original_exists(path)
+    monkeypatch.setattr(os.path, "exists", mock_exists)
+    
+    res = client.get("/dashboard")
+    assert res.status_code == 404
+
+
+def test_root_endpoint_success():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+
+
+
 
 
 

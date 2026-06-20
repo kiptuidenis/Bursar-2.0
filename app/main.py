@@ -643,6 +643,15 @@ async def get_diagnostics():
     }
 
 
+@app.get("/dashboard")
+def get_dashboard_page():
+    from fastapi.responses import FileResponse
+    dashboard_path = os.path.join(os.path.dirname(__file__), "static", "dashboard.html")
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
+    raise HTTPException(status_code=404, detail="Dashboard not found")
+
+
 # Mount static assets
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
