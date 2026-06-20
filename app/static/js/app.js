@@ -46,12 +46,23 @@ async function checkAuth() {
             // Show logged-in UI elements
             const authOverlay = document.getElementById("auth-overlay");
             if (authOverlay) authOverlay.classList.remove("active");
-            document.getElementById("user-phone-number").innerText = user.phone_number;
-            document.getElementById("user-badge").style.display = "flex";
-            document.getElementById("logout-btn").style.display = "inline-flex";
+            
+            const userPhone = document.getElementById("user-phone-number");
+            if (userPhone) userPhone.innerText = user.phone_number;
+            
+            const userBadge = document.getElementById("user-badge");
+            if (userBadge) userBadge.style.display = "flex";
+            
+            const logoutBtn = document.getElementById("logout-btn");
+            if (logoutBtn) logoutBtn.style.display = "inline-flex";
 
             const cardPhone = document.getElementById("cardholder-phone");
             if (cardPhone) cardPhone.innerText = user.phone_number;
+            
+            const sidebarBadge = document.getElementById("sidebar-user-badge");
+            if (sidebarBadge) sidebarBadge.style.display = "flex";
+            const sidebarPhone = document.getElementById("sidebar-user-phone-number");
+            if (sidebarPhone) sidebarPhone.innerText = user.phone_number;
 
             // Initialize/refresh icons when UI state changes
             if (window.lucide) {
@@ -84,6 +95,99 @@ function showAuthScreen() {
 function setupEventHandlers() {
     const depositModal = document.getElementById("deposit-modal");
     const settingsDrawer = document.getElementById("settings-drawer");
+
+    // Sidebar Tab switching & mobile menu handling
+    const sidebar = document.getElementById("sidebar-nav");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    const toggleBtn = document.getElementById("sidebar-toggle-btn");
+    
+    // Toggle Mobile Sidebar
+    if (toggleBtn) {
+        toggleBtn.addEventListener("click", () => {
+            if (sidebar) sidebar.classList.add("active");
+            if (backdrop) backdrop.classList.add("active");
+        });
+    }
+    if (backdrop) {
+        backdrop.addEventListener("click", () => {
+            if (sidebar) sidebar.classList.remove("active");
+            if (backdrop) backdrop.classList.remove("active");
+        });
+    }
+
+    // Switch View function
+    function switchTab(tabId) {
+        // Toggle view containers
+        const dashboardView = document.getElementById("view-dashboard");
+        const transactionsView = document.getElementById("view-transactions");
+        
+        if (tabId === "dashboard") {
+            if (dashboardView) {
+                dashboardView.classList.remove("hidden");
+                dashboardView.classList.add("active");
+            }
+            if (transactionsView) {
+                transactionsView.classList.add("hidden");
+                transactionsView.classList.remove("active");
+            }
+        } else if (tabId === "transactions") {
+            if (transactionsView) {
+                transactionsView.classList.remove("hidden");
+                transactionsView.classList.add("active");
+            }
+            if (dashboardView) {
+                dashboardView.classList.add("hidden");
+                dashboardView.classList.remove("active");
+            }
+        }
+        
+        // Update active class on links
+        document.querySelectorAll(".sidebar-link").forEach(btn => {
+            if (btn.getAttribute("data-tab") === tabId) {
+                btn.classList.add("active");
+            } else if (btn.getAttribute("data-tab") !== "budget" && btn.getAttribute("data-tab") !== "settings") {
+                btn.classList.remove("active");
+            }
+        });
+        
+        // Hide mobile sidebar
+        if (sidebar) sidebar.classList.remove("active");
+        if (backdrop) backdrop.classList.remove("active");
+    }
+
+    // Click link events
+    document.querySelectorAll(".sidebar-link").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const tab = btn.getAttribute("data-tab");
+            if (tab === "dashboard" || tab === "transactions") {
+                switchTab(tab);
+            } else if (tab === "budget") {
+                // Open Budget creator Modal directly
+                const budgetModal = document.getElementById("budget-designer-modal");
+                if (budgetModal) {
+                    budgetModal.classList.add("active");
+                    if (typeof renderDesignerCategories === 'function') {
+                        renderDesignerCategories();
+                    }
+                }
+                if (sidebar) sidebar.classList.remove("active");
+                if (backdrop) backdrop.classList.remove("active");
+            } else if (tab === "settings") {
+                // Toggle Settings Drawer
+                if (settingsDrawer) settingsDrawer.classList.add("active");
+                if (sidebar) sidebar.classList.remove("active");
+                if (backdrop) backdrop.classList.remove("active");
+            }
+        });
+    });
+
+    // "View All" link on recent payouts card
+    const viewAllBtn = document.getElementById("view-all-payouts-btn");
+    if (viewAllBtn) {
+        viewAllBtn.addEventListener("click", () => {
+            switchTab("transactions");
+        });
+    }
 
     // Open/Close Deposit
     document.getElementById("open-deposit-btn").addEventListener("click", () => {
@@ -566,34 +670,43 @@ async function fetchPayouts() {
         document.getElementById("payout-count-badge").innerText = `${data.length} total`;
 
         const body = document.getElementById("payout-history-body");
+        const bodyRecent = document.getElementById("payout-history-body-recent");
+        
         if (data.length === 0) {
-            body.innerHTML = `<tr><td colspan="5" class="empty-state">No payouts recorded yet.</td></tr>`;
+            const emptyHTML = `<tr><td colspan="5" class="empty-state">No payouts recorded yet.</td></tr>`;
+            if (body) body.innerHTML = emptyHTML;
+            if (bodyRecent) bodyRecent.innerHTML = emptyHTML;
             refreshChart();
             return;
         }
 
-        body.innerHTML = data.map(payout => {
-            let statusClass = "badge-pending";
-            let statusText = payout.status;
-            let tooltip = "";
+        const renderRows = (items) => {
+            return items.map(payout => {
+                let statusClass = "badge-pending";
+                let statusText = payout.status;
+                let tooltip = "";
 
-            if (payout.status === "SUCCESS") {
-                statusClass = "badge-success";
-            } else if (payout.status === "FAILED") {
-                statusClass = "badge-failed";
-                tooltip = `title="${payout.error_message || 'Transaction rejected'}"`;
-            }
+                if (payout.status === "SUCCESS") {
+                    statusClass = "badge-success";
+                } else if (payout.status === "FAILED") {
+                    statusClass = "badge-failed";
+                    tooltip = `title="${payout.error_message || 'Transaction rejected'}"`;
+                }
 
-            return `
-                <tr>
-                    <td><strong>${payout.payout_date}</strong></td>
-                    <td>KES ${parseFloat(payout.amount).toFixed(2)}</td>
-                    <td>${payout.phone_number}</td>
-                    <td class="text-mono">${payout.transaction_id || payout.conversation_id || '—'}</td>
-                    <td><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
-                </tr>
-            `;
-        }).join("");
+                return `
+                    <tr>
+                        <td><strong>${payout.payout_date}</strong></td>
+                        <td>KES ${parseFloat(payout.amount).toFixed(2)}</td>
+                        <td>${payout.phone_number}</td>
+                        <td class="text-mono">${payout.transaction_id || payout.conversation_id || '—'}</td>
+                        <td><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
+                    </tr>
+                `;
+            }).join("");
+        };
+
+        if (body) body.innerHTML = renderRows(data);
+        if (bodyRecent) bodyRecent.innerHTML = renderRows(data.slice(0, 5));
         
         refreshChart();
     } catch (err) {
