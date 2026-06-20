@@ -19,12 +19,6 @@
     --color-accent-rose-glow: rgba(244, 63, 94, 0.25);
     --color-accent-amber: hsl(38, 92%, 52%);
     --color-accent-amber-glow: rgba(245, 158, 11, 0.25);
-
-    --color-accent-teal: hsl(172, 90%, 43%);
-    --color-accent-teal-glow: rgba(20, 220, 185, 0.25);
-    --color-accent-blue: hsl(210, 80%, 55%);
-    --color-accent-blue-glow: rgba(59, 130, 246, 0.25);
-    --bg-slate: hsl(222, 25%, 8%);
     
     --shadow-premium: 0 16px 40px rgba(0, 0, 0, 0.4);
     --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -621,17 +615,15 @@ body {
     backdrop-filter: blur(8px);
     z-index: 100;
     opacity: 0;
-    visibility: hidden;
     pointer-events: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.35s ease, visibility 0.35s ease;
+    transition: opacity 0.35s ease;
 }
 
 .modal-overlay.active, .drawer-overlay.active {
     opacity: 1;
-    visibility: visible;
     pointer-events: all;
 }
 
@@ -891,16 +883,14 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.4s ease, visibility 0.4s ease;
+    transition: opacity 0.4s ease;
     overflow-y: auto;          /* Enable scrollability when content exceeds screen height */
     padding: 1.5rem 0.5rem;    /* Guard against edge-clipping on small viewports */
 }
 
 .auth-overlay.active {
     opacity: 1;
-    visibility: visible;
     pointer-events: all;
 }
 
@@ -1648,23 +1638,6 @@ body {
     bottom: 10%;
     right: 15%;
 }
-
-.glow-teal {
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, var(--color-accent-teal-glow) 0%, transparent 70%);
-    top: 10%;
-    left: 10%;
-}
-
-.glow-blue {
-    width: 450px;
-    height: 450px;
-    background: radial-gradient(circle, var(--color-accent-blue-glow) 0%, transparent 70%);
-    bottom: 15%;
-    right: 15%;
-}
-
 
 /* Hero Visual Sandbox (Phone and Widget Stack) */
 .hero-visual-sandbox {
@@ -2450,194 +2423,6 @@ body {
         text-align: center;
     }
 }
-
-/* ==========================================================================
-   Bursar 2.0 Dashboard Sleek Slate Styles
-   ========================================================================== */
-
-.dashboard-body {
-    background-color: var(--bg-slate) !important;
-}
-
-/* Background Glow Orb Overrides for Dashboard */
-.dashboard-body .glow-orb.glow-teal {
-    opacity: 0.2;
-}
-
-.dashboard-body .glow-orb.glow-blue {
-    opacity: 0.15;
-}
-
-/* Card Accent Borders */
-.dashboard-body #balance-card::before {
-    background: linear-gradient(90deg, transparent, var(--color-accent-teal), transparent);
-}
-
-.dashboard-body #budget-card::before {
-    background: linear-gradient(90deg, transparent, var(--color-accent-blue), transparent);
-}
-
-.dashboard-body #countdown-card::before {
-    background: linear-gradient(90deg, transparent, var(--color-accent-teal), transparent);
-}
-
-.dashboard-body .history-section::before {
-    background: linear-gradient(90deg, transparent, var(--color-accent-blue), transparent);
-}
-
-.dashboard-body .chart-section::before {
-    background: linear-gradient(90deg, transparent, var(--color-accent-teal), transparent);
-}
-
-/* Card Hover States */
-.dashboard-body #balance-card:hover {
-    border-color: rgba(20, 220, 185, 0.4);
-    box-shadow: var(--shadow-premium), 0 12px 30px rgba(20, 220, 185, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.dashboard-body #budget-card:hover {
-    border-color: rgba(59, 130, 246, 0.4);
-    box-shadow: var(--shadow-premium), 0 12px 30px rgba(59, 130, 246, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.dashboard-body #countdown-card:hover {
-    border-color: rgba(20, 220, 185, 0.4);
-    box-shadow: var(--shadow-premium), 0 12px 30px rgba(20, 220, 185, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.dashboard-body .history-section:hover, 
-.dashboard-body .chart-section:hover {
-    border-color: rgba(20, 220, 185, 0.25);
-    box-shadow: var(--shadow-premium), 0 8px 24px rgba(20, 220, 185, 0.05);
-}
-
-/* Button & Link Accents */
-.dashboard-body .btn-primary {
-    background: var(--color-accent-teal) !important;
-    color: var(--text-dark) !important;
-    box-shadow: 0 4px 15px var(--color-accent-teal-glow) !important;
-}
-
-.dashboard-body .btn-primary:hover {
-    background: hsl(172, 95%, 48%) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px var(--color-accent-teal-glow) !important;
-}
-
-.dashboard-body .text-link-btn {
-    color: var(--color-accent-teal) !important;
-}
-
-.dashboard-body .text-link-btn:hover {
-    color: hsl(172, 95%, 48%) !important;
-}
-
-.dashboard-body .icon-btn:hover {
-    border-color: var(--color-accent-teal) !important;
-    background: rgba(20, 220, 185, 0.05) !important;
-}
-
-.dashboard-body .icon-link-btn:hover {
-    color: var(--color-accent-teal) !important;
-    background: rgba(20, 220, 185, 0.05) !important;
-}
-
-.dashboard-body .user-badge svg {
-    color: var(--color-accent-teal) !important;
-}
-
-.dashboard-body .section-header h2 svg {
-    color: var(--color-accent-teal) !important;
-}
-
-/* Inline Inputs and Forms */
-.dashboard-body .inline-amount-input {
-    border-bottom-color: var(--color-accent-teal) !important;
-}
-
-.dashboard-body .inline-amount-input:focus {
-    border-color: var(--color-accent-blue) !important;
-    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1) !important;
-}
-
-.dashboard-body .form-group input:focus {
-    border-color: var(--color-accent-teal) !important;
-    box-shadow: 0 0 10px var(--color-accent-teal-glow) !important;
-}
-
-/* Category Pills & Designer Rows */
-.dashboard-body .category-pill:hover {
-    border-color: rgba(20, 220, 185, 0.3) !important;
-    background: rgba(20, 220, 185, 0.08) !important;
-}
-
-.dashboard-body .category-pill-amount {
-    color: var(--color-accent-teal) !important;
-}
-
-.dashboard-body .designer-category-val span {
-    color: var(--color-accent-teal) !important;
-}
-
-/* Scrollbar Styles */
-.dashboard-body ::-webkit-scrollbar-thumb {
-    background: rgba(20, 220, 185, 0.25) !important;
-}
-
-.dashboard-body ::-webkit-scrollbar-thumb:hover {
-    background: rgba(20, 220, 185, 0.45) !important;
-}
-
-/* Toggle Switch */
-.dashboard-body .switch-toggle input:checked + .switch-slider {
-    background-color: rgba(20, 220, 185, 0.35) !important;
-    border-color: rgba(20, 220, 185, 0.6) !important;
-}
-
-.dashboard-body .switch-toggle input:checked + .switch-slider:before {
-    box-shadow: 0 0 10px rgba(20, 220, 185, 0.5) !important;
-}
-
-/* Header Text Version Tag */
-.dashboard-body .version-tag {
-    color: var(--color-accent-teal) !important;
-}
-
-/* Spinner & Pulse inside STK overlay */
-.dashboard-body .glow-spinner {
-    border-top-color: var(--color-accent-teal) !important;
-    filter: drop-shadow(0 0 8px var(--color-accent-teal-glow)) !important;
-}
-
-.dashboard-body .inner-pulse {
-    background: rgba(20, 220, 185, 0.1) !important;
-}
-
-.dashboard-body #deposit-polling-overlay svg {
-    color: var(--color-accent-teal) !important;
-}
-
-.dashboard-body #stk-progress-bar {
-    background: linear-gradient(90deg, var(--color-accent-teal), var(--color-accent-blue)) !important;
-}
-
-/* Budget designer creator lock check custom button */
-.dashboard-body #lock-budget-btn {
-    border-color: rgba(20, 220, 185, 0.4) !important;
-    background: rgba(20, 220, 185, 0.12) !important;
-    color: var(--color-accent-teal) !important;
-}
-
-.dashboard-body #lock-budget-btn:hover {
-    background: rgba(20, 220, 185, 0.2) !important;
-}
-
-.dashboard-body .dashboard-header {
-    padding: 1.25rem 2rem !important;
-    border-radius: 1.2rem !important;
-    margin-bottom: 2rem !important;
-}
-
 
 
 

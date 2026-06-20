@@ -591,13 +591,13 @@ function renderBalanceChart(payouts, settings) {
         
         legendContainer.innerHTML = `
             <div class="legend-pill" title="Current Wallet Balance available for future payouts">
-                <span class="legend-color-dot" style="background-color: var(--color-accent-teal);"></span>
+                <span class="legend-color-dot" style="background-color: var(--color-accent-emerald);"></span>
                 <span class="legend-label">Remaining:</span>
                 <span class="legend-value">KES ${remaining.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span class="legend-percent">${remainingPercent}%</span>
             </div>
             <div class="legend-pill" title="Sum of successful daily payout distributions">
-                <span class="legend-color-dot" style="background-color: var(--color-accent-blue);"></span>
+                <span class="legend-color-dot" style="background-color: var(--color-accent-violet);"></span>
                 <span class="legend-label">Spent:</span>
                 <span class="legend-value">KES ${spent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span class="legend-percent">${spentPercent}%</span>
@@ -618,21 +618,21 @@ function renderBalanceChart(payouts, settings) {
                 datasets: [{
                     data: chartData,
                     backgroundColor: [
-                        'rgba(59, 130, 246, 0.75)', // Spent: Blue Accent
-                        'rgba(20, 220, 185, 0.75)'  // Remaining: Teal Accent
+                        'rgba(142, 68, 255, 0.75)', // Spent: Violet Accent
+                        'rgba(16, 185, 129, 0.75)'  // Remaining: Emerald Accent
                     ],
                     borderColor: [
-                        'rgba(59, 130, 246, 0.15)',
-                        'rgba(20, 220, 185, 0.15)'
+                        'rgba(142, 68, 255, 0.15)',
+                        'rgba(16, 185, 129, 0.15)'
                     ],
                     borderWidth: 2,
                     hoverBackgroundColor: [
-                        'rgba(59, 130, 246, 0.95)',
-                        'rgba(20, 220, 185, 0.95)'
+                        'rgba(142, 68, 255, 0.95)',
+                        'rgba(16, 185, 129, 0.95)'
                     ],
                     hoverBorderColor: [
-                        'rgba(59, 130, 246, 0.4)',
-                        'rgba(20, 220, 185, 0.4)'
+                        'rgba(142, 68, 255, 0.4)',
+                        'rgba(16, 185, 129, 0.4)'
                     ],
                     hoverOffset: 12
                 }]
