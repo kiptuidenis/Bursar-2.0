@@ -2862,6 +2862,12 @@ body:not(.landing-body) {
     display: none !important;
 }
 
+/* Sidebar brand alignment when expanded */
+.sidebar-nav:not(.collapsed) .sidebar-brand {
+    justify-content: flex-end;
+    padding-right: 0.5rem;
+}
+
 /* Sidebar Responsive Styles */
 @media (max-width: 900px) {
     .sidebar-nav {
@@ -2898,8 +2904,3 @@ body:not(.landing-body) {
         font-size: 1.3rem !important;
     }
 }
-
-
-
-
-
