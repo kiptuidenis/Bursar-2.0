@@ -1,26 +1,26 @@
 /* Color Design System & Variables */
 :root {
-    --bg-main: hsl(230, 28%, 9%);
-    --bg-glass: rgba(18, 22, 37, 0.65);
-    --border-glass: rgba(255, 255, 255, 0.07);
-    --border-glass-focus: rgba(255, 255, 255, 0.15);
+    --bg-main: #0B0C10;                /* True solid black background */
+    --bg-glass: #16171E;               /* Solid graphite card container background */
+    --border-glass: rgba(255, 255, 255, 0.045); /* Very thin elegant borders */
+    --border-glass-focus: rgba(255, 255, 255, 0.08);
     
     --text-primary: hsl(0, 0%, 95%);
-    --text-muted: hsl(225, 12%, 68%);
+    --text-muted: #8E929C;             /* Muted grey details */
     --text-dark: hsl(230, 15%, 15%);
     
-    --color-accent-violet: hsl(263, 80%, 62%);
-    --color-accent-violet-glow: rgba(142, 68, 255, 0.25);
-    --color-accent-indigo: hsl(221, 83%, 60%);
-    --color-accent-indigo-glow: rgba(59, 113, 254, 0.25);
-    --color-accent-emerald: hsl(150, 72%, 46%);
-    --color-accent-emerald-glow: rgba(16, 185, 129, 0.25);
-    --color-accent-rose: hsl(350, 78%, 56%);
-    --color-accent-rose-glow: rgba(244, 63, 94, 0.25);
-    --color-accent-amber: hsl(38, 92%, 52%);
-    --color-accent-amber-glow: rgba(245, 158, 11, 0.25);
+    --color-accent-violet: #FF5B22;   /* Safety Orange (Mockup primary brand accent) */
+    --color-accent-violet-glow: rgba(255, 91, 34, 0.2);
+    --color-accent-indigo: #FF7A45;   /* Lighter brand orange */
+    --color-accent-indigo-glow: rgba(255, 122, 69, 0.2);
+    --color-accent-emerald: #10B981;  /* Green for money and completions */
+    --color-accent-emerald-glow: rgba(16, 185, 129, 0.15);
+    --color-accent-rose: #EF4444;     /* Red for errors/failed transactions */
+    --color-accent-rose-glow: rgba(239, 68, 68, 0.15);
+    --color-accent-amber: #F59E0B;    /* Amber for pending/processing */
+    --color-accent-amber-glow: rgba(245, 158, 11, 0.15);
     
-    --shadow-premium: 0 16px 40px rgba(0, 0, 0, 0.4);
+    --shadow-premium: 0 16px 40px rgba(0, 0, 0, 0.55);
     --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     --font-sans: 'Outfit', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -129,12 +129,12 @@ body {
 /* Glassmorphism Panel Template */
 .glass-panel {
     position: relative; /* Ensure absolute top-border fits correctly */
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), var(--bg-glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-glass);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(12, 16, 28, 0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 1.2rem;
-    box-shadow: var(--shadow-premium), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+    box-shadow: var(--shadow-premium), inset 0 1px 1px 0 rgba(255, 255, 255, 0.06);
     transition: var(--transition-smooth);
     overflow: hidden; /* Clips the top accent line border-radius correctly */
 }
@@ -146,8 +146,8 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
     z-index: 2;
     pointer-events: none;
 }
@@ -231,7 +231,7 @@ body {
 /* Dashboard Layout Grid */
 .dashboard-layout-grid {
     display: grid;
-    grid-template-columns: 1fr 1.25fr;
+    grid-template-columns: 340px 1fr;
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -240,6 +240,137 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.layout-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.right-subgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Debit Card Visual Mockup styling */
+.debit-card-visual {
+    position: relative;
+    background: linear-gradient(135deg, #FF5B22 0%, #B91C1C 100%);
+    border-radius: 1.2rem;
+    padding: 1.5rem;
+    min-height: 190px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 15px 35px rgba(255, 91, 34, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+    z-index: 2;
+    transition: var(--transition-smooth);
+}
+
+.debit-card-visual:hover {
+    transform: translateY(-4px) rotate(0.5deg);
+    box-shadow: 0 20px 40px rgba(255, 91, 34, 0.35);
+}
+
+.debit-card-visual::after {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
+    top: -50px;
+    right: -50px;
+    pointer-events: none;
+}
+
+.debit-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.debit-card-logo {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    letter-spacing: 0.05em;
+}
+
+.debit-card-logo svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.nfc-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    color: rgba(255, 255, 255, 0.7);
+    transform: rotate(90deg);
+}
+
+.debit-card-chip {
+    width: 38px;
+    height: 28px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-radius: 6px;
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.debit-card-chip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+}
+
+.debit-card-number {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-primary);
+    margin-bottom: 1.2rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.debit-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.cardholder {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.card-label {
+    font-size: 0.58rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.card-val {
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 #countdown-card {
@@ -1304,6 +1435,11 @@ body {
     
     .dashboard-layout-grid {
         display: grid;
+        grid-template-columns: 1fr !important;
+        gap: 0.8rem !important;
+    }
+    
+    .right-subgrid {
         grid-template-columns: 1fr !important;
         gap: 0.8rem !important;
     }

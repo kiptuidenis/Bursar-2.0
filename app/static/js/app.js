@@ -50,6 +50,9 @@ async function checkAuth() {
             document.getElementById("user-badge").style.display = "flex";
             document.getElementById("logout-btn").style.display = "inline-flex";
 
+            const cardPhone = document.getElementById("cardholder-phone");
+            if (cardPhone) cardPhone.innerText = user.phone_number;
+
             // Initialize/refresh icons when UI state changes
             if (window.lucide) {
                 window.lucide.createIcons();
@@ -464,6 +467,37 @@ function setupEventHandlers() {
             }
         });
     }
+
+    // Manual Payout Daemon Trigger Handler
+    const triggerPayoutBtn = document.getElementById("trigger-payout-btn");
+    if (triggerPayoutBtn) {
+        triggerPayoutBtn.addEventListener("click", async () => {
+            triggerPayoutBtn.disabled = true;
+            const originalHTML = triggerPayoutBtn.innerHTML;
+            triggerPayoutBtn.innerHTML = `<i data-lucide="loader" class="spin" style="width: 1rem; height: 1rem; display: inline-block; vertical-align: middle;"></i> Evaluated...`;
+            if (window.lucide) window.lucide.createIcons();
+            
+            try {
+                const res = await fetch("/api/payout/trigger", { method: "POST" });
+                if (res.status === 401) return showAuthScreen();
+                const data = await res.json();
+                
+                if (data.triggered) {
+                    alert("Daily allowance scheduled distribution run completed! 🚀");
+                } else {
+                    alert("Payout trigger evaluation completed. No payout due or daily limit already hit today.");
+                }
+                pollDashboardData();
+            } catch (err) {
+                console.error("Payout trigger error:", err);
+                alert("Failed to manual trigger payout daemon.");
+            } finally {
+                triggerPayoutBtn.disabled = false;
+                triggerPayoutBtn.innerHTML = originalHTML;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        });
+    }
 }
 
 
@@ -591,13 +625,13 @@ function renderBalanceChart(payouts, settings) {
         
         legendContainer.innerHTML = `
             <div class="legend-pill" title="Current Wallet Balance available for future payouts">
-                <span class="legend-color-dot" style="background-color: var(--color-accent-emerald);"></span>
+                <span class="legend-color-dot" style="background-color: var(--color-accent-violet);"></span>
                 <span class="legend-label">Remaining:</span>
                 <span class="legend-value">KES ${remaining.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span class="legend-percent">${remainingPercent}%</span>
             </div>
             <div class="legend-pill" title="Sum of successful daily payout distributions">
-                <span class="legend-color-dot" style="background-color: var(--color-accent-violet);"></span>
+                <span class="legend-color-dot" style="background-color: #2E3244;"></span>
                 <span class="legend-label">Spent:</span>
                 <span class="legend-value">KES ${spent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span class="legend-percent">${spentPercent}%</span>
@@ -607,8 +641,24 @@ function renderBalanceChart(payouts, settings) {
     
     const ctx = canvas.getContext("2d");
     
+    // Create spent color (Dark Slate)
+    const spentGrad = '#2E3244';
+    
+    // Create remaining gradient (Safety Orange to Lighter Brand Orange)
+    const remainingGrad = ctx.createLinearGradient(0, 0, 0, 120);
+    remainingGrad.addColorStop(0, '#FF5B22'); // Safety Orange
+    remainingGrad.addColorStop(1, '#FF7A45'); // Lighter Orange
+    
+    const chartColors = [spentGrad, remainingGrad];
+    const hoverColors = [
+        '#3A3F56', // Dark Slate hover
+        '#FF6B35'  // Safety Orange hover
+    ];
+    
     if (balanceChartInstance) {
+        // Re-assign gradients in case canvas dimensions resized
         balanceChartInstance.data.datasets[0].data = chartData;
+        balanceChartInstance.data.datasets[0].backgroundColor = chartColors;
         balanceChartInstance.update();
     } else {
         balanceChartInstance = new Chart(ctx, {
@@ -617,22 +667,16 @@ function renderBalanceChart(payouts, settings) {
                 labels: ['Spent', 'Remaining'],
                 datasets: [{
                     data: chartData,
-                    backgroundColor: [
-                        'rgba(142, 68, 255, 0.75)', // Spent: Violet Accent
-                        'rgba(16, 185, 129, 0.75)'  // Remaining: Emerald Accent
-                    ],
+                    backgroundColor: chartColors,
                     borderColor: [
-                        'rgba(142, 68, 255, 0.15)',
-                        'rgba(16, 185, 129, 0.15)'
+                        '#16171E',
+                        '#16171E'
                     ],
                     borderWidth: 2,
-                    hoverBackgroundColor: [
-                        'rgba(142, 68, 255, 0.95)',
-                        'rgba(16, 185, 129, 0.95)'
-                    ],
+                    hoverBackgroundColor: hoverColors,
                     hoverBorderColor: [
-                        'rgba(142, 68, 255, 0.4)',
-                        'rgba(16, 185, 129, 0.4)'
+                        '#2E3244',
+                        'rgba(255, 91, 34, 0.4)'
                     ],
                     hoverOffset: 12
                 }]
@@ -744,10 +788,26 @@ async function fetchBudgetItems() {
 function renderBudgetBreakdown() {
     const designerList = document.getElementById("designer-category-list");
     const designerTotal = document.getElementById("designer-total-budget");
+    const mainBreakdownList = document.getElementById("budget-breakdown-list");
     
     // Check lock states
     const isLocked = currentSettings && currentSettings.is_budget_locked;
     
+    // Render pills on the main dashboard Daily Budget card
+    if (mainBreakdownList) {
+        if (budgetItems.length === 0) {
+            mainBreakdownList.innerHTML = `<span style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">No categories configured. Click 'Create' to begin.</span>`;
+        } else {
+            mainBreakdownList.innerHTML = budgetItems.map(item => `
+                <span class="category-pill" title="Daily allocation: KES ${item.amount.toFixed(2)}">
+                    <span class="legend-color-dot" style="background-color: var(--color-accent-violet); width: 6px; height: 6px; display: inline-block; border-radius: 50%; margin-right: 0.2rem;"></span>
+                    <span class="category-name">${escapeHTML(item.category)}</span>
+                    <span class="category-pill-amount">KES ${item.amount.toFixed(0)}</span>
+                </span>
+            `).join("");
+        }
+    }
+
     // Render rows inside the designer modal list
     if (designerList) {
         if (budgetItems.length === 0) {
