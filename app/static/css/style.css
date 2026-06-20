@@ -615,15 +615,17 @@ body {
     backdrop-filter: blur(8px);
     z-index: 100;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.35s ease;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
 }
 
 .modal-overlay.active, .drawer-overlay.active {
     opacity: 1;
+    visibility: visible;
     pointer-events: all;
 }
 
@@ -883,14 +885,16 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.4s ease;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
     overflow-y: auto;          /* Enable scrollability when content exceeds screen height */
     padding: 1.5rem 0.5rem;    /* Guard against edge-clipping on small viewports */
 }
 
 .auth-overlay.active {
     opacity: 1;
+    visibility: visible;
     pointer-events: all;
 }
 
