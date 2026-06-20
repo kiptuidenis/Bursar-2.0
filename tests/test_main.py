@@ -587,6 +587,19 @@ def test_root_endpoint_success():
     assert "text/html" in res.headers["content-type"]
 
 
+def test_manual_payout_trigger_endpoint():
+    # 1. Setup client user, signup & login
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000008", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000008", "password": "pinpassword"})
+    
+    # 2. Trigger payout (returns JSON triggered status)
+    res = c.post("/api/payout/trigger")
+    assert res.status_code == 200
+    assert "triggered" in res.json()
+
+
+
 
 
 

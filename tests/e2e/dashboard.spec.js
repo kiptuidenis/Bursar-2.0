@@ -66,4 +66,38 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     // Ensure no console exceptions occurred during any of these transitions
     expect(pageErrors).toHaveLength(0);
   });
+
+  test('Should toggle sidebar collapse state and switch tabs successfully', async ({ page }) => {
+    // 1. Signup & auto-login
+    await page.goto('/#signup');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254700${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+
+    // 2. Verify sidebar is visible and not collapsed initially
+    const sidebar = page.locator('#sidebar-nav');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).not.toHaveClass(/collapsed/);
+
+    // 3. Click the sidebar collapse button
+    await page.click('#sidebar-collapse-btn');
+    await expect(sidebar).toHaveClass(/collapsed/);
+
+    // 4. Click it again to expand
+    await page.click('#sidebar-collapse-btn');
+    await expect(sidebar).not.toHaveClass(/collapsed/);
+
+    // 5. Test tab switching: click Transactions tab
+    await page.click('[data-tab="transactions"]');
+    await expect(page.locator('#view-transactions')).toHaveClass(/active/);
+    await expect(page.locator('#view-dashboard')).toHaveClass(/hidden/);
+
+    // 6. Return to Dashboard tab
+    await page.click('[data-tab="dashboard"]');
+    await expect(page.locator('#view-dashboard')).toHaveClass(/active/);
+    await expect(page.locator('#view-transactions')).toHaveClass(/hidden/);
+  });
 });
