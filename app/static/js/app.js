@@ -213,13 +213,25 @@ function setupEventHandlers() {
     }
 
     // Open/Close Deposit
-    document.getElementById("open-deposit-btn").addEventListener("click", () => {
-        document.getElementById("deposit-amount").value = "";
-        depositModal.classList.add("active");
-    });
-    document.getElementById("close-deposit-btn").addEventListener("click", () => {
-        depositModal.classList.remove("active");
-    });
+    const openDeposit = () => {
+        const depositAmt = document.getElementById("deposit-amount");
+        if (depositAmt) depositAmt.value = "";
+        if (depositModal) depositModal.classList.add("active");
+    };
+    const openDepositBtn = document.getElementById("open-deposit-btn");
+    if (openDepositBtn) {
+        openDepositBtn.addEventListener("click", openDeposit);
+    }
+    const sidebarDepositBtn = document.getElementById("sidebar-deposit-btn");
+    if (sidebarDepositBtn) {
+        sidebarDepositBtn.addEventListener("click", openDeposit);
+    }
+    const closeDepositBtn = document.getElementById("close-deposit-btn");
+    if (closeDepositBtn) {
+        closeDepositBtn.addEventListener("click", () => {
+            if (depositModal) depositModal.classList.remove("active");
+        });
+    }
     depositModal.addEventListener("click", (e) => {
         if (e.target === depositModal) depositModal.classList.remove("active");
     });
@@ -442,7 +454,7 @@ function setupEventHandlers() {
     }
 
     // Logout Click
-    document.getElementById("logout-btn").addEventListener("click", async () => {
+    const handleLogout = async () => {
         try {
             await fetch("/api/auth/logout", { method: "POST" });
             window.location.href = "/";
@@ -450,7 +462,15 @@ function setupEventHandlers() {
             console.error("Logout failed:", err);
             window.location.href = "/";
         }
-    });
+    };
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", handleLogout);
+    }
+    const sidebarLogoutBtn = document.getElementById("sidebar-logout-btn");
+    if (sidebarLogoutBtn) {
+        sidebarLogoutBtn.addEventListener("click", handleLogout);
+    }
 
     // Inline daily budget editing events
     const editBudgetBtn = document.getElementById("edit-budget-btn");

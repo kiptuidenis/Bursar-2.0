@@ -44,6 +44,11 @@ body {
     justify-content: center;
 }
 
+body:not(.landing-body) {
+    overflow: hidden;
+    height: 100vh;
+}
+
 /* Glowing Ambient Backgrounds */
 .glow-bg {
     position: absolute;
@@ -2567,10 +2572,10 @@ body {
 /* App Shell Navigation Layout Redesign */
 .app-shell {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
     width: 100%;
     background-color: var(--bg-main);
-    overflow-x: hidden;
+    overflow: hidden;
     position: relative;
 }
 
@@ -2635,8 +2640,14 @@ body {
 
 .sidebar-nav.collapsed .sidebar-brand .logo-text,
 .sidebar-nav.collapsed .sidebar-link span,
-.sidebar-nav.collapsed .sidebar-footer-info {
+.sidebar-nav.collapsed .sidebar-footer-info #sidebar-user-phone-number {
     display: none !important;
+}
+
+.sidebar-nav.collapsed .sidebar-footer-info .user-badge {
+    justify-content: center;
+    padding: 0.75rem 0 !important;
+    gap: 0 !important;
 }
 
 .sidebar-nav.collapsed .collapse-toggle-btn {
@@ -2801,6 +2812,47 @@ body {
     50% { transform: scale(1.3); opacity: 1; }
     100% { transform: scale(0.9); opacity: 0.4; }
 }
+
+/* Sidebar Custom Buttons */
+.sidebar-link.deposit-btn {
+    margin-top: 0.5rem;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px dashed rgba(16, 185, 129, 0.25);
+    color: var(--color-accent-emerald);
+}
+
+.sidebar-link.deposit-btn i {
+    color: var(--color-accent-emerald);
+}
+
+.sidebar-link.deposit-btn:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.45);
+    color: var(--color-accent-emerald);
+}
+
+.sidebar-link.deposit-btn:hover i {
+    color: var(--color-accent-emerald);
+}
+
+.sidebar-link.logout-btn-sidebar {
+    margin-top: auto;
+    color: var(--color-accent-rose);
+}
+
+.sidebar-link.logout-btn-sidebar i {
+    color: var(--color-accent-rose);
+}
+
+.sidebar-link.logout-btn-sidebar:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-accent-rose);
+}
+
+.sidebar-link.logout-btn-sidebar:hover i {
+    color: var(--color-accent-rose);
+}
+
 
 /* Tab View Switch styling */
 .tab-view {

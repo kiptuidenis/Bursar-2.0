@@ -82,13 +82,24 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toHaveClass(/collapsed/);
 
+    // Verify user badge is visible, but the phone number text is hidden when collapsed
+    await expect(page.locator('#sidebar-user-badge')).toBeVisible();
+    await expect(page.locator('#sidebar-user-phone-number')).not.toBeVisible();
+
     // 3. Click the sidebar collapse button to expand
     await page.click('#sidebar-collapse-btn');
     await expect(sidebar).not.toHaveClass(/collapsed/);
 
+    // Verify user badge and phone number text are both visible when expanded
+    await expect(page.locator('#sidebar-user-badge')).toBeVisible();
+    await expect(page.locator('#sidebar-user-phone-number')).toBeVisible();
+
     // 4. Click it again to collapse
     await page.click('#sidebar-collapse-btn');
     await expect(sidebar).toHaveClass(/collapsed/);
+
+    // Verify phone number text is hidden again when collapsed
+    await expect(page.locator('#sidebar-user-phone-number')).not.toBeVisible();
 
     // 5. Test tab switching: click Transactions tab
     await page.click('[data-tab="transactions"]');
@@ -99,5 +110,45 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('[data-tab="dashboard"]');
     await expect(page.locator('#view-dashboard')).toHaveClass(/active/);
     await expect(page.locator('#view-transactions')).toHaveClass(/hidden/);
+  });
+
+  test('Should verify sidebar deposit and logout buttons work correctly when sidebar is expanded', async ({ page }) => {
+    // 1. Signup & auto-login
+    await page.goto('/#signup');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254700${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+
+    // 2. Expand the sidebar to make buttons interactive/visible
+    const sidebar = page.locator('#sidebar-nav');
+    await page.click('#sidebar-collapse-btn');
+    await expect(sidebar).not.toHaveClass(/collapsed/);
+
+    // Assert that the sidebar logout button and user badge are visible in the viewport without scrolling
+    await expect(page.locator('#sidebar-logout-btn')).toBeInViewport();
+    await expect(page.locator('#sidebar-user-badge')).toBeInViewport();
+
+    // Scroll the main content dashboard layout to verify independent scrolling
+    await page.locator('.main-content').evaluate(el => el.scrollTop = 300);
+    
+    // Verify sidebar elements are STILL visible in the viewport after main content scrolls
+    await expect(page.locator('#sidebar-logout-btn')).toBeInViewport();
+    await expect(page.locator('#sidebar-user-badge')).toBeInViewport();
+
+    // 3. Test Sidebar Deposit Button opens modal
+    await page.click('#sidebar-deposit-btn');
+    await expect(page.locator('#deposit-modal')).toHaveClass(/active/);
+    
+    // Close the Deposit modal
+    await page.click('#close-deposit-btn');
+    await expect(page.locator('#deposit-modal')).not.toHaveClass(/active/);
+
+    // 4. Test Sidebar Logout Button logs out
+    await page.click('#sidebar-logout-btn');
+    await page.waitForURL('**/');
+    expect(page.url()).not.toContain('/dashboard');
   });
 });
