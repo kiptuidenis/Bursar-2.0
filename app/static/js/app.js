@@ -554,7 +554,10 @@ async function fetchPayouts() {
         refreshChart();
     } catch (err) {
         console.error("Error fetching payouts:", err);
- // Render interactive Chart.js spent vs remaining doughnut chart
+    }
+}
+
+// Render interactive Chart.js spent vs remaining doughnut chart
 function renderBalanceChart(payouts, settings) {
     const canvas = document.getElementById("balance-chart");
     if (!canvas) return;
