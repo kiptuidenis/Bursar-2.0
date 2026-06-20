@@ -115,6 +115,24 @@ function setupEventHandlers() {
         });
     }
 
+    // Collapse/Expand Sidebar Navigation
+    const collapseBtn = document.getElementById("sidebar-collapse-btn");
+    if (collapseBtn) {
+        collapseBtn.addEventListener("click", () => {
+            if (sidebar) sidebar.classList.toggle("collapsed");
+            
+            // Store state in localStorage
+            const isCollapsed = sidebar && sidebar.classList.contains("collapsed");
+            localStorage.setItem("sidebar-collapsed", isCollapsed);
+        });
+    }
+
+    // Load initial collapse state
+    const wasCollapsed = localStorage.getItem("sidebar-collapsed") === "true";
+    if (wasCollapsed && sidebar) {
+        sidebar.classList.add("collapsed");
+    }
+
     // Switch View function
     function switchTab(tabId) {
         // Toggle view containers

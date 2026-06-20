@@ -2589,9 +2589,63 @@ body {
 .sidebar-brand {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 2.5rem;
     padding-left: 0.5rem;
+    width: 100%;
+}
+
+.collapse-toggle-btn {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-glass);
+    border-radius: 0.4rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    transition: var(--transition-smooth);
+}
+
+.collapse-toggle-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 91, 34, 0.1);
+    border-color: rgba(255, 91, 34, 0.3);
+}
+
+.collapse-toggle-btn i {
+    width: 1.15rem;
+    height: 1.15rem;
+    transition: var(--transition-smooth);
+}
+
+/* Collapsed state rules */
+.sidebar-nav.collapsed {
+    width: 80px;
+    padding: 2rem 0.5rem;
+}
+
+.sidebar-nav.collapsed .sidebar-brand {
+    justify-content: center;
+    padding-left: 0;
+}
+
+.sidebar-nav.collapsed .sidebar-brand .logo-text,
+.sidebar-nav.collapsed .sidebar-link span,
+.sidebar-nav.collapsed .sidebar-footer-info {
+    display: none !important;
+}
+
+.sidebar-nav.collapsed .collapse-toggle-btn {
+    transform: rotate(180deg);
+}
+
+.sidebar-nav.collapsed .sidebar-link {
+    justify-content: center;
+    padding: 0.8rem;
 }
 
 .sidebar-brand .logo-icon {
