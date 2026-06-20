@@ -749,7 +749,7 @@ async function fetchPayouts() {
         const bodyRecent = document.getElementById("payout-history-body-recent");
         
         if (data.length === 0) {
-            const emptyHTML = `<tr><td colspan="5" class="empty-state">No payouts recorded yet.</td></tr>`;
+            const emptyHTML = `<tr><td colspan="5" class="empty-state">No transactions recorded yet.</td></tr>`;
             if (body) body.innerHTML = emptyHTML;
             if (bodyRecent) bodyRecent.innerHTML = emptyHTML;
             refreshChart();
