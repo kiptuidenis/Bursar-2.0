@@ -239,67 +239,77 @@ function setupEventHandlers() {
     const passwordLabel = document.getElementById("password-label");
     const authPassword = document.getElementById("auth-password");
 
-    tabLogin.addEventListener("click", () => {
-        currentAuthAction = "login";
-        tabLogin.classList.add("active");
-        tabSignup.classList.remove("active");
-        authSubmitBtn.innerText = "Log In";
-        authSubtitle.innerText = "Log in to manage your daily allowances";
-        passwordLabel.innerText = "Password PIN";
-        authPassword.placeholder = "Enter password (min 4 chars)";
-        errorMsg.style.display = "none";
-    });
+    if (tabLogin) {
+        tabLogin.addEventListener("click", () => {
+            currentAuthAction = "login";
+            tabLogin.classList.add("active");
+            if (tabSignup) tabSignup.classList.remove("active");
+            if (authSubmitBtn) authSubmitBtn.innerText = "Log In";
+            if (authSubtitle) authSubtitle.innerText = "Log in to manage your daily allowances";
+            if (passwordLabel) passwordLabel.innerText = "Password PIN";
+            if (authPassword) authPassword.placeholder = "Enter password (min 4 chars)";
+            if (errorMsg) errorMsg.style.display = "none";
+        });
+    }
 
-    tabSignup.addEventListener("click", () => {
-        currentAuthAction = "signup";
-        tabSignup.classList.add("active");
-        tabLogin.classList.remove("active");
-        authSubmitBtn.innerText = "Register";
-        authSubtitle.innerText = "Create an account with your Safaricom number";
-        passwordLabel.innerText = "Create Password PIN";
-        authPassword.placeholder = "Choose password (min 4 chars)";
-        errorMsg.style.display = "none";
-    });
+    if (tabSignup) {
+        tabSignup.addEventListener("click", () => {
+            currentAuthAction = "signup";
+            tabSignup.classList.add("active");
+            if (tabLogin) tabLogin.classList.remove("active");
+            if (authSubmitBtn) authSubmitBtn.innerText = "Register";
+            if (authSubtitle) authSubtitle.innerText = "Create an account with your Safaricom number";
+            if (passwordLabel) passwordLabel.innerText = "Create Password PIN";
+            if (authPassword) authPassword.placeholder = "Choose password (min 4 chars)";
+            if (errorMsg) errorMsg.style.display = "none";
+        });
+    }
 
-    authForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        errorMsg.style.display = "none";
+    if (authForm) {
+        authForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (errorMsg) errorMsg.style.display = "none";
 
-        const phone_number = document.getElementById("auth-phone").value.trim();
-        const password = authPassword.value;
+            const phone_number = document.getElementById("auth-phone").value.trim();
+            const password = authPassword ? authPassword.value : "";
 
-        const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
+            const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
 
-        try {
-            const res = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone_number, password })
-            });
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ phone_number, password })
+                });
 
-            const data = await res.json();
+                const data = await res.json();
 
-            if (!res.ok) {
-                throw new Error(data.detail || "Authentication request failed.");
+                if (!res.ok) {
+                    throw new Error(data.detail || "Authentication request failed.");
+                }
+
+                if (currentAuthAction === "signup") {
+                    // If register succeeded, perform auto-login for top-tier UX
+                    currentAuthAction = "login";
+                    if (tabLogin) tabLogin.click();
+                    const pwdEl = document.getElementById("auth-password");
+                    if (pwdEl) pwdEl.value = password;
+                    authForm.dispatchEvent(new Event("submit"));
+                } else {
+                    // Login succeeded
+                    const phoneEl = document.getElementById("auth-phone");
+                    if (phoneEl) phoneEl.value = "";
+                    if (authPassword) authPassword.value = "";
+                    checkAuth();
+                }
+            } catch (err) {
+                if (errorMsg) {
+                    errorMsg.innerText = err.message;
+                    errorMsg.style.display = "block";
+                }
             }
-
-            if (currentAuthAction === "signup") {
-                // If register succeeded, perform auto-login for top-tier UX
-                currentAuthAction = "login";
-                tabLogin.click();
-                document.getElementById("auth-password").value = password;
-                authForm.dispatchEvent(new Event("submit"));
-            } else {
-                // Login succeeded
-                document.getElementById("auth-phone").value = "";
-                authPassword.value = "";
-                checkAuth();
-            }
-        } catch (err) {
-            errorMsg.innerText = err.message;
-            errorMsg.style.display = "block";
-        }
-    });
+        });
+    }
 
     // Logout Click
     document.getElementById("logout-btn").addEventListener("click", async () => {
