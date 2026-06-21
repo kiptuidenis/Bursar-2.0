@@ -32,9 +32,5 @@ module.exports = defineConfig({
     url: 'http://localhost:8000/api/diagnostics',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
-    env: {
-      DISABLE_SCHEDULER: '1',
-      DATABASE_URL: 'bursar_test.db',
-    },
   },
 });
