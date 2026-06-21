@@ -1036,6 +1036,7 @@ body:not(.landing-body) {
 }
 
 .auth-card {
+    position: relative;
     width: 90%;
     max-width: 400px;
     padding: 2.5rem;
@@ -2547,7 +2548,33 @@ body:not(.landing-body) {
     
     .hero-visual-sandbox {
         min-height: auto;
-        padding: 1.5rem;
+        padding: 1.5rem 0;
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        gap: 2.5rem;
+    }
+
+    .phone-wrapper {
+        left: 0;
+        margin: 0 auto;
+    }
+
+    .mpesa-notification-alert {
+        left: 10px;
+        right: 10px;
+        width: auto;
+        top: 45px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .pacing-chart-widget {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        max-width: 320px;
+        margin: 0 auto;
     }
     
     .lock-highlight-grid {
@@ -2569,6 +2596,7 @@ body:not(.landing-body) {
     .landing-container {
         padding: 1rem;
         gap: 3.5rem;
+        overflow-x: hidden;
     }
     
     .section-title {
@@ -2576,10 +2604,10 @@ body:not(.landing-body) {
     }
     
     .pacing-chart-widget {
-        position: static;
+        position: relative;
         margin-top: 1rem;
         width: 100%;
-        max-width: 250px;
+        max-width: 320px;
     }
     
     .comparison-table th, 
