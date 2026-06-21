@@ -14,7 +14,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
   test('Should perform Signup, auto-login, verify dashboard buttons, and logout without console errors', async ({ page }) => {
     // 1. Visit signup page directly
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
 
     // 2. Generate a random Safaricom phone number to prevent "number already registered" errors
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
@@ -81,7 +82,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
   test('Should toggle sidebar collapse state and switch tabs successfully', async ({ page }) => {
     // 1. Signup & auto-login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
@@ -127,7 +129,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
   test('Should verify sidebar deposit and logout buttons work correctly when sidebar is expanded', async ({ page }) => {
     // 1. Signup & auto-login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
@@ -168,7 +171,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
   test('Should show error alert and expand schedule if trying to lock budget without schedule dates', async ({ page }) => {
     // 1. Signup & auto-login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
@@ -207,7 +211,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
   test('Should verify the full functionality of the Budget Creator (add, delete, draft preservation, dashboard separation, and final lock)', async ({ page }) => {
     // 1. Signup & auto-login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);

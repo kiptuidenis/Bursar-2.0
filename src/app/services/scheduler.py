@@ -201,14 +201,18 @@ class BackgroundScheduler:
         self._thread.start()
         # Log to a system virtual user ID 0 (or just system logger)
         try:
-            self.db.log_event(0, "INFO", "Background scheduler started successfully.")
+            db = DatabaseManager(self.db.db_path)
+            db.log_event(0, "INFO", "Background scheduler started successfully.")
+            db.close()
         except Exception:
             pass
 
     def stop(self) -> None:
         self.is_running = False
         try:
-            self.db.log_event(0, "INFO", "Background scheduler stop request received.")
+            db = DatabaseManager(self.db.db_path)
+            db.log_event(0, "INFO", "Background scheduler stop request received.")
+            db.close()
         except Exception:
             pass
 
@@ -218,12 +222,13 @@ class BackgroundScheduler:
         asyncio.set_event_loop(loop)
         
         while self.is_running:
+            db = DatabaseManager(self.db.db_path)
             try:
                 # Fetch all registered users and process payouts individually
-                users = self.db.get_all_users()
+                users = db.get_all_users()
                 for user in users:
                     user_id = user["id"]
-                    settings = self.db.get_settings(user_id)
+                    settings = db.get_settings(user_id)
                     if settings:
                         from app.core.config import (
                             MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
@@ -242,13 +247,15 @@ class BackgroundScheduler:
                             mode=client_mode
                         )
                         now = datetime.datetime.now()
-                        loop.run_until_complete(check_and_trigger_payout(self.db, client, now, user_id=user_id))
+                        loop.run_until_complete(check_and_trigger_payout(db, client, now, user_id=user_id))
             except Exception as e:
                 # Standalone log writing check
                 try:
-                    self.db.log_event(0, "ERROR", f"Scheduler loop error: {str(e)}")
+                    db.log_event(0, "ERROR", f"Scheduler loop error: {str(e)}")
                 except Exception:
                     pass
+            finally:
+                db.close()
             
             # Sleep in 1-second increments
             for _ in range(self.interval_seconds):

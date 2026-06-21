@@ -2,6 +2,7 @@ import sqlite3
 import hashlib
 import secrets
 import time
+import os
 from typing import Dict, List, Any, Optional
 import datetime
 
@@ -13,8 +14,21 @@ class DatabaseManager:
     @property
     def connection(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
             self._conn.row_factory = sqlite3.Row
+            
+            # Optimize SQLite performance in test mode to completely bypass disk I/O locks
+            if "TESTING" in os.environ or "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("DATABASE_URL", "").endswith("_test.db"):
+                try:
+                    self._conn.execute("PRAGMA synchronous = OFF")
+                    self._conn.execute("PRAGMA journal_mode = MEMORY")
+                except sqlite3.OperationalError:
+                    pass
+            else:
+                try:
+                    self._conn.execute("PRAGMA journal_mode=WAL")
+                except sqlite3.OperationalError:
+                    pass
         return self._conn
 
     def initialize(self) -> None:
@@ -166,6 +180,7 @@ class DatabaseManager:
         cursor.execute("UPDATE settings SET mode = 'sandbox' WHERE mode = 'simulation'")
             
         conn.commit()
+        self.close()
  
     # Cryptographic Hashing Helpers
     def _hash_password(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:

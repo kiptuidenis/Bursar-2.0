@@ -9,17 +9,22 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
       console.error('Browser console TypeError/Exception:', exception.message);
       pageErrors.push(exception.message);
     });
+    page.on('console', msg => {
+      console.log(`[Browser Console Log] [${msg.type()}]: ${msg.text()}`);
+    });
   });
 
   test('Should navigate to Profile Settings, update details, toggle theme, and logout', async ({ page }) => {
     const dialogMessages = [];
     page.on('dialog', async dialog => {
-      dialogMessages.push(dialog.message());
+      const msg = dialog.message();
       await dialog.accept();
+      dialogMessages.push(msg);
     });
 
     // 1. Signup & auto-login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
@@ -69,9 +74,8 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
 
     // Logout and verify we can log back in using the new password PIN
     await page.click('#logout-btn');
-    await page.waitForURL('**/');
-    
-    await page.goto('/#login');
+    await page.waitForSelector('#nav-login-btn');
+    await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', '654321');
     await page.click('#auth-submit-btn');
@@ -83,12 +87,14 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
   test('Should display active sessions and support multi-device session revocation', async ({ browser, page }) => {
     const dialogMessages = [];
     page.on('dialog', async dialog => {
-      dialogMessages.push(dialog.message());
+      const msg = dialog.message();
       await dialog.accept();
+      dialogMessages.push(msg);
     });
 
     // 1. Context A - Register and login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
@@ -100,7 +106,8 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     // 2. Context B - Login from another context (simulating a second device)
     const contextB = await browser.newContext({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5) Safari/605.1.15' });
     const pageB = await contextB.newPage();
-    await pageB.goto('/#login');
+    await pageB.goto('/');
+    await pageB.click('#nav-login-btn');
     await pageB.fill('#auth-phone', testPhoneNumber);
     await pageB.fill('#auth-password', '123456');
     await pageB.click('#auth-submit-btn');
@@ -138,12 +145,14 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
   test('Should handle danger zone account deactivation', async ({ page }) => {
     const dialogMessages = [];
     page.on('dialog', async dialog => {
-      dialogMessages.push(dialog.message());
+      const msg = dialog.message();
       await dialog.accept();
+      dialogMessages.push(msg);
     });
 
     // 1. Signup & auto-login
-    await page.goto('/#signup');
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
@@ -172,11 +181,11 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await page.fill('#deactivate-confirm-phrase', 'DELETE');
     await page.fill('#deactivate-password', '123456');
     await page.click('#deactivate-form button[type="submit"]');
-    await page.waitForURL('**/');
+    await page.waitForSelector('#nav-login-btn');
     expect(page.url()).not.toContain('/dashboard');
 
     // Verify cannot log back in
-    await page.goto('/#login');
+    await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', '123456');
     await page.click('#auth-submit-btn');
