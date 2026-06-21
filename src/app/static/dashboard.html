@@ -274,7 +274,7 @@
 
                 <!-- VIEW: Profile Settings -->
                 <div id="view-profile" class="tab-view hidden">
-                    <div class="profile-layout-grid" style="display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; align-items: start;">
+                    <div class="profile-layout-grid">
                         <!-- Left Column: Personal Profile & Avatar -->
                         <div class="profile-left-col">
                             <!-- Avatar Panel -->
@@ -321,16 +321,16 @@
                                     <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                         <div class="form-group">
                                             <label for="profile-first-name">First Name</label>
-                                            <input type="text" id="profile-first-name" placeholder="John" style="width:100%;">
+                                            <input type="text" id="profile-first-name" autocomplete="given-name" placeholder="John" style="width:100%;">
                                         </div>
                                         <div class="form-group">
                                             <label for="profile-last-name">Last Name</label>
-                                            <input type="text" id="profile-last-name" placeholder="Doe" style="width:100%;">
+                                            <input type="text" id="profile-last-name" autocomplete="family-name" placeholder="Doe" style="width:100%;">
                                         </div>
                                     </div>
                                     <div class="form-group">
                                         <label for="profile-email">Email Address</label>
-                                        <input type="email" id="profile-email" placeholder="john.doe@example.com" style="width:100%;">
+                                        <input type="email" id="profile-email" autocomplete="email" placeholder="john.doe@example.com" style="width:100%;">
                                     </div>
                                     <div class="form-group">
                                         <label for="profile-bio">Short Bio</label>
@@ -419,7 +419,12 @@
             <form id="deposit-form">
                 <div class="form-group">
                     <label for="deposit-amount">Amount (KES)</label>
-                    <input type="number" id="deposit-amount" placeholder="e.g. 5000" min="1" step="any" required>
+                    <input type="number" id="deposit-amount" inputmode="decimal" placeholder="e.g. 5000" min="1" step="any" required>
+                    <div class="quick-amounts-grid" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-secondary quick-amt-btn" data-amount="1000" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 0.5rem;">+1k</button>
+                        <button type="button" class="btn btn-secondary quick-amt-btn" data-amount="2000" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 0.5rem;">+2k</button>
+                        <button type="button" class="btn btn-secondary quick-amt-btn" data-amount="5000" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 0.5rem;">+5k</button>
+                    </div>
                 </div>
                 <div class="info-alert lock-warning-alert" style="margin-bottom: 1.2rem; display: flex; align-items: flex-start; gap: 0.5rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
                     <i data-lucide="alert-triangle" style="color: var(--color-accent-orange); shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
@@ -454,7 +459,7 @@
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label for="new-category-amount" style="margin-bottom: 0.3rem;">Amount (KES)</label>
-                            <input type="number" id="new-category-amount" placeholder="e.g. 300" min="1" step="any" required>
+                            <input type="number" id="new-category-amount" inputmode="decimal" placeholder="e.g. 300" min="1" step="any" required>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">
@@ -516,7 +521,7 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="settings-budget">Daily Budget (KES)</label>
-                        <input type="number" id="settings-budget" min="0" step="any" required>
+                        <input type="number" id="settings-budget" inputmode="decimal" min="0" step="any" required>
                     </div>
                     <div class="form-group">
                         <label for="settings-time">Payout Time (HH:MM)</label>
@@ -526,7 +531,7 @@
 
                 <div class="form-group">
                     <label for="settings-phone">Target Mobile Number (254...)</label>
-                    <input type="text" id="settings-phone" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
+                    <input type="tel" id="settings-phone" inputmode="tel" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
                 </div>
 
 

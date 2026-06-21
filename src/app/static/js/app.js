@@ -255,6 +255,16 @@ function setupEventHandlers() {
         if (e.target === depositModal) depositModal.classList.remove("active");
     });
 
+    // Quick presets handler
+    document.querySelectorAll(".quick-amt-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const amtInput = document.getElementById("deposit-amount");
+            if (amtInput) {
+                amtInput.value = btn.getAttribute("data-amount");
+            }
+        });
+    });
+
     // Open/Close Settings
     document.getElementById("toggle-settings-btn").addEventListener("click", () => {
         settingsDrawer.classList.add("active");
@@ -797,11 +807,11 @@ async function fetchPayouts() {
 
                 return `
                     <tr>
-                        <td><strong>${payout.payout_date}</strong></td>
-                        <td>KES ${parseFloat(payout.amount).toFixed(2)}</td>
-                        <td>${payout.phone_number}</td>
-                        <td class="text-mono">${payout.transaction_id || payout.conversation_id || '—'}</td>
-                        <td><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
+                        <td data-label="Date"><strong>${payout.payout_date}</strong></td>
+                        <td data-label="Amount">KES ${parseFloat(payout.amount).toFixed(2)}</td>
+                        <td data-label="Recipient">${payout.phone_number}</td>
+                        <td data-label="M-Pesa Ref" class="text-mono">${payout.transaction_id || payout.conversation_id || '—'}</td>
+                        <td data-label="Status"><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
                     </tr>
                 `;
             }).join("");
@@ -1433,10 +1443,10 @@ async function fetchSessions() {
                 
             return `
                 <tr>
-                    <td><strong>${s.device}</strong></td>
-                    <td>${s.ip_address}</td>
-                    <td>${s.created_at}</td>
-                    <td>${actionBtn}</td>
+                    <td data-label="Device"><strong>${s.device}</strong></td>
+                    <td data-label="IP Address">${s.ip_address}</td>
+                    <td data-label="Login Time">${s.created_at}</td>
+                    <td data-label="Action">${actionBtn}</td>
                 </tr>
             `;
         }).join("");
