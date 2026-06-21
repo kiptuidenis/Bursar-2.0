@@ -71,6 +71,7 @@ async function checkAuth() {
 
             // Load user data
             pollDashboardData();
+            fetchProfile();
             
             // Start dashboard polling if not already running
             if (!pollInterval) {
@@ -143,6 +144,7 @@ function setupEventHandlers() {
         // Toggle view containers
         const dashboardView = document.getElementById("view-dashboard");
         const transactionsView = document.getElementById("view-transactions");
+        const profileView = document.getElementById("view-profile");
         
         if (tabId === "dashboard") {
             if (dashboardView) {
@@ -153,6 +155,10 @@ function setupEventHandlers() {
                 transactionsView.classList.add("hidden");
                 transactionsView.classList.remove("active");
             }
+            if (profileView) {
+                profileView.classList.add("hidden");
+                profileView.classList.remove("active");
+            }
         } else if (tabId === "transactions") {
             if (transactionsView) {
                 transactionsView.classList.remove("hidden");
@@ -162,6 +168,25 @@ function setupEventHandlers() {
                 dashboardView.classList.add("hidden");
                 dashboardView.classList.remove("active");
             }
+            if (profileView) {
+                profileView.classList.add("hidden");
+                profileView.classList.remove("active");
+            }
+        } else if (tabId === "profile") {
+            if (profileView) {
+                profileView.classList.remove("hidden");
+                profileView.classList.add("active");
+            }
+            if (dashboardView) {
+                dashboardView.classList.add("hidden");
+                dashboardView.classList.remove("active");
+            }
+            if (transactionsView) {
+                transactionsView.classList.add("hidden");
+                transactionsView.classList.remove("active");
+            }
+            fetchProfile();
+            fetchSessions();
         }
         
         // Update active class on links
@@ -182,7 +207,7 @@ function setupEventHandlers() {
     document.querySelectorAll(".sidebar-link").forEach(btn => {
         btn.addEventListener("click", (e) => {
             const tab = btn.getAttribute("data-tab");
-            if (tab === "dashboard" || tab === "transactions") {
+            if (tab === "dashboard" || tab === "transactions" || tab === "profile") {
                 switchTab(tab);
             } else if (tab === "budget") {
                 // Open Budget creator Modal directly
@@ -677,6 +702,7 @@ function setupEventHandlers() {
             }
         });
     }
+    setupProfileHandlers();
 }
 
 
@@ -1145,4 +1171,303 @@ function openBudgetDesignerModal() {
             newCatName.focus();
         }, 50);
     }
+}
+
+// Profile Settings Frontend Controllers
+function setupProfileHandlers() {
+    const profileForm = document.getElementById("profile-info-form");
+    if (profileForm) {
+        profileForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const first_name = document.getElementById("profile-first-name").value.trim();
+            const last_name = document.getElementById("profile-last-name").value.trim();
+            const email = document.getElementById("profile-email").value.trim();
+            const bio = document.getElementById("profile-bio").value.trim();
+            
+            if (!first_name || !last_name || !email) {
+                alert("First Name, Last Name, and Email are required and cannot be empty.");
+                return;
+            }
+            
+            try {
+                const res = await fetch("/api/profile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ first_name, last_name, email, bio })
+                });
+                if (res.status === 401) return showAuthScreen();
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Failed to update profile.");
+                alert("Profile details saved successfully!");
+                fetchProfile();
+            } catch (err) {
+                alert(err.message || "Failed to save profile.");
+            }
+        });
+    }
+
+    const passwordForm = document.getElementById("profile-password-form");
+    if (passwordForm) {
+        passwordForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const current_password = document.getElementById("pwd-current").value;
+            const new_password = document.getElementById("pwd-new").value;
+            const confirm_password = document.getElementById("pwd-confirm").value;
+            
+            if (new_password !== confirm_password) {
+                alert("New password PIN and confirm PIN do not match.");
+                return;
+            }
+            if (new_password.length < 4) {
+                alert("New password PIN must be at least 4 characters.");
+                return;
+            }
+            
+            try {
+                const res = await fetch("/api/profile/password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ current_password, new_password })
+                });
+                if (res.status === 401) return showAuthScreen();
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Failed to change password.");
+                alert("Password PIN updated successfully!");
+                passwordForm.reset();
+            } catch (err) {
+                alert(err.message || "Failed to change password.");
+            }
+        });
+    }
+
+    const avatarInput = document.getElementById("avatar-input");
+    if (avatarInput) {
+        avatarInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File size must be less than 2MB.");
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            try {
+                const res = await fetch("/api/profile/avatar", {
+                    method: "POST",
+                    body: formData
+                });
+                if (res.status === 401) return showAuthScreen();
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Avatar upload failed.");
+                alert("Avatar updated successfully!");
+                fetchProfile();
+            } catch (err) {
+                alert(err.message || "Failed to upload avatar.");
+            }
+        });
+    }
+
+
+
+    const notifToggle = document.getElementById("notifications-toggle");
+    if (notifToggle) {
+        notifToggle.addEventListener("change", async () => {
+            const enabled = notifToggle.checked;
+            try {
+                const res = await fetch("/api/profile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notifications_enabled: enabled })
+                });
+                if (res.status === 401) return showAuthScreen();
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    }
+
+    const revokeOthersBtn = document.getElementById("revoke-other-sessions-btn");
+    if (revokeOthersBtn) {
+        revokeOthersBtn.addEventListener("click", async () => {
+            if (!confirm("Are you sure you want to log out of all other devices?")) return;
+            try {
+                const res = await fetch("/api/profile/sessions/other", {
+                    method: "DELETE"
+                });
+                if (res.status === 401) return showAuthScreen();
+                if (res.ok) {
+                    alert("Successfully logged out of other devices.");
+                    fetchSessions();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    }
+
+    const openDeactivateBtn = document.getElementById("open-deactivate-modal-btn");
+    const deactivateModal = document.getElementById("deactivate-modal");
+    const closeDeactivateBtn = document.getElementById("close-deactivate-btn");
+    const deactivateForm = document.getElementById("deactivate-form");
+    
+    if (openDeactivateBtn) {
+        openDeactivateBtn.addEventListener("click", () => {
+            if (deactivateModal) {
+                document.getElementById("deactivate-confirm-phrase").value = "";
+                document.getElementById("deactivate-password").value = "";
+                deactivateModal.classList.add("active");
+            }
+        });
+    }
+    if (closeDeactivateBtn) {
+        closeDeactivateBtn.addEventListener("click", () => {
+            if (deactivateModal) deactivateModal.classList.remove("active");
+        });
+    }
+    if (deactivateForm) {
+        deactivateForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const confirmation = document.getElementById("deactivate-confirm-phrase").value.trim();
+            const password = document.getElementById("deactivate-password").value;
+            
+            if (confirmation !== "DELETE") {
+                alert("Please type the confirmation phrase exactly: DELETE");
+                return;
+            }
+            
+            if (!confirm("This is your last warning! Are you absolutely sure you want to deactivate and permanently delete your account? This cannot be undone.")) {
+                return;
+            }
+            
+            try {
+                const res = await fetch("/api/profile/deactivate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ password, confirmation })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Deactivation failed.");
+                
+                alert("Your account has been permanently deleted. Goodbye!");
+                window.location.href = "/";
+            } catch (err) {
+                alert(err.message || "Failed to delete account.");
+            }
+        });
+    }
+}
+
+async function fetchProfile() {
+    try {
+        const res = await fetch("/api/profile");
+        if (res.status === 401) return showAuthScreen();
+        const profile = await res.json();
+        
+        document.getElementById("profile-first-name").value = profile.first_name || "";
+        document.getElementById("profile-last-name").value = profile.last_name || "";
+        document.getElementById("profile-email").value = profile.email || "";
+        document.getElementById("profile-bio").value = profile.bio || "";
+        document.getElementById("notifications-toggle").checked = !!profile.notifications_enabled;
+        
+        setTheme(profile.theme || "dark");
+        
+        const avatarImg = document.getElementById("profile-avatar-img");
+        const avatarPlaceholder = document.getElementById("profile-avatar-placeholder");
+        const headerAvatar = document.getElementById("user-avatar");
+        const headerIcon = document.getElementById("user-icon");
+        
+        if (profile.avatar_url) {
+            const cacheBuster = `${profile.avatar_url}?v=${Date.now()}`;
+            if (avatarImg) {
+                avatarImg.src = cacheBuster;
+                avatarImg.style.display = "block";
+            }
+            if (avatarPlaceholder) avatarPlaceholder.style.display = "none";
+            
+            if (headerAvatar) {
+                headerAvatar.src = cacheBuster;
+                headerAvatar.style.display = "block";
+            }
+            if (headerIcon) headerIcon.style.display = "none";
+        } else {
+            if (avatarImg) {
+                avatarImg.src = "";
+                avatarImg.style.display = "none";
+            }
+            if (avatarPlaceholder) avatarPlaceholder.style.display = "flex";
+            
+            if (headerAvatar) {
+                headerAvatar.src = "";
+                headerAvatar.style.display = "none";
+            }
+            if (headerIcon) headerIcon.style.display = "block";
+        }
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    } catch (err) {
+        console.error("Error fetching profile:", err);
+    }
+}
+
+async function fetchSessions() {
+    try {
+        const res = await fetch("/api/profile/sessions");
+        if (res.status === 401) return showAuthScreen();
+        const sessions = await res.json();
+        
+        const tbody = document.getElementById("active-sessions-body");
+        if (!tbody) return;
+        
+        if (sessions.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No active sessions.</td></tr>`;
+            return;
+        }
+        
+        tbody.innerHTML = sessions.map(s => {
+            const actionBtn = s.is_current 
+                ? `<span class="text-muted" style="font-size: 0.85rem; font-weight:600;">Current Session</span>`
+                : `<button type="button" class="btn btn-secondary btn-sm revoke-session-btn" data-session-id="${s.id}" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; color: var(--color-accent-rose); border-color: rgba(239, 68, 68, 0.2);">Revoke</button>`;
+                
+            return `
+                <tr>
+                    <td><strong>${s.device}</strong></td>
+                    <td>${s.ip_address}</td>
+                    <td>${s.created_at}</td>
+                    <td>${actionBtn}</td>
+                </tr>
+            `;
+        }).join("");
+        
+        tbody.querySelectorAll(".revoke-session-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const sessionId = btn.getAttribute("data-session-id");
+                if (!confirm("Are you sure you want to revoke this session? The device will be logged out.")) return;
+                
+                try {
+                    const revokeRes = await fetch(`/api/profile/sessions/${sessionId}`, {
+                        method: "DELETE"
+                    });
+                    if (revokeRes.status === 401) return showAuthScreen();
+                    if (revokeRes.ok) {
+                        alert("Session revoked successfully.");
+                        fetchSessions();
+                    } else {
+                        const errData = await revokeRes.json();
+                        alert(errData.detail || "Failed to revoke session.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+        });
+    } catch (err) {
+        console.error("Error fetching sessions:", err);
+    }
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute("data-theme", "dark");
 }

@@ -2919,3 +2919,122 @@ body:not(.landing-body) {
         font-size: 1.3rem !important;
     }
 }
+
+/* Profile Settings Specific Styles */
+.profile-layout-grid {
+    margin-top: 1rem;
+}
+
+.profile-section h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.50rem;
+    display: flex;
+    align-items: center;
+    color: var(--text-primary);
+}
+
+.profile-avatar-preview {
+    transition: transform 0.2s ease;
+}
+.profile-avatar-preview:hover {
+    transform: scale(1.05);
+}
+
+/* Switch Styles */
+.switch-container {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+}
+.switch-container input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255,255,255,0.1);
+    transition: 0.3s ease;
+    border-radius: 22px;
+    border: 1px solid var(--border-glass);
+}
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-muted);
+    transition: 0.3s ease;
+    border-radius: 50%;
+}
+.switch-container input:checked + .switch-slider {
+    background-color: var(--color-accent-violet);
+}
+.switch-container input:checked + .switch-slider:before {
+    transform: translateX(22px);
+    background-color: #ffffff;
+}
+
+/* Active Sessions Table Specifics */
+.active-sessions-table th, .active-sessions-table td {
+    padding: 0.85rem 1rem !important;
+}
+
+/* Light Theme Variables & Overrides */
+[data-theme="light"] {
+    --bg-main: #f8fafc;
+    --bg-glass: rgba(15, 23, 42, 0.06);
+    --border-glass: rgba(0, 0, 0, 0.06);
+    --border-glass-focus: rgba(0, 0, 0, 0.12);
+    --text-primary: #0f172a;
+    --text-muted: #64748b;
+    --bg-panel: rgba(255, 255, 255, 0.65);
+    background-color: #f8fafc;
+}
+[data-theme="light"] .icon-btn:hover {
+    background: rgba(15, 23, 42, 0.12) !important;
+}
+[data-theme="light"] .glass-panel {
+    background: rgba(255, 255, 255, 0.7) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05) !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .sidebar-nav {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+[data-theme="light"] .sidebar-link {
+    color: #475569 !important;
+}
+[data-theme="light"] .sidebar-link:hover, [data-theme="light"] .sidebar-link.active {
+    background: rgba(142, 68, 255, 0.08) !important;
+    color: var(--color-accent-violet) !important;
+}
+[data-theme="light"] .form-group input, 
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .history-table th {
+    color: #475569 !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.06) !important;
+}
+[data-theme="light"] .history-table td {
+    color: #0f172a !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03) !important;
+}
+[data-theme="light"] .metric-card .amount-value {
+    color: #0f172a !important;
+}
+[data-theme="light"] .glow-bg {
+    opacity: 0.1 !important;
+}
