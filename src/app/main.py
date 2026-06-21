@@ -9,7 +9,7 @@ from app.api.dependencies import db_manager, get_db
 from app.services.scheduler import BackgroundScheduler
 
 # Import sub-routers
-from app.api.routers import auth, settings, budget, deposits, payouts, callbacks
+from app.api.routers import auth, settings, budget, deposits, payouts, callbacks, profile
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.add_middleware(
 # Register routers
 app.include_router(auth.router)
 app.include_router(settings.router)
+app.include_router(profile.router)
 app.include_router(budget.router)
 app.include_router(deposits.router)
 app.include_router(payouts.router)

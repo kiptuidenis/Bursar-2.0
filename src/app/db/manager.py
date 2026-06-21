@@ -1,6 +1,7 @@
 import sqlite3
 import hashlib
 import secrets
+import time
 from typing import Dict, List, Any, Optional
 import datetime
 
@@ -126,6 +127,20 @@ class DatabaseManager:
             )
         """)
         
+        # Create sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                session_token TEXT UNIQUE NOT NULL,
+                user_agent TEXT DEFAULT '',
+                ip_address TEXT DEFAULT '',
+                expires_at INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
         # Add dynamic locking columns to settings if they do not exist
         cursor.execute("PRAGMA table_info(settings)")
         columns = [row["name"] for row in cursor.fetchall()]
@@ -137,6 +152,15 @@ class DatabaseManager:
             cursor.execute("ALTER TABLE settings ADD COLUMN start_date TEXT DEFAULT ''")
         if "end_date" not in columns:
             cursor.execute("ALTER TABLE settings ADD COLUMN end_date TEXT DEFAULT ''")
+            
+        # Add dynamic profile columns to users if they do not exist
+        cursor.execute("PRAGMA table_info(users)")
+        u_columns = [row["name"] for row in cursor.fetchall()]
+        for col_name in ["first_name", "last_name", "email", "avatar_url", "bio", "theme"]:
+            if col_name not in u_columns:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} TEXT DEFAULT ''")
+        if "notifications_enabled" not in u_columns:
+            cursor.execute("ALTER TABLE users ADD COLUMN notifications_enabled INTEGER DEFAULT 1")
             
         # Migrate any legacy 'simulation' modes to 'sandbox'
         cursor.execute("UPDATE settings SET mode = 'sandbox' WHERE mode = 'simulation'")
@@ -208,6 +232,102 @@ class DatabaseManager:
         if self._verify_password(password_plaintext, stored_hash, stored_salt):
             return user_id
         return None
+
+    def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch user profile details."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, phone_number, first_name, last_name, email, avatar_url, bio, theme, notifications_enabled, created_at 
+            FROM users WHERE id = ?
+        """, (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_profile(self, user_id: int, **kwargs: Any) -> None:
+        """Update user profile fields."""
+        if not kwargs:
+            return
+        conn = self.connection
+        cursor = conn.cursor()
+        fields = []
+        values = []
+        allowed_fields = {"first_name", "last_name", "email", "avatar_url", "bio", "theme", "notifications_enabled"}
+        for key, val in kwargs.items():
+            if key in allowed_fields:
+                fields.append(f"{key} = ?")
+                values.append(val)
+        if not fields:
+            return
+        values.append(user_id)
+        query = f"UPDATE users SET {', '.join(fields)} WHERE id = ?"
+        cursor.execute(query, values)
+        conn.commit()
+
+    def update_password(self, user_id: int, new_password_plaintext: str) -> None:
+        """Update user's password PIN."""
+        conn = self.connection
+        cursor = conn.cursor()
+        password_hash, salt = self._hash_password(new_password_plaintext)
+        cursor.execute("""
+            UPDATE users SET password_hash = ?, salt = ? WHERE id = ?
+        """, (password_hash, salt, user_id))
+        conn.commit()
+
+    def create_session_db(self, user_id: int, token: str, user_agent: str, ip_address: str, expires_at: int) -> None:
+        """Insert a session token record in database."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO sessions (user_id, session_token, user_agent, ip_address, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, token, user_agent, ip_address, expires_at))
+        conn.commit()
+
+    def get_active_sessions(self, user_id: int) -> List[Dict[str, Any]]:
+        """Retrieve all active session records for a user."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, user_id, session_token, user_agent, ip_address, expires_at, created_at 
+            FROM sessions 
+            WHERE user_id = ? AND expires_at > ?
+            ORDER BY created_at DESC
+        """, (user_id, int(time.time())))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def revoke_session(self, user_id: int, session_id: int) -> bool:
+        """Revoke a specific session for a user by session record ID."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sessions WHERE user_id = ? AND id = ?", (user_id, session_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+    def revoke_other_sessions(self, user_id: int, current_token: str) -> None:
+        """Revoke all sessions except the current one for a user."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sessions WHERE user_id = ? AND session_token != ?", (user_id, current_token))
+        conn.commit()
+
+    def verify_session_token_db(self, token: str) -> Optional[int]:
+        """Verify the token exists in DB and is active."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT user_id, expires_at FROM sessions 
+            WHERE session_token = ? AND expires_at > ?
+        """, (token, int(time.time())))
+        row = cursor.fetchone()
+        return row["user_id"] if row else None
+
+    def deactivate_user(self, user_id: int) -> None:
+        """Permanently delete user account and trigger cascading deletions."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
 
     def get_all_users(self) -> List[Dict[str, Any]]:
         """Fetch all user profiles (useful for the background scheduler run)."""

@@ -37,3 +37,19 @@ class BudgetLockPayload(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     items: Optional[List[DraftBudgetItem]] = None
+
+class ProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    bio: Optional[str] = None
+    theme: Optional[str] = None
+    notifications_enabled: Optional[bool] = None
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+class DeactivateRequest(BaseModel):
+    password: str
+    confirmation: str

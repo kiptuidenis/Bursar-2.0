@@ -9,9 +9,9 @@ class SessionManager:
         # Generate a random 32-byte hexadecimal key if none is provided
         self.secret_key = secret_key if secret_key is not None else secrets.token_hex(32)
 
-    def create_session(self, user_id: int, expires_in_seconds: int = 3600) -> str:
+    def create_session(self, user_id: int, expires_in_seconds: int = 3600, db = None, user_agent: str = "", ip_address: str = "") -> str:
         """Create a cryptographically signed session token for a user."""
-        expiration = int(time.time() + expires_in_seconds)
+        expiration = time.time() + expires_in_seconds
         session_payload = f"{user_id}:{expiration}"
         
         # Calculate HMAC SHA-256 signature
@@ -22,9 +22,14 @@ class SessionManager:
         ).hexdigest()
         
         # Format token: payload + signature
-        return f"{session_payload}:{signature}"
+        token = f"{session_payload}:{signature}"
+        
+        if db is not None:
+            db.create_session_db(user_id, token, user_agent, ip_address, int(expiration))
+            
+        return token
 
-    def validate_session(self, token: Optional[str]) -> Optional[int]:
+    def validate_session(self, token: Optional[str], db = None) -> Optional[int]:
         """Verify the signature and expiration of a session token. Returns user_id if valid."""
         if not token:
             return None
@@ -48,12 +53,18 @@ class SessionManager:
             
         # Verify expiration
         try:
-            expiration = int(expiration_str)
+            expiration = int(float(expiration_str))
         except ValueError:
             return None
             
         if time.time() > expiration:
             return None
+            
+        if db is not None:
+            db_user_id = db.verify_session_token_db(token)
+            if db_user_id is None:
+                return None
+            return db_user_id
             
         try:
             return int(user_id_str)

@@ -29,6 +29,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
     // 5. Wait for the URL to change to the dashboard
     await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
     expect(page.url()).toContain('/dashboard');
 
     // 6. Assert that NO runtime JS console TypeErrors occurred during page load / setup
@@ -87,6 +88,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.fill('#auth-password', '123456');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
 
     // 2. Verify sidebar is visible and collapsed initially by default
     const sidebar = page.locator('#sidebar-nav');
@@ -132,6 +134,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.fill('#auth-password', '123456');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
 
     // 2. Expand the sidebar to make buttons interactive/visible
     const sidebar = page.locator('#sidebar-nav');
@@ -172,6 +175,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.fill('#auth-password', '123456');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
 
     // 2. Open Budget Creator Modal
     await page.click('#open-budget-designer-btn');
@@ -210,6 +214,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.fill('#auth-password', '123456');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
 
     // Verify initial dashboard breakdown is empty
     await expect(page.locator('#budget-breakdown-list')).toContainText('No categories configured');

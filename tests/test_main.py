@@ -11,8 +11,6 @@ test_db_manager = None
 def get_test_db():
     global test_db_manager
     if test_db_manager is None:
-        if os.path.exists(DB_FILE):
-            os.remove(DB_FILE)
         test_db_manager = DatabaseManager(DB_FILE)
         test_db_manager.initialize()
     return test_db_manager
@@ -30,6 +28,7 @@ def clean_db():
     cursor.execute("DELETE FROM payouts")
     cursor.execute("DELETE FROM logs")
     cursor.execute("DELETE FROM budget_items")
+    cursor.execute("DELETE FROM sessions")
     cursor.execute("PRAGMA foreign_keys = ON")
     conn.commit()
     yield
