@@ -319,11 +319,11 @@
             <form id="auth-form" class="auth-form">
                 <div class="form-group">
                     <label for="auth-phone">Safaricom Phone Number</label>
-                    <input type="text" id="auth-phone" placeholder="e.g. 0712345678 or 254712345678" required>
+                    <input type="tel" id="auth-phone" placeholder="e.g. 0712345678 or 254712345678" inputmode="tel" autocomplete="tel" required>
                 </div>
                 <div class="form-group">
                     <label for="auth-password" id="password-label">Password PIN</label>
-                    <input type="password" id="auth-password" placeholder="Enter password (min 4 chars)" required>
+                    <input type="password" id="auth-password" placeholder="Enter password (min 4 chars)" autocomplete="current-password" required>
                 </div>
                 <div class="error-msg" id="auth-error-msg" style="display: none;"></div>
                 <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log In</button>

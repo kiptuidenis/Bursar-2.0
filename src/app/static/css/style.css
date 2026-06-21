@@ -1507,11 +1507,11 @@ body:not(.landing-body) {
         min-height: auto !important;
     }
     
-    /* Responsive table columns hiding for mobile */
-    .history-table th:nth-child(3), 
-    .history-table td:nth-child(3),
-    .history-table th:nth-child(4), 
-    .history-table td:nth-child(4) {
+    /* Responsive table columns hiding for mobile (excluding active sessions) */
+    .history-table:not(.active-sessions-table) th:nth-child(3), 
+    .history-table:not(.active-sessions-table) td:nth-child(3),
+    .history-table:not(.active-sessions-table) th:nth-child(4), 
+    .history-table:not(.active-sessions-table) td:nth-child(4) {
         display: none;
     }
     
@@ -1605,6 +1605,31 @@ body:not(.landing-body) {
     
     .auth-form .form-group {
         margin-bottom: 1rem !important;
+    }
+    
+    /* Profile Layout Responsiveness */
+    .profile-layout-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Touch Target Sizing Enhancements */
+    .close-btn {
+        padding: 0.6rem;
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .icon-link-btn {
+        padding: 0.6rem !important;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    .sidebar-link {
+        padding: 1rem 1.25rem !important;
     }
 }
 
@@ -2505,6 +2530,20 @@ body:not(.landing-body) {
     .hero-visual-sandbox {
         min-height: auto;
         padding: 1.5rem;
+        flex-direction: column;
+        height: auto;
+    }
+
+    .phone-wrapper {
+        left: 0;
+        margin: 0 auto;
+    }
+
+    .pacing-chart-widget {
+        position: static;
+        margin-top: 1.5rem;
+        width: 100%;
+        max-width: 320px;
     }
     
     .lock-highlight-grid {
@@ -2922,6 +2961,10 @@ body:not(.landing-body) {
 
 /* Profile Settings Specific Styles */
 .profile-layout-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1.5rem;
+    align-items: start;
     margin-top: 1rem;
 }
 
