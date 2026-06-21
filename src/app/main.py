@@ -14,9 +14,17 @@ from app.api.routers import auth, settings, budget, deposits, payouts, callbacks
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # In test mode, delete old test DB file to ensure clean database state
+    db_file = os.environ.get("DATABASE_URL", "bursar.db")
+    if os.environ.get("DATABASE_URL") == "bursar_test.db" and os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except Exception:
+            pass
+            
     db_manager.initialize()
     
-    if "PYTEST_CURRENT_TEST" not in os.environ:
+    if "PYTEST_CURRENT_TEST" not in os.environ and os.environ.get("DISABLE_SCHEDULER") != "1":
         app.state.scheduler = BackgroundScheduler(db_manager, interval_seconds=60)
         app.state.scheduler.start()
     else:

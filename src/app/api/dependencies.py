@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, Cookie
 from app.db.manager import DatabaseManager
 from app.core.security import SessionManager
 
-DB_FILE = "bursar.db"
+DB_FILE = os.environ.get("DATABASE_URL", "bursar.db")
 db_manager = DatabaseManager(DB_FILE)
 session_manager = SessionManager()
 
