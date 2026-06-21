@@ -13,8 +13,12 @@ class DatabaseManager:
     @property
     def connection(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
             self._conn.row_factory = sqlite3.Row
+            try:
+                self._conn.execute("PRAGMA journal_mode=WAL")
+            except sqlite3.OperationalError:
+                pass
         return self._conn
 
     def initialize(self) -> None:
