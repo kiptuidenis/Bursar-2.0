@@ -142,7 +142,7 @@ class DatabaseManager:
         cursor.execute("UPDATE settings SET mode = 'sandbox' WHERE mode = 'simulation'")
             
         conn.commit()
-
+ 
     # Cryptographic Hashing Helpers
     def _hash_password(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:
         """Hash a plaintext password using PBKDF2-HMAC-SHA256 with 100,000 iterations."""

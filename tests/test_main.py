@@ -2,7 +2,7 @@ import pytest
 import os
 import json
 from fastapi.testclient import TestClient
-from app.db import DatabaseManager
+from app.db.manager import DatabaseManager
 from app.main import app, get_db
 
 DB_FILE = "test_api_multitenant.db"
@@ -504,7 +504,7 @@ def test_settings_payout_time_validation():
 
 def test_intasend_integration_flow(monkeypatch):
     # Force PAYMENT_PROVIDER and INTASEND_MODE to use intasend simulation
-    from app import payment_gateway
+    from app.services import payment_gateway
     monkeypatch.setattr(payment_gateway, "PAYMENT_PROVIDER", "intasend")
     monkeypatch.setattr(payment_gateway, "INTASEND_MODE", "simulation")
 

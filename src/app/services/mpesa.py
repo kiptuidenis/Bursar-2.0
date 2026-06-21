@@ -70,8 +70,8 @@ class MpesaClient:
         return base64.b64encode(encrypted_bytes).decode("utf-8")
 
     async def send_b2c_payout(self, phone_number: str, amount: float, 
-                              result_url: str, timeout_url: str, 
-                              cert_bytes: Optional[bytes] = None) -> Dict[str, Any]:
+                               result_url: str, timeout_url: str, 
+                               cert_bytes: Optional[bytes] = None) -> Dict[str, Any]:
         """Initiate a Business-to-Customer (B2C) payout."""
         if self.mode == "simulation":
             await asyncio.sleep(0.1)  # Simulate network latency

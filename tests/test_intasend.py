@@ -1,5 +1,5 @@
 import pytest
-from app.intasend import IntasendClient
+from app.services.intasend import IntasendClient
 
 @pytest.mark.asyncio
 async def test_intasend_client_initialization():

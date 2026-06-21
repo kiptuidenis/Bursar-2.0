@@ -2,9 +2,9 @@ import pytest
 import datetime
 import os
 from unittest.mock import AsyncMock, patch
-from app.db import DatabaseManager
-from app.mpesa import MpesaClient
-from app.scheduler import check_and_trigger_payout
+from app.db.manager import DatabaseManager
+from app.services.mpesa import MpesaClient
+from app.services.scheduler import check_and_trigger_payout
 
 DB_FILE = "test_scheduler_multitenant.db"
 

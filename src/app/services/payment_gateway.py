@@ -1,8 +1,8 @@
 import os
 from typing import Dict, Any, Optional
-from app.mpesa import MpesaClient
-from app.intasend import IntasendClient
-from app.config import (
+from app.services.mpesa import MpesaClient
+from app.services.intasend import IntasendClient
+from app.core.config import (
     PAYMENT_PROVIDER,
     MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_LNM_SHORTCODE, MPESA_LNM_PASSKEY, MPESA_STK_CALLBACK_URL,
     MPESA_SHORTCODE, MPESA_INITIATOR_NAME, MPESA_INITIATOR_PASSWORD,
@@ -112,7 +112,7 @@ async def send_b2c_payout(phone_number: str, amount: float, recipient_name: str,
         }
     else:
         client = create_mpesa_client(user_settings)
-        from app.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
+        from app.core.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
         return await client.send_b2c_payout(
             phone_number=phone_number,
             amount=amount,

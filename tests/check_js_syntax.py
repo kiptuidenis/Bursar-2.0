@@ -6,7 +6,7 @@ import sys
 
 # Get the project root folder directory
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-static_dir = os.path.join(base_dir, "app", "static")
+static_dir = os.path.join(base_dir, "src", "app", "static")
 
 has_errors = False
 

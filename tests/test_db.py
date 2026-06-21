@@ -1,7 +1,7 @@
 import os
 import pytest
 import sqlite3
-from app.db import DatabaseManager
+from app.db.manager import DatabaseManager
 
 DB_FILE = "test_bursar_multitenant.db"
 

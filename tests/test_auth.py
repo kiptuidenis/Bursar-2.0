@@ -1,6 +1,6 @@
 import time
 import pytest
-from app.auth import SessionManager
+from app.core.security import SessionManager
 
 @pytest.fixture
 def manager():

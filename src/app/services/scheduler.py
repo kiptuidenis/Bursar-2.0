@@ -5,8 +5,8 @@ import threading
 import sqlite3
 import logging
 from typing import Optional
-from app.db import DatabaseManager
-from app.mpesa import MpesaClient
+from app.db.manager import DatabaseManager
+from app.services.mpesa import MpesaClient
 
 logger = logging.getLogger("bursar.scheduler")
 
@@ -101,11 +101,11 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
     # 8. Trigger M-Pesa client payment
     db.log_event(user_id, "INFO", f"Initiating {mode} payout of KES {daily_budget:.2f} for date {today_date} to {phone_number}.")
     try:
-        from app.payment_gateway import get_gateway_provider
+        from app.services.payment_gateway import get_gateway_provider
         provider = get_gateway_provider(settings)
         
         if provider == "intasend":
-            from app.payment_gateway import create_intasend_client
+            from app.services.payment_gateway import create_intasend_client
             client = create_intasend_client(settings)
             res = await client.send_b2c_payout(
                 phone_number=phone_number,
@@ -133,7 +133,7 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
                 except Exception as ex:
                     db.log_event(user_id, "WARNING", f"Could not read cert file {cert_filename}: {str(ex)}")
 
-            from app.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
+            from app.core.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
             res = await mpesa_client.send_b2c_payout(
                 phone_number=phone_number,
                 amount=daily_budget,
@@ -225,7 +225,7 @@ class BackgroundScheduler:
                     user_id = user["id"]
                     settings = self.db.get_settings(user_id)
                     if settings:
-                        from app.config import (
+                        from app.core.config import (
                             MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
                             MPESA_SHORTCODE, MPESA_INITIATOR_NAME, MPESA_INITIATOR_PASSWORD
                         )

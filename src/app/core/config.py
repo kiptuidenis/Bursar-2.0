@@ -18,7 +18,8 @@ def load_dotenv(filepath=".env"):
 load_dotenv(".env")
 
 # Default to simulation mode when running tests
-if "PYTEST_CURRENT_TEST" in os.environ:
+import sys
+if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
     os.environ["MPESA_MODE"] = "simulation"
     os.environ["INTASEND_MODE"] = "simulation"
 
@@ -44,4 +45,3 @@ PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mpesa").lower()
 INTASEND_MODE = os.environ.get("INTASEND_MODE", "simulation").lower()
 INTASEND_SECRET_KEY = os.environ.get("INTASEND_SECRET_KEY", "")
 INTASEND_PUBLISHABLE_KEY = os.environ.get("INTASEND_PUBLISHABLE_KEY", "")
-
