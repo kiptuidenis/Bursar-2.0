@@ -3337,26 +3337,60 @@ body:not(.landing-body) {
 }
 
 /* Flat Modal styling inside tab views */
-.tab-view .modal-content {
+/* =========================================
+   UNIFIED FLAT TAB VIEW PANEL SYSTEM
+   All sidebar views share identical sizing
+   ========================================= */
+
+/* Shared wrapper for all flat tab content panels */
+.tab-view .modal-content,
+.tab-view .drawer-content,
+#view-transactions .history-section {
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    transform: none !important;
-    box-shadow: var(--shadow-premium) !important;
-    border-radius: 24px !important;
+    max-width: 960px !important;
+    margin: 0 auto !important;
+    min-height: 480px !important;
     padding: 2rem !important;
+    border-radius: 24px !important;
+    box-shadow: var(--shadow-premium) !important;
+    box-sizing: border-box !important;
 }
 
-.tab-view .close-btn {
+/* Modal-specific overrides (deposit & budget) */
+.tab-view .modal-content {
+    transform: none !important;
+}
+
+/* Drawer-specific overrides (settings) */
+.tab-view .drawer-content {
+    position: relative !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    height: auto !important;
+    transform: none !important;
+}
+
+/* Hide close buttons in flat mode */
+.tab-view .close-btn,
+.tab-view .drawer-content .close-btn {
     display: none !important;
 }
 
+/* Mobile responsive: full-width, slightly less padding */
 @media (max-width: 768px) {
-    .tab-view .modal-content {
+    .tab-view .modal-content,
+    .tab-view .drawer-content,
+    #view-transactions .history-section {
+        max-width: 100% !important;
+        margin: 0 !important;
         padding: 1.5rem !important;
         border-radius: 16px !important;
+        min-height: 400px !important;
     }
 }
+
+
 
 
 /* Light Theme Variables & Overrides */

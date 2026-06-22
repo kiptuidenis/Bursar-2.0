@@ -72,6 +72,13 @@ async function checkAuth() {
             // Load user data
             pollDashboardData();
             fetchProfile();
+
+            // Hash routing on load
+            const validTabs = ["dashboard", "transactions", "profile", "deposit", "budget", "settings"];
+            const initialTab = window.location.hash.replace("#", "");
+            if (validTabs.includes(initialTab)) {
+                switchTab(initialTab);
+            }
             
             // Start dashboard polling if not already running
             if (!pollInterval) {
@@ -90,6 +97,135 @@ async function checkAuth() {
 function showAuthScreen() {
     isAuthenticated = false;
     window.location.href = "/#login";
+}
+
+// Switch View — module-level so it's accessible from checkAuth(), event handlers, etc.
+function switchTab(tabId) {
+    // Update hash in URL
+    if (window.location.hash.replace("#", "") !== tabId) {
+        window.location.hash = tabId;
+    }
+
+    // Handle DOM re-parenting for Deposit
+    const depositModal = document.getElementById("deposit-modal");
+    const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
+    const viewDeposit = document.getElementById("view-deposit");
+
+    if (tabId === "deposit") {
+        if (depositContent && viewDeposit) {
+            viewDeposit.appendChild(depositContent);
+        }
+        if (depositModal) {
+            depositModal.classList.remove("active");
+        }
+        // Reset input
+        const depositAmt = document.getElementById("deposit-amount");
+        if (depositAmt) depositAmt.value = "";
+    } else {
+        // Return to modal overlay if not on deposit tab
+        if (depositContent && depositModal && depositContent.parentNode !== depositModal) {
+            depositModal.appendChild(depositContent);
+        }
+    }
+
+    // Handle DOM re-parenting for Budget Designer
+    const budgetModal = document.getElementById("budget-designer-modal");
+    const budgetContent = document.getElementById("budget-designer-modal-content");
+    const viewBudget = document.getElementById("view-budget");
+
+    if (tabId === "budget") {
+        if (budgetContent && viewBudget) {
+            viewBudget.appendChild(budgetContent);
+        }
+        if (budgetModal) {
+            budgetModal.classList.remove("active");
+        }
+        // Reset input and states
+        const newCatName = document.getElementById("new-category-name");
+        const newCatAmount = document.getElementById("new-category-amount");
+        if (newCatName) newCatName.value = "";
+        if (newCatAmount) newCatAmount.value = "";
+
+        const startDateInput = document.getElementById("lock-start-date");
+        const endDateInput = document.getElementById("lock-end-date");
+        if (startDateInput) startDateInput.value = currentSettings.start_date || "";
+        if (endDateInput) endDateInput.value = currentSettings.end_date || "";
+        
+        const collBody = document.getElementById("schedule-collapse-body");
+        const collChevron = document.getElementById("schedule-chevron");
+        if (collBody) collBody.style.display = "none";
+        if (collChevron) collChevron.classList.remove("expanded");
+
+        renderBudgetBreakdown();
+
+        if (newCatName) {
+            const isLocked = currentSettings && currentSettings.is_budget_locked;
+            if (!isLocked) {
+                setTimeout(() => {
+                    newCatName.focus();
+                }, 50);
+            }
+        }
+    } else {
+        // Return to modal overlay if not on budget tab
+        if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
+            budgetModal.appendChild(budgetContent);
+        }
+    }
+
+    // Handle DOM re-parenting for Settings
+    const settingsDrawer = document.getElementById("settings-drawer");
+    const settingsContent = settingsDrawer ? settingsDrawer.querySelector(".drawer-content") : null;
+    const viewSettings = document.getElementById("view-settings");
+
+    if (tabId === "settings") {
+        if (settingsContent && viewSettings) {
+            viewSettings.appendChild(settingsContent);
+        }
+        if (settingsDrawer) {
+            settingsDrawer.classList.remove("active");
+        }
+    } else {
+        // Return to drawer overlay if not on settings tab
+        if (settingsContent && settingsDrawer && settingsContent.parentNode !== settingsDrawer) {
+            settingsDrawer.appendChild(settingsContent);
+        }
+    }
+
+    // Toggle view containers
+    const allViews = ["dashboard", "transactions", "profile", "deposit", "budget", "settings"];
+    allViews.forEach(v => {
+        const view = document.getElementById(`view-${v}`);
+        if (view) {
+            if (v === tabId) {
+                view.classList.remove("hidden");
+                view.classList.add("active");
+            } else {
+                view.classList.add("hidden");
+                view.classList.remove("active");
+            }
+        }
+    });
+
+    if (tabId === "profile") {
+        fetchProfile();
+        fetchSessions();
+    }
+    
+    // Update active class on sidebar links
+    document.querySelectorAll(".sidebar-link").forEach(btn => {
+        if (btn.getAttribute("data-tab") === tabId) {
+            btn.classList.add("active");
+        } else {
+            btn.classList.remove("active");
+        }
+    });
+    
+    // Hide mobile sidebar
+    const sidebar = document.getElementById("sidebar-nav");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    if (sidebar) sidebar.classList.remove("active");
+    if (backdrop) backdrop.classList.remove("active");
 }
 
 // Setup DOM elements and event binders
@@ -139,120 +275,14 @@ function setupEventHandlers() {
         }
     }
 
-    // Switch View function
-    function switchTab(tabId) {
-        // Handle DOM re-parenting for Deposit
-        const depositModal = document.getElementById("deposit-modal");
-        const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
-        const viewDeposit = document.getElementById("view-deposit");
-
-        if (tabId === "deposit") {
-            if (depositContent && viewDeposit) {
-                viewDeposit.appendChild(depositContent);
-            }
-            if (depositModal) {
-                depositModal.classList.remove("active");
-            }
-            // Reset input
-            const depositAmt = document.getElementById("deposit-amount");
-            if (depositAmt) depositAmt.value = "";
-        } else {
-            // Return to modal overlay if not on deposit tab
-            if (depositContent && depositModal && depositContent.parentNode !== depositModal) {
-                depositModal.appendChild(depositContent);
-            }
-        }
-
-        // Handle DOM re-parenting for Budget Designer
-        const budgetModal = document.getElementById("budget-designer-modal");
-        const budgetContent = document.getElementById("budget-designer-modal-content");
-        const viewBudget = document.getElementById("view-budget");
-
-        if (tabId === "budget") {
-            if (budgetContent && viewBudget) {
-                viewBudget.appendChild(budgetContent);
-            }
-            if (budgetModal) {
-                budgetModal.classList.remove("active");
-            }
-            // Reset input and states
-            const newCatName = document.getElementById("new-category-name");
-            const newCatAmount = document.getElementById("new-category-amount");
-            if (newCatName) newCatName.value = "";
-            if (newCatAmount) newCatAmount.value = "";
-
-            const startDateInput = document.getElementById("lock-start-date");
-            const endDateInput = document.getElementById("lock-end-date");
-            if (startDateInput) startDateInput.value = currentSettings.start_date || "";
-            if (endDateInput) endDateInput.value = currentSettings.end_date || "";
-            
-            const collBody = document.getElementById("schedule-collapse-body");
-            const collChevron = document.getElementById("schedule-chevron");
-            if (collBody) collBody.style.display = "none";
-            if (collChevron) collChevron.classList.remove("expanded");
-
-            renderBudgetBreakdown();
-
-            if (newCatName) {
-                const isLocked = currentSettings && currentSettings.is_budget_locked;
-                if (!isLocked) {
-                    setTimeout(() => {
-                        newCatName.focus();
-                    }, 50);
-                }
-            }
-        } else {
-            // Return to modal overlay if not on budget tab
-            if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
-                budgetModal.appendChild(budgetContent);
-            }
-        }
-
-        // Toggle view containers
-        const allViews = ["dashboard", "transactions", "profile", "deposit", "budget"];
-        allViews.forEach(v => {
-            const view = document.getElementById(`view-${v}`);
-            if (view) {
-                if (v === tabId) {
-                    view.classList.remove("hidden");
-                    view.classList.add("active");
-                } else {
-                    view.classList.add("hidden");
-                    view.classList.remove("active");
-                }
-            }
-        });
-
-        if (tabId === "profile") {
-            fetchProfile();
-            fetchSessions();
-        }
-        
-        // Update active class on links
-        document.querySelectorAll(".sidebar-link").forEach(btn => {
-            if (btn.getAttribute("data-tab") === tabId) {
-                btn.classList.add("active");
-            } else if (btn.getAttribute("data-tab") !== "settings") {
-                btn.classList.remove("active");
-            }
-        });
-        
-        // Hide mobile sidebar
-        if (sidebar) sidebar.classList.remove("active");
-        if (backdrop) backdrop.classList.remove("active");
-    }
+    // switchTab is now a module-level function (defined above setupEventHandlers)
 
     // Click link events
     document.querySelectorAll(".sidebar-link").forEach(btn => {
         btn.addEventListener("click", (e) => {
             const tab = btn.getAttribute("data-tab");
-            if (tab === "dashboard" || tab === "transactions" || tab === "profile" || tab === "deposit" || tab === "budget") {
+            if (tab === "dashboard" || tab === "transactions" || tab === "profile" || tab === "deposit" || tab === "budget" || tab === "settings") {
                 switchTab(tab);
-            } else if (tab === "settings") {
-                // Toggle Settings Drawer
-                if (settingsDrawer) settingsDrawer.classList.add("active");
-                if (sidebar) sidebar.classList.remove("active");
-                if (backdrop) backdrop.classList.remove("active");
             }
         });
     });
@@ -321,7 +351,11 @@ function setupEventHandlers() {
 
     // Open/Close Settings
     document.getElementById("toggle-settings-btn").addEventListener("click", () => {
-        settingsDrawer.classList.add("active");
+        // Only open drawer overlay if settings content is in the drawer overlay (not flat tab view)
+        const settingsContent = settingsDrawer ? settingsDrawer.querySelector(".drawer-content") : null;
+        if (settingsContent && settingsContent.parentNode === settingsDrawer) {
+            settingsDrawer.classList.add("active");
+        }
     });
     document.getElementById("close-settings-btn").addEventListener("click", () => {
         settingsDrawer.classList.remove("active");
@@ -451,7 +485,17 @@ function setupEventHandlers() {
                 throw new Error(errData.detail || "Saving settings failed.");
             }
             
-            settingsDrawer.classList.remove("active");
+            // Determine if settings was opened via sidebar (flat tab) or top nav (drawer)
+            // When in flat tab mode, drawer-content is parented to #view-settings (not settingsDrawer)
+            const viewSettings = document.getElementById("view-settings");
+            const inFlatTabMode = viewSettings && !viewSettings.classList.contains("hidden") && viewSettings.classList.contains("active");
+            if (inFlatTabMode) {
+                // Flat tab mode: navigate back to dashboard after save
+                switchTab("dashboard");
+            } else {
+                // Drawer mode: close the drawer
+                settingsDrawer.classList.remove("active");
+            }
             pollDashboardData();
         } catch (err) {
             console.error(err);

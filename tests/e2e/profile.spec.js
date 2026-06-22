@@ -49,8 +49,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await expect.poll(() => dialogMessages).toContain('Profile details saved successfully!');
 
     // Reload page and confirm details are retrieved
-    await page.reload();
-    await page.waitForURL('**/dashboard');
+    await page.reload({ waitUntil: 'networkidle' });
     await page.waitForLoadState('networkidle');
     
     await page.click('[data-tab="profile"]');

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- CSS Style -->
-    <link rel="stylesheet" href="css/style.css?v=1.4.0">
+    <link rel="stylesheet" href="css/style.css?v=1.4.2">
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js CDN -->
@@ -254,7 +254,7 @@
 
                 <!-- VIEW: Transactions (Full Ledger) -->
                 <div id="view-transactions" class="tab-view hidden">
-                    <section class="history-section glass-panel" style="width: 100%; min-height: 480px; display: flex; flex-direction: column;">
+                    <section class="history-section glass-panel">
                         <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                             <div>
                                 <h2 style="font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="history" style="color: var(--color-accent-violet);"></i> Distribution Ledger</h2>
@@ -417,6 +417,11 @@
 
                 <!-- VIEW: Budget Creator (Flat Tab) -->
                 <div id="view-budget" class="tab-view hidden">
+                    <!-- Dynamic content re-parented by JS -->
+                </div>
+
+                <!-- VIEW: Configuration Settings (Flat Tab) -->
+                <div id="view-settings" class="tab-view hidden">
                     <!-- Dynamic content re-parented by JS -->
                 </div>
 
@@ -605,7 +610,7 @@
     </div>
 
     <!-- JS Logic -->
-    <script src="js/app.js?v=1.4.0"></script>
+    <script src="js/app.js?v=1.4.2"></script>
     <script>
         if (window.lucide) {
             window.lucide.createIcons();
