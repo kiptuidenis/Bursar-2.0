@@ -1636,11 +1636,32 @@ body:not(.landing-body) {
         gap: 0.8rem !important;
     }
     
-    .layout-left-col {
-        display: flex;
-        flex-direction: column;
-        gap: 0.8rem !important;
+    .layout-left-col, .layout-right-col, .right-subgrid {
+        display: contents !important;
     }
+
+    
+    .debit-card-container {
+        order: 1;
+    }
+    
+    #budget-card {
+        order: 2;
+    }
+    
+    .chart-section {
+        order: 3;
+    }
+    
+    #countdown-card {
+        order: 4;
+    }
+    
+    .history-section {
+        order: 5;
+    }
+
+
     
     /* Responsive styling for flip card to save vertical screen space */
     .debit-card-inner {
