@@ -141,50 +141,89 @@ function setupEventHandlers() {
 
     // Switch View function
     function switchTab(tabId) {
+        // Handle DOM re-parenting for Deposit
+        const depositModal = document.getElementById("deposit-modal");
+        const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
+        const viewDeposit = document.getElementById("view-deposit");
+
+        if (tabId === "deposit") {
+            if (depositContent && viewDeposit) {
+                viewDeposit.appendChild(depositContent);
+            }
+            if (depositModal) {
+                depositModal.classList.remove("active");
+            }
+            // Reset input
+            const depositAmt = document.getElementById("deposit-amount");
+            if (depositAmt) depositAmt.value = "";
+        } else {
+            // Return to modal overlay if not on deposit tab
+            if (depositContent && depositModal && depositContent.parentNode !== depositModal) {
+                depositModal.appendChild(depositContent);
+            }
+        }
+
+        // Handle DOM re-parenting for Budget Designer
+        const budgetModal = document.getElementById("budget-designer-modal");
+        const budgetContent = document.getElementById("budget-designer-modal-content");
+        const viewBudget = document.getElementById("view-budget");
+
+        if (tabId === "budget") {
+            if (budgetContent && viewBudget) {
+                viewBudget.appendChild(budgetContent);
+            }
+            if (budgetModal) {
+                budgetModal.classList.remove("active");
+            }
+            // Reset input and states
+            const newCatName = document.getElementById("new-category-name");
+            const newCatAmount = document.getElementById("new-category-amount");
+            if (newCatName) newCatName.value = "";
+            if (newCatAmount) newCatAmount.value = "";
+
+            const startDateInput = document.getElementById("lock-start-date");
+            const endDateInput = document.getElementById("lock-end-date");
+            if (startDateInput) startDateInput.value = currentSettings.start_date || "";
+            if (endDateInput) endDateInput.value = currentSettings.end_date || "";
+            
+            const collBody = document.getElementById("schedule-collapse-body");
+            const collChevron = document.getElementById("schedule-chevron");
+            if (collBody) collBody.style.display = "none";
+            if (collChevron) collChevron.classList.remove("expanded");
+
+            renderBudgetBreakdown();
+
+            if (newCatName) {
+                const isLocked = currentSettings && currentSettings.is_budget_locked;
+                if (!isLocked) {
+                    setTimeout(() => {
+                        newCatName.focus();
+                    }, 50);
+                }
+            }
+        } else {
+            // Return to modal overlay if not on budget tab
+            if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
+                budgetModal.appendChild(budgetContent);
+            }
+        }
+
         // Toggle view containers
-        const dashboardView = document.getElementById("view-dashboard");
-        const transactionsView = document.getElementById("view-transactions");
-        const profileView = document.getElementById("view-profile");
-        
-        if (tabId === "dashboard") {
-            if (dashboardView) {
-                dashboardView.classList.remove("hidden");
-                dashboardView.classList.add("active");
+        const allViews = ["dashboard", "transactions", "profile", "deposit", "budget"];
+        allViews.forEach(v => {
+            const view = document.getElementById(`view-${v}`);
+            if (view) {
+                if (v === tabId) {
+                    view.classList.remove("hidden");
+                    view.classList.add("active");
+                } else {
+                    view.classList.add("hidden");
+                    view.classList.remove("active");
+                }
             }
-            if (transactionsView) {
-                transactionsView.classList.add("hidden");
-                transactionsView.classList.remove("active");
-            }
-            if (profileView) {
-                profileView.classList.add("hidden");
-                profileView.classList.remove("active");
-            }
-        } else if (tabId === "transactions") {
-            if (transactionsView) {
-                transactionsView.classList.remove("hidden");
-                transactionsView.classList.add("active");
-            }
-            if (dashboardView) {
-                dashboardView.classList.add("hidden");
-                dashboardView.classList.remove("active");
-            }
-            if (profileView) {
-                profileView.classList.add("hidden");
-                profileView.classList.remove("active");
-            }
-        } else if (tabId === "profile") {
-            if (profileView) {
-                profileView.classList.remove("hidden");
-                profileView.classList.add("active");
-            }
-            if (dashboardView) {
-                dashboardView.classList.add("hidden");
-                dashboardView.classList.remove("active");
-            }
-            if (transactionsView) {
-                transactionsView.classList.add("hidden");
-                transactionsView.classList.remove("active");
-            }
+        });
+
+        if (tabId === "profile") {
             fetchProfile();
             fetchSessions();
         }
@@ -193,7 +232,7 @@ function setupEventHandlers() {
         document.querySelectorAll(".sidebar-link").forEach(btn => {
             if (btn.getAttribute("data-tab") === tabId) {
                 btn.classList.add("active");
-            } else if (btn.getAttribute("data-tab") !== "budget" && btn.getAttribute("data-tab") !== "settings") {
+            } else if (btn.getAttribute("data-tab") !== "settings") {
                 btn.classList.remove("active");
             }
         });
@@ -207,13 +246,8 @@ function setupEventHandlers() {
     document.querySelectorAll(".sidebar-link").forEach(btn => {
         btn.addEventListener("click", (e) => {
             const tab = btn.getAttribute("data-tab");
-            if (tab === "dashboard" || tab === "transactions" || tab === "profile") {
+            if (tab === "dashboard" || tab === "transactions" || tab === "profile" || tab === "deposit" || tab === "budget") {
                 switchTab(tab);
-            } else if (tab === "budget") {
-                // Open Budget creator Modal directly
-                openBudgetDesignerModal();
-                if (sidebar) sidebar.classList.remove("active");
-                if (backdrop) backdrop.classList.remove("active");
             } else if (tab === "settings") {
                 // Toggle Settings Drawer
                 if (settingsDrawer) settingsDrawer.classList.add("active");
@@ -233,6 +267,13 @@ function setupEventHandlers() {
 
     // Open/Close Deposit
     const openDeposit = () => {
+        // Ensure content is in deposit modal overlay before showing it as modal
+        const depositModal = document.getElementById("deposit-modal");
+        const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
+        if (depositModal && depositContent && depositContent.parentNode !== depositModal) {
+            depositModal.appendChild(depositContent);
+        }
+
         const depositAmt = document.getElementById("deposit-amount");
         if (depositAmt) depositAmt.value = "";
         if (depositModal) depositModal.classList.add("active");
@@ -240,10 +281,6 @@ function setupEventHandlers() {
     const openDepositBtn = document.getElementById("open-deposit-btn");
     if (openDepositBtn) {
         openDepositBtn.addEventListener("click", openDeposit);
-    }
-    const sidebarDepositBtn = document.getElementById("sidebar-deposit-btn");
-    if (sidebarDepositBtn) {
-        sidebarDepositBtn.addEventListener("click", openDeposit);
     }
     const closeDepositBtn = document.getElementById("close-deposit-btn");
     if (closeDepositBtn) {
@@ -295,8 +332,13 @@ function setupEventHandlers() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || "Initiation failed.");
             
-            // Close input modal
-            depositModal.classList.remove("active");
+            // Close input modal or switch back to dashboard if flat
+            const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
+            if (depositContent && depositContent.parentNode !== depositModal) {
+                switchTab("dashboard");
+            } else {
+                depositModal.classList.remove("active");
+            }
             
             // Open polling overlay
             const pollingOverlay = document.getElementById("deposit-polling-overlay");
@@ -649,9 +691,14 @@ function setupEventHandlers() {
                 }
                 alert("Budget successfully finalized and locked for this month! 🔒");
                 
-                // Close modal
+                // Close modal or switch back to dashboard if flat
                 const budgetDesignerModal = document.getElementById("budget-designer-modal");
-                if (budgetDesignerModal) budgetDesignerModal.classList.remove("active");
+                const budgetContent = document.getElementById("budget-designer-modal-content");
+                if (budgetContent && budgetDesignerModal && budgetContent.parentNode !== budgetDesignerModal) {
+                    switchTab("dashboard");
+                } else if (budgetDesignerModal) {
+                    budgetDesignerModal.classList.remove("active");
+                }
                 
                 pollDashboardData();
             } catch (err) {
@@ -1145,6 +1192,12 @@ window.deleteCategory = deleteCategory;
 function openBudgetDesignerModal() {
     const budgetModal = document.getElementById("budget-designer-modal");
     if (!budgetModal) return;
+
+    // Ensure content is in budget modal overlay before showing it as modal
+    const budgetContent = document.getElementById("budget-designer-modal-content");
+    if (budgetModal && budgetContent && budgetContent.parentNode !== budgetModal) {
+        budgetModal.appendChild(budgetContent);
+    }
 
     // Reset input fields
     const newCatName = document.getElementById("new-category-name");

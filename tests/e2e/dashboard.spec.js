@@ -155,13 +155,23 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await expect(page.locator('#sidebar-logout-btn')).toBeInViewport();
     await expect(page.locator('#sidebar-user-badge')).toBeInViewport();
 
-    // 3. Test Sidebar Deposit Button opens modal
+    // 3. Test Sidebar Deposit Button switches to flat tab view
     await page.click('#sidebar-deposit-btn');
-    await expect(page.locator('#deposit-modal')).toHaveClass(/active/);
-    
-    // Close the Deposit modal
-    await page.click('#close-deposit-btn');
+    await expect(page.locator('#view-deposit')).toHaveClass(/active/);
     await expect(page.locator('#deposit-modal')).not.toHaveClass(/active/);
+    await expect(page.locator('#view-deposit #deposit-amount')).toBeVisible();
+
+    // Test Sidebar Budget Button switches to flat tab view
+    await page.click('[data-tab="budget"]');
+    await expect(page.locator('#view-budget')).toHaveClass(/active/);
+    await expect(page.locator('#budget-designer-modal')).not.toHaveClass(/active/);
+    await expect(page.locator('#view-budget #new-category-name')).toBeVisible();
+
+    // Switch back to dashboard
+    await page.click('[data-tab="dashboard"]');
+    await expect(page.locator('#view-dashboard')).toHaveClass(/active/);
+    await expect(page.locator('#view-deposit')).toHaveClass(/hidden/);
+    await expect(page.locator('#view-budget')).toHaveClass(/hidden/);
 
     // 4. Test Sidebar Logout Button logs out
     await page.click('#sidebar-logout-btn');

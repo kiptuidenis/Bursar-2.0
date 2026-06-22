@@ -3100,6 +3100,29 @@ body:not(.landing-body) {
     padding: 0.85rem 1rem !important;
 }
 
+/* Flat Modal styling inside tab views */
+.tab-view .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    transform: none !important;
+    box-shadow: var(--shadow-premium) !important;
+    border-radius: 24px !important;
+    padding: 2rem !important;
+}
+
+.tab-view .close-btn {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .tab-view .modal-content {
+        padding: 1.5rem !important;
+        border-radius: 16px !important;
+    }
+}
+
+
 /* Light Theme Variables & Overrides */
 [data-theme="light"] {
     --bg-main: #f8fafc;
