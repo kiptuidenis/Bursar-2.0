@@ -29,7 +29,7 @@ class SessionManager:
             
         return token
 
-    def validate_session(self, token: Optional[str], db = None) -> Optional[int]:
+    def validate_session(self, token: Optional[str], db = None, is_poll: bool = False) -> Optional[int]:
         """Verify the signature and expiration of a session token. Returns user_id if valid."""
         if not token:
             return None
@@ -61,7 +61,7 @@ class SessionManager:
             return None
             
         if db is not None:
-            db_user_id = db.verify_session_token_db(token)
+            db_user_id = db.verify_session_token_db(token, is_poll=is_poll)
             if db_user_id is None:
                 return None
             return db_user_id

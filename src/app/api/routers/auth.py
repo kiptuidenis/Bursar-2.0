@@ -74,3 +74,7 @@ def get_me(user_id: int = Depends(get_current_user_id), db: DatabaseManager = De
     if not row:
         raise HTTPException(status_code=404, detail="User not found.")
     return dict(row)
+
+@router.post("/ping")
+def ping_session(user_id: int = Depends(get_current_user_id)):
+    return {"status": "ok"}

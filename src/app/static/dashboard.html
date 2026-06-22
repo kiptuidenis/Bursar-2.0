@@ -609,6 +609,26 @@
         </div>
     </div>
 
+    <!-- Session Expiry Modal -->
+    <div class="modal-overlay" id="session-expiry-modal" style="z-index: 120;">
+        <div class="modal-content glass-panel" style="max-width: 400px; padding: 1.5rem;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <h3 style="color: var(--color-accent-amber); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    <i data-lucide="alert-triangle" style="color: var(--color-accent-amber);"></i> Session Expiring
+                </h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <p class="text-muted" style="font-size: 0.9rem; line-height: 1.5; margin: 0;">
+                    For your security, you will be logged out in <strong id="session-expiry-timer" style="color: var(--color-accent-rose); font-size: 1.1rem;">120</strong> seconds due to inactivity.
+                </p>
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button type="button" class="btn" id="session-logout-btn" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--color-accent-rose); width: auto; padding: 0.55rem 1.2rem; font-weight: 600;">Log Out</button>
+                    <button type="button" class="btn" id="session-extend-btn" style="background: var(--color-accent-violet); color: white; border: none; width: auto; padding: 0.55rem 1.25rem; font-weight: 600;">Stay Logged In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JS Logic -->
     <script src="js/app.js?v=1.4.2"></script>
     <script>

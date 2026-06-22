@@ -9,6 +9,10 @@ let pollInterval = null;
 let currentAuthAction = "login"; // "login" or "signup"
 let isAuthenticated = false;
 let balanceChartInstance = null;
+let lastInteractionTime = Date.now();
+let lastPingTime = Date.now();
+let inactivityInterval = null;
+let activityListenersAttached = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     // Check initial authentication status
@@ -72,6 +76,7 @@ async function checkAuth() {
             // Load user data
             pollDashboardData();
             fetchProfile();
+            initActivityTracking();
 
             // Hash routing on load
             const validTabs = ["dashboard", "transactions", "profile", "deposit", "budget", "settings"];
@@ -96,7 +101,144 @@ async function checkAuth() {
 // Forces auth overlay display and redirects to landing page
 function showAuthScreen() {
     isAuthenticated = false;
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+    if (inactivityInterval) {
+        clearInterval(inactivityInterval);
+        inactivityInterval = null;
+    }
+    const expiryModal = document.getElementById("session-expiry-modal");
+    if (expiryModal) {
+        expiryModal.classList.remove("active");
+    }
     window.location.href = "/#login";
+}
+
+// Module-level logout function
+async function handleLogout() {
+    try {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        if (inactivityInterval) {
+            clearInterval(inactivityInterval);
+            inactivityInterval = null;
+        }
+        const expiryModal = document.getElementById("session-expiry-modal");
+        if (expiryModal) {
+            expiryModal.classList.remove("active");
+        }
+        await fetch("/api/auth/logout", { method: "POST" });
+        window.location.href = "/";
+    } catch (err) {
+        console.error("Logout failed:", err);
+        window.location.href = "/";
+    }
+}
+
+// Initialize inactivity and keep-alive timers
+function initActivityTracking() {
+    lastInteractionTime = Date.now();
+    lastPingTime = Date.now();
+    
+    // Start periodic inactivity check interval if not already running
+    if (!inactivityInterval) {
+        inactivityInterval = setInterval(checkInactivity, 1000);
+    }
+    
+    // Attach event listeners to window (once only)
+    if (!activityListenersAttached) {
+        const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+        events.forEach(evt => {
+            window.addEventListener(evt, handleUserActivity);
+        });
+        
+        // Modal button listeners
+        const extendBtn = document.getElementById("session-extend-btn");
+        if (extendBtn) {
+            extendBtn.addEventListener("click", () => {
+                // Explicitly reset the idle timer and extend the backend session
+                lastInteractionTime = Date.now();
+                const expiryModal = document.getElementById("session-expiry-modal");
+                if (expiryModal) expiryModal.classList.remove("active");
+                pingSession();
+            });
+        }
+        
+        const logoutBtn = document.getElementById("session-logout-btn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", () => {
+                const expiryModal = document.getElementById("session-expiry-modal");
+                if (expiryModal) expiryModal.classList.remove("active");
+                handleLogout();
+            });
+        }
+        
+        activityListenersAttached = true;
+    }
+}
+
+// Resets idle timer and triggers keep-alive ping if threshold is reached.
+// Ignores all input while the session warning modal is visible — only the
+// modal's own buttons are allowed to resolve that state.
+function handleUserActivity() {
+    const expiryModal = document.getElementById("session-expiry-modal");
+    if (expiryModal && expiryModal.classList.contains("active")) {
+        // Modal is showing — block passive activity from affecting the timer
+        return;
+    }
+    
+    lastInteractionTime = Date.now();
+    
+    if (Date.now() - lastPingTime > 60000) { // ping every 1 minute of real activity
+        pingSession();
+    }
+}
+
+// Calls ping API to extend session on the backend
+async function pingSession() {
+    try {
+        lastPingTime = Date.now();
+        await fetch("/api/auth/ping", { method: "POST" });
+    } catch (err) {
+        console.error("Keep-alive ping failed:", err);
+    }
+}
+
+// Periodic check for inactivity timeout
+function checkInactivity() {
+    if (!isAuthenticated) return;
+    
+    const elapsed = Date.now() - lastInteractionTime;
+    const timeout = 300000; // 5 minutes
+    const warning = 270000; // 4 minutes 30 seconds
+    
+    if (elapsed >= timeout) {
+        // Idle timeout reached
+        if (inactivityInterval) {
+            clearInterval(inactivityInterval);
+            inactivityInterval = null;
+        }
+        const expiryModal = document.getElementById("session-expiry-modal");
+        if (expiryModal) expiryModal.classList.remove("active");
+        handleLogout();
+    } else if (elapsed >= warning) {
+        // Show session expiry warning modal and start countdown
+        const expiryModal = document.getElementById("session-expiry-modal");
+        if (expiryModal && !expiryModal.classList.contains("active")) {
+            expiryModal.classList.add("active");
+        }
+        
+        const timerEl = document.getElementById("session-expiry-timer");
+        if (timerEl) {
+            const remaining = Math.max(0, Math.ceil((timeout - elapsed) / 1000));
+            timerEl.innerText = remaining;
+        }
+    }
+    // Note: no else branch — once the modal is open, only the buttons can dismiss it
 }
 
 // Switch View — module-level so it's accessible from checkAuth(), event handlers, etc.
@@ -586,15 +728,6 @@ function setupEventHandlers() {
     }
 
     // Logout Click
-    const handleLogout = async () => {
-        try {
-            await fetch("/api/auth/logout", { method: "POST" });
-            window.location.href = "/";
-        } catch (err) {
-            console.error("Logout failed:", err);
-            window.location.href = "/";
-        }
-    };
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
         logoutBtn.addEventListener("click", handleLogout);
@@ -828,7 +961,7 @@ function setupEventHandlers() {
 // Fetch general configuration & state
 async function fetchSettings() {
     try {
-        const res = await fetch("/api/settings");
+        const res = await fetch("/api/settings", { headers: { "X-Background-Poll": "true" } });
         if (res.status === 401) return showAuthScreen();
         const data = await res.json();
         currentSettings = data;
@@ -882,7 +1015,7 @@ function updateDashboardMetrics(settings) {
 // Fetch historical payout transaction rows
 async function fetchPayouts() {
     try {
-        const res = await fetch("/api/payouts");
+        const res = await fetch("/api/payouts", { headers: { "X-Background-Poll": "true" } });
         if (res.status === 401) return showAuthScreen();
         const data = await res.json();
         currentPayouts = data;
@@ -1106,7 +1239,7 @@ function pollDashboardData() {
 // Fetch user's custom budget categories
 async function fetchBudgetItems() {
     try {
-        const res = await fetch("/api/budget/items");
+        const res = await fetch("/api/budget/items", { headers: { "X-Background-Poll": "true" } });
         if (res.status === 401) return showAuthScreen();
         const data = await res.json();
         budgetItems = data;

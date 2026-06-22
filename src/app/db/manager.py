@@ -178,6 +178,12 @@ class DatabaseManager:
             
         # Migrate any legacy 'simulation' modes to 'sandbox'
         cursor.execute("UPDATE settings SET mode = 'sandbox' WHERE mode = 'simulation'")
+        
+        # Add dynamic columns to sessions if they do not exist
+        cursor.execute("PRAGMA table_info(sessions)")
+        s_columns = [row["name"] for row in cursor.fetchall()]
+        if "last_activity" not in s_columns:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN last_activity INTEGER")
             
         conn.commit()
         self.close()
@@ -293,10 +299,11 @@ class DatabaseManager:
         """Insert a session token record in database."""
         conn = self.connection
         cursor = conn.cursor()
+        current_time = int(time.time())
         cursor.execute("""
-            INSERT INTO sessions (user_id, session_token, user_agent, ip_address, expires_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (user_id, token, user_agent, ip_address, expires_at))
+            INSERT INTO sessions (user_id, session_token, user_agent, ip_address, expires_at, last_activity)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (user_id, token, user_agent, ip_address, expires_at, current_time))
         conn.commit()
 
     def get_active_sessions(self, user_id: int) -> List[Dict[str, Any]]:
@@ -326,16 +333,52 @@ class DatabaseManager:
         cursor.execute("DELETE FROM sessions WHERE user_id = ? AND session_token != ?", (user_id, current_token))
         conn.commit()
 
-    def verify_session_token_db(self, token: str) -> Optional[int]:
-        """Verify the token exists in DB and is active."""
+    def verify_session_token_db(self, token: str, is_poll: bool = False) -> Optional[int]:
+        """Verify the token exists in DB and is active, checking inactivity timeout."""
         conn = self.connection
         cursor = conn.cursor()
+        now = int(time.time())
         cursor.execute("""
-            SELECT user_id, expires_at FROM sessions 
+            SELECT user_id, expires_at, last_activity FROM sessions 
             WHERE session_token = ? AND expires_at > ?
-        """, (token, int(time.time())))
+        """, (token, now))
         row = cursor.fetchone()
-        return row["user_id"] if row else None
+        if not row:
+            return None
+            
+        user_id = row["user_id"]
+        last_act = row["last_activity"]
+        if last_act is None:
+            last_act = row["expires_at"] - 86400
+            
+        # Inactivity check: 5 minutes (300 seconds)
+        if now - last_act > 300:
+            cursor.execute("DELETE FROM sessions WHERE session_token = ?", (token,))
+            conn.commit()
+            return None
+            
+        # If valid and not a background poll, update last activity to now
+        if not is_poll:
+            cursor.execute("""
+                UPDATE sessions 
+                SET last_activity = ? 
+                WHERE session_token = ?
+            """, (now, token))
+            conn.commit()
+            
+        return user_id
+
+    def cleanup_expired_sessions(self, inactivity_timeout_seconds: int = 300) -> None:
+        """Delete sessions that are expired absolutely or idle for too long."""
+        conn = self.connection
+        cursor = conn.cursor()
+        now = int(time.time())
+        cursor.execute("""
+            DELETE FROM sessions 
+            WHERE expires_at < ? 
+               OR (? - COALESCE(last_activity, expires_at - 86400)) > ?
+        """, (now, now, inactivity_timeout_seconds))
+        conn.commit()
 
     def deactivate_user(self, user_id: int) -> None:
         """Permanently delete user account and trigger cascading deletions."""

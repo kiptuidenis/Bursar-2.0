@@ -224,6 +224,9 @@ class BackgroundScheduler:
         while self.is_running:
             db = DatabaseManager(self.db.db_path)
             try:
+                # Periodically clean up expired or inactive sessions (5 minutes timeout)
+                db.cleanup_expired_sessions(inactivity_timeout_seconds=300)
+                
                 # Fetch all registered users and process payouts individually
                 users = db.get_all_users()
                 for user in users:
