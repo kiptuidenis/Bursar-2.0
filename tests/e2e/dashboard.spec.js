@@ -37,12 +37,20 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     expect(pageErrors).toHaveLength(0);
 
     // 7. Verify "Deposit Funds" button works (opens modal)
+    await page.click('#debit-card-container');
+    await page.waitForTimeout(600); // Wait for 3D flip transition to finish
     await page.click('#open-deposit-btn');
     await expect(page.locator('#deposit-modal')).toHaveClass(/active/);
     
     // Close the Deposit modal
     await page.click('#close-deposit-btn');
     await expect(page.locator('#deposit-modal')).not.toHaveClass(/active/);
+    
+    // Flip card back to keep initial state
+    await page.click('#debit-card-container');
+    await page.waitForTimeout(600); // Wait for 3D flip back transition to finish
+
+
 
     // 8. Verify "Create" (Budget Creator Modal) button works (opens modal)
     await page.click('#open-budget-designer-btn');

@@ -265,6 +265,23 @@ function setupEventHandlers() {
         });
     }
 
+    // 3D Debit Card Flip Handlers
+    const cardContainer = document.getElementById("debit-card-container");
+    if (cardContainer) {
+        cardContainer.addEventListener("click", () => {
+            cardContainer.classList.toggle("flipped");
+        });
+        
+        // Prevent card from flipping back when clicking action buttons
+        const cardBackActions = cardContainer.querySelector(".card-back-actions");
+        if (cardBackActions) {
+            cardBackActions.addEventListener("click", (e) => {
+                e.stopPropagation();
+            });
+        }
+    }
+
+
     // Open/Close Deposit
     const openDeposit = () => {
         // Ensure content is in deposit modal overlay before showing it as modal

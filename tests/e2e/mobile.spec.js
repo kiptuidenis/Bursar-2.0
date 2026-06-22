@@ -189,8 +189,11 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     await page.waitForLoadState('networkidle');
 
     // 2. Open Deposit Modal
+    await page.click('#debit-card-container');
+    await page.waitForTimeout(600); // Wait for 3D flip transition to finish
     await page.click('#open-deposit-btn');
     await expect(page.locator('#deposit-modal')).toHaveClass(/active/);
+
 
     // 3. Verify presets are visible
     const preset1k = page.locator('.quick-amt-btn[data-amount="1000"]');

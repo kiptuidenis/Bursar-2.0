@@ -108,42 +108,53 @@
                     <div class="dashboard-layout-grid">
                         <!-- Left Column: Debit Card, Wallet Balance, Actions & Countdown -->
                         <div class="layout-left-col">
-                            <!-- Visual Debit Card Mockup -->
-                            <div class="debit-card-visual">
-                                <div class="debit-card-header">
-                                    <span class="debit-card-logo"><i data-lucide="wallet"></i> BURSAR 2.0</span>
-                                    <i data-lucide="nfc" class="nfc-icon"></i>
-                                </div>
-                                <div class="debit-card-chip"></div>
-                                <div class="debit-card-number">••••  ••••  ••••  1234</div>
-                                <div class="debit-card-footer">
-                                    <div class="cardholder">
-                                        <span class="card-label">CARDHOLDER</span>
-                                        <span class="card-val" id="cardholder-phone">2547...</span>
+                            <!-- Visual Debit Card Mockup with 3D Flip & Merged Balance Actions -->
+                            <div class="debit-card-container" id="debit-card-container" role="button" tabindex="0" aria-label="Wallet Debit Card. Click to flip and view balance.">
+                                <div class="debit-card-inner">
+                                    <!-- Card Front: Aesthetic Design -->
+                                    <div class="debit-card-front">
+                                        <div class="debit-card-header">
+                                            <span class="debit-card-logo"><i data-lucide="wallet"></i> BURSAR 2.0</span>
+                                            <div class="debit-card-header-right">
+                                                <i data-lucide="refresh-cw" class="flip-hint-icon" title="Tap to view balance"></i>
+                                                <i data-lucide="nfc" class="nfc-icon"></i>
+                                            </div>
+                                        </div>
+                                        <div class="debit-card-chip"></div>
+                                        <div class="debit-card-number">••••  ••••  ••••  1234</div>
+                                        <div class="debit-card-footer">
+                                            <div class="cardholder">
+                                                <span class="card-label">CARDHOLDER</span>
+                                                <span class="card-val" id="cardholder-phone">2547...</span>
+                                            </div>
+                                            <div class="card-interactive-hint">
+                                                <span class="pulse-ring"></span>
+                                                <span class="hint-text">TAP TO FLIP</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <i data-lucide="coins" style="width: 1.5rem; height: 1.5rem; color: rgba(255,255,255,0.75);"></i>
+                                    
+                                    <!-- Card Back: Wallet Balance & Actions (Matches orange card gradient) -->
+                                    <div class="debit-card-back">
+                                        <div class="card-back-header">
+                                            <span class="card-back-title"><i data-lucide="wallet"></i> Wallet Balance</span>
+                                            <i data-lucide="refresh-cw" class="flip-back-icon" title="Tap to flip back"></i>
+                                        </div>
+                                        <div class="card-back-body">
+                                            <span class="currency">KES</span>
+                                            <span class="amount-value" id="wallet-balance">0.00</span>
+                                        </div>
+                                        <div class="card-back-actions">
+                                            <button class="btn btn-primary" id="open-deposit-btn" style="flex: 1;">
+                                                <i data-lucide="plus-circle"></i> Deposit Funds
+                                            </button>
+                                            <button class="btn btn-secondary" id="trigger-payout-btn" title="Manual Payout Trigger">
+                                                <i data-lucide="play-circle"></i> Run Payout
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-
-                            <!-- Balance Card -->
-                            <section class="metric-card glass-panel" id="balance-card">
-                                <div class="card-header">
-                                    <span class="card-title">Wallet Balance</span>
-                                    <i data-lucide="coins" class="card-icon accent-emerald"></i>
-                                </div>
-                                <div class="card-body">
-                                    <span class="currency">KES</span>
-                                    <span class="amount-value" id="wallet-balance">0.00</span>
-                                </div>
-                                <div class="card-footer" style="display: flex; gap: 0.75rem; width: 100%;">
-                                    <button class="btn btn-primary" id="open-deposit-btn" style="flex: 1;">
-                                        <i data-lucide="plus-circle"></i> Deposit Funds
-                                    </button>
-                                    <button class="btn btn-secondary" id="trigger-payout-btn" title="Manual Payout Trigger" style="padding: 0.7rem;">
-                                        <i data-lucide="play-circle"></i> Run Payout
-                                    </button>
-                                </div>
-                            </section>
 
                             <!-- Distribution Countdown Card -->
                             <section class="metric-card glass-panel" id="countdown-card">
