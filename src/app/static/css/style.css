@@ -1405,6 +1405,10 @@ body:not(.landing-body) {
     gap: 1.25rem;
 }
 
+#deactivate-modal-content {
+    max-width: 450px;
+}
+
 /* Media Queries for Mobile Responsiveness */
 @media (max-width: 768px) {
     body {
@@ -1587,29 +1591,52 @@ body:not(.landing-body) {
     }
     
     .modal-overlay {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
         overflow-y: auto !important;
-        padding: 2rem 0.5rem !important;
+        padding: 2rem 1rem !important;
         align-items: flex-start !important; /* Enable top-down layout for scrolling */
     }
 
+    .drawer-overlay {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+
     .modal-content {
+        width: calc(100% - 2rem) !important;
         padding: 1.5rem;
-        max-width: 95%;
+        max-width: 420px !important;
         margin: auto !important; /* Enable vertical alignment & scroll boundary security */
+        box-sizing: border-box !important;
     }
     
     /* Responsive modal content overrides */
     #budget-designer-modal-content {
+        width: calc(100% - 2rem) !important;
         padding: 1.5rem !important;
-        max-width: 95% !important;
+        max-width: 480px !important;
         margin: auto !important;
+        box-sizing: border-box !important;
     }
     
     #deposit-polling-modal-content {
+        width: calc(100% - 2rem) !important;
         padding: 1.5rem 1.2rem !important;
-        max-width: 95% !important;
+        max-width: 380px !important;
         gap: 1rem !important;
         margin: auto !important;
+        box-sizing: border-box !important;
+    }
+
+    #deactivate-modal-content {
+        width: calc(100% - 2rem) !important;
+        padding: 1.5rem !important;
+        max-width: 450px !important;
+        margin: auto !important;
+        box-sizing: border-box !important;
     }
     
     /* Force lock dates section date inputs to stack on mobile */
@@ -1621,7 +1648,9 @@ body:not(.landing-body) {
     /* Phase 1: Mobile Auth Screen Adjustments */
     .auth-card {
         padding: 1.5rem !important; /* Reduce padding from 2.5rem to 1.5rem */
-        width: 95% !important;
+        width: calc(100% - 2rem) !important;
+        max-width: 400px !important;
+        box-sizing: border-box !important;
     }
     
     .auth-logo-icon {
@@ -1647,8 +1676,11 @@ body:not(.landing-body) {
     }
     
     .auth-overlay {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
         align-items: flex-start !important;
-        padding: 2.5rem 0.5rem !important;
+        padding: 2.5rem 1rem !important;
     }
 }
 
