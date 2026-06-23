@@ -250,7 +250,7 @@ function switchTab(tabId) {
 
     // Handle DOM re-parenting for Deposit
     const depositModal = document.getElementById("deposit-modal");
-    const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
+    const depositContent = document.getElementById("deposit-modal-content");
     const viewDeposit = document.getElementById("view-deposit");
 
     if (tabId === "deposit") {
@@ -317,7 +317,7 @@ function switchTab(tabId) {
 
     // Handle DOM re-parenting for Settings
     const settingsDrawer = document.getElementById("settings-drawer");
-    const settingsContent = settingsDrawer ? settingsDrawer.querySelector(".drawer-content") : null;
+    const settingsContent = document.getElementById("settings-drawer-content");
     const viewSettings = document.getElementById("view-settings");
 
     if (tabId === "settings") {
@@ -458,7 +458,7 @@ function setupEventHandlers() {
     const openDeposit = () => {
         // Ensure content is in deposit modal overlay before showing it as modal
         const depositModal = document.getElementById("deposit-modal");
-        const depositContent = depositModal ? depositModal.querySelector(".modal-content") : null;
+        const depositContent = document.getElementById("deposit-modal-content");
         if (depositModal && depositContent && depositContent.parentNode !== depositModal) {
             depositModal.appendChild(depositContent);
         }
@@ -494,7 +494,7 @@ function setupEventHandlers() {
     // Open/Close Settings
     document.getElementById("toggle-settings-btn").addEventListener("click", () => {
         // Only open drawer overlay if settings content is in the drawer overlay (not flat tab view)
-        const settingsContent = settingsDrawer ? settingsDrawer.querySelector(".drawer-content") : null;
+        const settingsContent = document.getElementById("settings-drawer-content");
         if (settingsContent && settingsContent.parentNode === settingsDrawer) {
             settingsDrawer.classList.add("active");
         }
