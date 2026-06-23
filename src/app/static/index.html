@@ -356,6 +356,14 @@
 
         // Simulation charts
         document.addEventListener("DOMContentLoaded", () => {
+            // Check auth status and redirect if already authenticated
+            fetch("/api/auth/me")
+                .then(res => {
+                    if (res.status === 200) {
+                        window.location.replace("/dashboard");
+                    }
+                })
+                .catch(err => console.error(err));
             const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
             const balanceData = [7500, 6800, 6000, 5200, 4700, 4200, 3500];
 
@@ -586,7 +594,7 @@
                         authForm.dispatchEvent(new Event("submit"));
                     } else {
                         // Login succeeded, redirect cleanly to /dashboard
-                        window.location.href = "/dashboard";
+                        window.location.replace("/dashboard");
                     }
                 } catch (err) {
                     errorMsg.innerText = err.message;

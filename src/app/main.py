@@ -1,7 +1,7 @@
 import os
 import datetime
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -69,11 +69,27 @@ async def get_diagnostics():
     }
 
 @app.get("/dashboard")
-def get_dashboard_page():
-    from fastapi.responses import FileResponse
+def get_dashboard_page(request: Request, db = Depends(get_db)):
+    from fastapi.responses import FileResponse, RedirectResponse
+    
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return RedirectResponse(url="/#login", status_code=302)
+        
+    from app.api.dependencies import session_manager
+    user_id = session_manager.validate_session(session_token, db=db, is_poll=False)
+    if not user_id:
+        response = RedirectResponse(url="/#login", status_code=302)
+        response.delete_cookie("session_token")
+        return response
+        
     dashboard_path = os.path.join(os.path.dirname(__file__), "static", "dashboard.html")
     if os.path.exists(dashboard_path):
-        return FileResponse(dashboard_path)
+        response = FileResponse(dashboard_path)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     raise HTTPException(status_code=404, detail="Dashboard not found")
 
 # Mount static assets

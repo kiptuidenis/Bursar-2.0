@@ -562,21 +562,38 @@ def test_intasend_integration_flow(monkeypatch):
 
 
 def test_dashboard_endpoint_success():
-    res = client.get("/dashboard")
+    # 1. Register and login to get valid session cookies
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000888", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000888", "password": "pinpassword"})
+    
+    res = c.get("/dashboard")
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
+    assert "no-store" in res.headers.get("cache-control", "")
+
+
+def test_dashboard_endpoint_unauthenticated_redirect():
+    # Try calling dashboard page without active session
+    res = client.get("/dashboard", follow_redirects=False)
+    assert res.status_code == 302
+    assert res.headers["location"] == "/#login"
 
 
 def test_dashboard_endpoint_missing(monkeypatch):
     import os
     original_exists = os.path.exists
     def mock_exists(path):
-        if "dashboard.html" in path:
+        if "dashboard.html" in str(path):
             return False
         return original_exists(path)
     monkeypatch.setattr(os.path, "exists", mock_exists)
     
-    res = client.get("/dashboard")
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000889", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000889", "password": "pinpassword"})
+    
+    res = c.get("/dashboard")
     assert res.status_code == 404
 
 

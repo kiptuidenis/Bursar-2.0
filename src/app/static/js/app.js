@@ -37,6 +37,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const tabLogin = document.getElementById("tab-login");
         if (tabLogin) tabLogin.click();
     }
+
+    // Listen for hash changes (browser back/forward navigation)
+    window.addEventListener("hashchange", () => {
+        const validTabs = ["dashboard", "transactions", "profile", "deposit", "budget", "settings"];
+        const currentTab = window.location.hash.replace("#", "") || "dashboard";
+        if (validTabs.includes(currentTab)) {
+            const activeView = document.querySelector(".tab-view.active");
+            if (!activeView || activeView.id !== `view-${currentTab}`) {
+                switchTab(currentTab);
+            }
+        }
+    });
 });
 
 // Check if user session cookie is valid
