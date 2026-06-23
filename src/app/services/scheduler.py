@@ -6,12 +6,11 @@ import sqlite3
 import logging
 from typing import Optional
 from app.db.manager import DatabaseManager
-from app.services.mpesa import MpesaClient
+from app.services.payment_gateway import send_b2c_payout
 
 logger = logging.getLogger("bursar.scheduler")
 
-async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClient, 
-                                   current_time: datetime.datetime, user_id: int) -> bool:
+async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.datetime, user_id: int) -> bool:
     """
     Evaluates whether a payout is due for today for a specific user.
     If yes, updates database, deducts balance, and triggers B2C payout.
@@ -98,50 +97,17 @@ async def check_and_trigger_payout(db: DatabaseManager, mpesa_client: MpesaClien
         db.log_event(user_id, "ERROR", f"Database error creating payout: {str(e)}")
         return False
 
-    # 8. Trigger M-Pesa client payment
+    # 8. Trigger payment via unified payment gateway
     db.log_event(user_id, "INFO", f"Initiating {mode} payout of KES {daily_budget:.2f} for date {today_date} to {phone_number}.")
     try:
-        from app.services.payment_gateway import get_gateway_provider
-        provider = get_gateway_provider(settings)
-        
-        if provider == "intasend":
-            from app.services.payment_gateway import create_intasend_client
-            client = create_intasend_client(settings)
-            res = await client.send_b2c_payout(
-                phone_number=phone_number,
-                amount=daily_budget,
-                recipient_name="Recipient",
-                narrative=f"Bursar Payout {today_date}"
-            )
-            # Normalize response for scheduler
-            tracking_id = res.get("tracking_id", "")
-            status = res.get("status", "")
-            gateway_res = {
-                "ResponseCode": "0" if status in ("Completed", "Processing", "Submitted") else "1",
-                "ResponseDescription": status,
-                "ConversationID": tracking_id,
-                "OriginatorConversationID": tracking_id
-            }
-        else:
-            cert_bytes = None
-            if mpesa_client.mode != "simulation":
-                cert_filename = "SandboxCertificate.cer" if mpesa_client.mode == "sandbox" else "ProductionCertificate.cer"
-                try:
-                    if os.path.exists(cert_filename):
-                        with open(cert_filename, "rb") as f:
-                            cert_bytes = f.read()
-                except Exception as ex:
-                    db.log_event(user_id, "WARNING", f"Could not read cert file {cert_filename}: {str(ex)}")
+        gateway_res = await send_b2c_payout(
+            phone_number=phone_number,
+            amount=daily_budget,
+            recipient_name="Recipient",
+            narrative=f"Bursar Payout {today_date}",
+            user_settings=settings
+        )
 
-            from app.core.config import MPESA_B2C_RESULT_URL, MPESA_B2C_TIMEOUT_URL
-            res = await mpesa_client.send_b2c_payout(
-                phone_number=phone_number,
-                amount=daily_budget,
-                result_url=MPESA_B2C_RESULT_URL,
-                timeout_url=MPESA_B2C_TIMEOUT_URL,
-                cert_bytes=cert_bytes
-            )
-            gateway_res = res
             
         response_code = gateway_res.get("ResponseCode", "")
         conversation_id = gateway_res.get("ConversationID", "")
@@ -233,24 +199,8 @@ class BackgroundScheduler:
                     user_id = user["id"]
                     settings = db.get_settings(user_id)
                     if settings:
-                        from app.core.config import (
-                            MPESA_MODE, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET,
-                            MPESA_SHORTCODE, MPESA_INITIATOR_NAME, MPESA_INITIATOR_PASSWORD
-                        )
-                        # Fallback for offline simulation unit tests
-                        user_mode = settings.get("mode", "sandbox")
-                        client_mode = "simulation" if user_mode == "simulation" else MPESA_MODE
-                        
-                        client = MpesaClient(
-                            consumer_key=MPESA_CONSUMER_KEY,
-                            consumer_secret=MPESA_CONSUMER_SECRET,
-                            shortcode=MPESA_SHORTCODE,
-                            initiator_name=MPESA_INITIATOR_NAME,
-                            initiator_password=MPESA_INITIATOR_PASSWORD,
-                            mode=client_mode
-                        )
                         now = datetime.datetime.now()
-                        loop.run_until_complete(check_and_trigger_payout(db, client, now, user_id=user_id))
+                        loop.run_until_complete(check_and_trigger_payout(db, now, user_id=user_id))
             except Exception as e:
                 # Standalone log writing check
                 try:

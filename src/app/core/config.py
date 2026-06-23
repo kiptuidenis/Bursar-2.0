@@ -39,7 +39,8 @@ MPESA_LNM_PASSKEY = os.environ.get("MPESA_LNM_PASSKEY", "bfb279f9aa9bdbcf158e97d
 MPESA_STK_CALLBACK_URL = os.environ.get("MPESA_STK_CALLBACK_URL", "")
 
 # Payment Gateway Routing Config
-PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mpesa").lower()
+PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "intasend").lower()
+
 
 # IntaSend Gateway Settings
 INTASEND_MODE = os.environ.get("INTASEND_MODE", "simulation").lower()

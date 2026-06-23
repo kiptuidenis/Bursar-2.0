@@ -154,6 +154,14 @@ def mpesa_b2c_timeout_callback(body: Dict[str, Any] = Body(...), db: DatabaseMan
 
 @router.post("/callbacks/intasend-webhook")
 async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
+    # Validate webhook challenge token if configured
+    import os
+    expected_challenge = os.environ.get("INTASEND_WEBHOOK_CHALLENGE")
+    if expected_challenge:
+        challenge = body.get("challenge")
+        if challenge != expected_challenge:
+            raise HTTPException(status_code=401, detail="Invalid webhook challenge token.")
+
     invoice_id = body.get("invoice_id")
     tracking_id = body.get("tracking_id")
     
