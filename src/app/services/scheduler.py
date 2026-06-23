@@ -219,7 +219,7 @@ class BackgroundScheduler:
                     user_id = user["id"]
                     settings = db.get_settings(user_id)
                     if settings:
-                        now = datetime.datetime.now()
+                        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
                         loop.run_until_complete(check_and_trigger_payout(db, now, user_id=user_id))
             except Exception as e:
                 # Standalone log writing check

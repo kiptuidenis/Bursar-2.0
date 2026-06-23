@@ -91,7 +91,7 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid hours or minutes in payout time.")
                 
-            now = datetime.datetime.now()
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
             if h < now.hour or (h == now.hour and m <= now.minute):
                 raise HTTPException(status_code=400, detail="Payout time cannot be in the past today. Please choose a future time.")
 
