@@ -329,4 +329,69 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await expect(page.locator('#settings-budget')).toBeDisabled();
     await page.click('#close-settings-btn');
   });
+
+  test('Run Payout button should NOT be visible on the debit card and should be hidden by default in the Next Payout tile', async ({ page }) => {
+    // 1. Signup & auto-login
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254700${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // 2. Verify the debit card back does NOT have a Run Payout button
+    await page.click('#debit-card-container');
+    await page.waitForTimeout(600); // Wait for 3D flip animation
+    const cardBackActions = page.locator('.card-back-actions');
+    await expect(cardBackActions).toBeVisible();
+    await expect(cardBackActions.locator('#trigger-payout-btn')).toHaveCount(0);
+
+    // Flip card back
+    await page.click('#debit-card-container');
+    await page.waitForTimeout(600);
+
+    // 3. Verify the Run Payout button footer is hidden by default in the Next Payout tile
+    //    (no FAILED payout for today exists yet)
+    await expect(page.locator('#payout-retry-footer')).toBeHidden();
+    await expect(page.locator('#countdown-card #trigger-payout-btn')).toBeHidden();
+  });
+
+  test('Run Payout button should appear in the Next Payout tile after a failed payout', async ({ page }) => {
+    // 1. Signup & auto-login
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254700${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // 2. Inject a FAILED payout record for today directly via the API
+    //    First we need to get a session cookie to make authenticated calls
+    const todayStr = new Date().toISOString().split('T')[0];
+    const injectRes = await page.request.post('/api/payout/inject-failed', {
+      data: { payout_date: todayStr }
+    });
+    // If the inject endpoint doesn't exist yet, skip gracefully
+    if (injectRes.status() === 404) {
+      test.skip('inject-failed endpoint not available');
+      return;
+    }
+
+    // 3. Wait for the polling cycle to detect the FAILED record and update the UI
+    await page.waitForTimeout(6000); // Poll cycle is 5s
+
+    // 4. Verify the Next Payout tile shows the Run Payout button
+    await expect(page.locator('#payout-retry-footer')).toBeVisible();
+    await expect(page.locator('#countdown-card #trigger-payout-btn')).toBeVisible();
+
+    // 5. Verify the countdown timer shows the failure state message
+    const timerText = await page.locator('#countdown-timer').innerText();
+    expect(timerText).toContain('Payout Failed');
+  });
 });

@@ -63,8 +63,10 @@ async def send_b2c_payout(phone_number: str, amount: float, recipient_name: str,
     )
     tracking_id = res.get("tracking_id", "")
     status = res.get("status", "")
+    # IntaSend B2C valid in-progress/success states — all map to accepted (Code 0)
+    accepted_statuses = ("Completed", "Processing", "Submitted", "Confirming balance", "Sending", "Queued")
     return {
-        "ResponseCode": "0" if status in ("Completed", "Processing", "Submitted") else "1",
+        "ResponseCode": "0" if status in accepted_statuses else "1",
         "ResponseDescription": status,
         "ConversationID": tracking_id,
         "OriginatorConversationID": tracking_id

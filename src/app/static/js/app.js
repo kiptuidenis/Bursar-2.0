@@ -914,40 +914,40 @@ function setupEventHandlers() {
         });
     }
 
-    // Manual Payout Daemon Trigger Handler
-    const triggerPayoutBtn = document.getElementById("trigger-payout-btn");
-    if (triggerPayoutBtn) {
-        triggerPayoutBtn.addEventListener("click", async () => {
-            triggerPayoutBtn.disabled = true;
-            const originalHTML = triggerPayoutBtn.innerHTML;
-            triggerPayoutBtn.innerHTML = `<i data-lucide="loader" class="spin" style="width: 1rem; height: 1rem; display: inline-block; vertical-align: middle;"></i> Evaluated...`;
-            if (window.lucide) window.lucide.createIcons();
-            
-            try {
-                const res = await fetch("/api/payout/trigger", { method: "POST" });
-                if (res.status === 401) return showAuthScreen();
-                const data = await res.json();
-                
-                if (res.ok) {
-                    if (data.triggered) {
-                        alert("Daily allowance scheduled distribution run completed! 🚀");
-                    } else {
-                        alert(data.reason || "Payout trigger evaluation completed. No payout due or daily limit already hit today.");
-                    }
+    // Manual Payout Run Handler — uses event delegation because button visibility is dynamic
+    document.addEventListener("click", async (e) => {
+        const btn = e.target.closest("#trigger-payout-btn");
+        if (!btn) return;
+
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<i data-lucide="loader" class="spin" style="width: 1rem; height: 1rem; display: inline-block; vertical-align: middle;"></i> Running...`;
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+            const res = await fetch("/api/payout/trigger", { method: "POST" });
+            if (res.status === 401) return showAuthScreen();
+            const data = await res.json();
+
+            if (res.ok) {
+                if (data.triggered) {
+                    alert("Daily allowance distribution completed! 🚀");
                 } else {
-                    alert(data.detail || "Payout trigger failed. Please check your configuration.");
+                    alert(data.reason || "No payout due or payout already completed today.");
                 }
-                pollDashboardData();
-            } catch (err) {
-                console.error("Payout trigger error:", err);
-                alert("Failed to manual trigger payout daemon.");
-            } finally {
-                triggerPayoutBtn.disabled = false;
-                triggerPayoutBtn.innerHTML = originalHTML;
-                if (window.lucide) window.lucide.createIcons();
+            } else {
+                alert(data.detail || "Payout trigger failed. Please check your configuration.");
             }
-        });
-    }
+            pollDashboardData();
+        } catch (err) {
+            console.error("Payout trigger error:", err);
+            alert("Failed to contact server. Please try again.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    });
 
     // Collapsible Payout Schedule in Budget Creator Modal
     const scheduleHdr = document.getElementById("schedule-toggle-hdr");
@@ -1048,7 +1048,12 @@ async function fetchPayouts() {
         if (res.status === 401) return showAuthScreen();
         const data = await res.json();
         currentPayouts = data;
-        
+
+        // Always sync the Run Payout retry button visibility after any data refresh.
+        // This runs unconditionally — independent of budget lock state — so it works
+        // for fresh users and users with no budget configured.
+        updatePayoutRetryFooter();
+
         document.getElementById("payout-count-badge").innerText = `${data.length} total`;
 
         const body = document.getElementById("payout-history-body");
@@ -1098,6 +1103,19 @@ async function fetchPayouts() {
         refreshChart();
     } catch (err) {
         console.error("Error fetching payouts:", err);
+    }
+}
+
+// Updates the Run Payout retry footer visibility based on today's payout status.
+// Called after every fetchPayouts() so state is always current.
+function updatePayoutRetryFooter() {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
+    const retryFooter = document.getElementById("payout-retry-footer");
+    if (retryFooter) {
+        retryFooter.style.display = failedToday ? "block" : "none";
+        if (window.lucide) window.lucide.createIcons();
     }
 }
 
@@ -1240,6 +1258,22 @@ function startCountdownTimer() {
             return;
         }
 
+        // Compute today's string first so payout status can override any other state
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
+        const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
+
+        // A failed payout takes priority over all other timer states
+        if (failedToday) {
+            timerLabel.innerText = "Payout Failed — Use Run Payout";
+            return;
+        }
+
         if (!currentSettings.is_budget_locked) {
             timerLabel.innerText = "Budget Unlocked";
             return;
@@ -1250,26 +1284,13 @@ function startCountdownTimer() {
             return;
         }
 
-        const now = new Date();
         const [hour, minute] = currentSettings.payout_time.split(":").map(Number);
         
         let target = new Date();
         target.setHours(hour, minute, 0, 0);
 
-        // Format of payout_date in payout items is YYYY-MM-DD
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`;
-
-        const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
-        const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
-
         if (payoutToday) {
             target.setDate(target.getDate() + 1);
-        } else if (failedToday) {
-            timerLabel.innerText = "Payout Failed — Use Run Payout";
-            return;
         } else if (now >= target) {
             timerLabel.innerText = "Payout is due";
             return;

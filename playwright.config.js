@@ -41,6 +41,7 @@ module.exports = defineConfig({
     env: {
       DISABLE_SCHEDULER: '1',
       DATABASE_URL: 'bursar_test.db',
+      ALLOW_TEST_ENDPOINTS: '1',
     },
   },
 });

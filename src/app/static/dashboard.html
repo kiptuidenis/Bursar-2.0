@@ -148,9 +148,6 @@
                                             <button class="btn btn-primary" id="open-deposit-btn" style="flex: 1;">
                                                 <i data-lucide="plus-circle"></i> Deposit Funds
                                             </button>
-                                            <button class="btn btn-secondary" id="trigger-payout-btn" title="Manual Payout Trigger">
-                                                <i data-lucide="play-circle"></i> Run Payout
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -164,6 +161,11 @@
                                 </div>
                                 <div class="card-body">
                                     <span class="amount-value countdown-value" id="countdown-timer">--h --m --s</span>
+                                </div>
+                                <div class="card-footer" style="padding-top: 0.75rem; border-top: 1px solid var(--border-glass); display: none;" id="payout-retry-footer">
+                                    <button class="btn btn-secondary" id="trigger-payout-btn" title="Retry failed payout" style="width: 100%; justify-content: center;">
+                                        <i data-lucide="refresh-cw"></i> Run Payout
+                                    </button>
                                 </div>
                             </section>
                         </div>
