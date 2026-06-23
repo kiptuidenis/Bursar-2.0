@@ -33,18 +33,18 @@ def mpesa_stk_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = D
                 receipt = item.get("Value", "")
                 break
                 
-        db.update_deposit_status(checkout_request_id, "SUCCESS", receipt)
-        db.adjust_balance(user_id, amount)
-        db.log_event(user_id, "INFO", f"STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
-        
-        # Auto-lock deposit for the month
-        db.lock_deposit(user_id)
-        
-        # Auto-lock budget if user already has budget categories configured
-        items = db.get_budget_items(user_id)
-        if items:
-            db.lock_budget(user_id)
-            db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+        if db.update_deposit_status(checkout_request_id, "SUCCESS", receipt):
+            db.adjust_balance(user_id, amount)
+            db.log_event(user_id, "INFO", f"STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
+            
+            # Auto-lock deposit for the month
+            db.lock_deposit(user_id)
+            
+            # Auto-lock budget if user already has budget categories configured
+            items = db.get_budget_items(user_id)
+            if items:
+                db.lock_budget(user_id)
+                db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
     else:
         db.update_deposit_status(checkout_request_id, "FAILED")
         db.log_event(user_id, "ERROR", f"STK Push deposit failed. Reason: {result_desc}.")
@@ -68,18 +68,18 @@ def simulate_stk_callback(payload: Dict[str, Any] = Body(...), user_id: int = De
     
     if status == "SUCCESS":
         receipt = payload.get("receipt_number", f"MOCK{uuid.uuid4().hex[:6].upper()}")
-        db.update_deposit_status(checkout_request_id, "SUCCESS", receipt)
-        db.adjust_balance(user_id, amount)
-        db.log_event(user_id, "INFO", f"[SIMULATED] STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
-        
-        # Auto-lock deposit
-        db.lock_deposit(user_id)
-        
-        # Auto-lock budget
-        items = db.get_budget_items(user_id)
-        if items:
-            db.lock_budget(user_id)
-            db.log_event(user_id, "INFO", "Budget automatically locked due to simulated active deposit.")
+        if db.update_deposit_status(checkout_request_id, "SUCCESS", receipt):
+            db.adjust_balance(user_id, amount)
+            db.log_event(user_id, "INFO", f"[SIMULATED] STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
+            
+            # Auto-lock deposit
+            db.lock_deposit(user_id)
+            
+            # Auto-lock budget
+            items = db.get_budget_items(user_id)
+            if items:
+                db.lock_budget(user_id)
+                db.log_event(user_id, "INFO", "Budget automatically locked due to simulated active deposit.")
     else:
         db.update_deposit_status(checkout_request_id, "FAILED")
         db.log_event(user_id, "ERROR", f"[SIMULATED] STK Push deposit failed.")
@@ -108,22 +108,22 @@ def mpesa_b2c_result_callback(body: Dict[str, Any] = Body(...), db: DatabaseMana
     payout_date = matching_payout["payout_date"]
     
     if result_code == 0:
-        db.update_payout_status(
+        if db.update_payout_status(
             conversation_id=conversation_id,
             status="SUCCESS",
             transaction_id=transaction_id,
             error_message=""
-        )
-        db.log_event(user_id, "INFO", f"M-Pesa B2C payout of KES {payout_amount:.2f} for date {payout_date} was completed successfully. Receipt: {transaction_id}.")
+        ):
+            db.log_event(user_id, "INFO", f"M-Pesa B2C payout of KES {payout_amount:.2f} for date {payout_date} was completed successfully. Receipt: {transaction_id}.")
     else:
-        db.update_payout_status(
+        if db.update_payout_status(
             conversation_id=conversation_id,
             status="FAILED",
             transaction_id="",
             error_message=result_desc
-        )
-        db.adjust_balance(user_id, payout_amount)
-        db.log_event(user_id, "ERROR", f"M-Pesa B2C payout failed for date {payout_date}. Reason: {result_desc}. KES {payout_amount:.2f} refunded.")
+        ):
+            db.adjust_balance(user_id, payout_amount)
+            db.log_event(user_id, "ERROR", f"M-Pesa B2C payout failed for date {payout_date}. Reason: {result_desc}. KES {payout_amount:.2f} refunded.")
         
     return {"status": "acknowledged"}
 
@@ -141,14 +141,14 @@ def mpesa_b2c_timeout_callback(body: Dict[str, Any] = Body(...), db: DatabaseMan
     payout_amount = matching_payout["amount"]
     payout_date = matching_payout["payout_date"]
     
-    db.update_payout_status(
+    if db.update_payout_status(
         conversation_id=conversation_id,
         status="FAILED",
         transaction_id="",
         error_message=result_desc
-    )
-    db.adjust_balance(user_id, payout_amount)
-    db.log_event(user_id, "ERROR", f"M-Pesa B2C payout timed out for date {payout_date}. Reason: {result_desc}. KES {payout_amount:.2f} refunded.")
+    ):
+        db.adjust_balance(user_id, payout_amount)
+        db.log_event(user_id, "ERROR", f"M-Pesa B2C payout timed out for date {payout_date}. Reason: {result_desc}. KES {payout_amount:.2f} refunded.")
     
     return {"status": "acknowledged"}
 
@@ -178,15 +178,15 @@ async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager
             gateway_res = await check_stk_status(invoice_id, dict(settings) if settings else {})
             status = gateway_res.get("status", "PENDING")
             if status == "SUCCESS":
-                db.update_deposit_status(invoice_id, "SUCCESS", "WEBHOOK_VERIFIED")
-                db.adjust_balance(user_id, amount)
-                db.log_event(user_id, "INFO", f"IntaSend deposit of KES {amount:.2f} completed successfully (verified). Invoice: {invoice_id}.")
-                
-                db.lock_deposit(user_id)
-                items = db.get_budget_items(user_id)
-                if items:
-                    db.lock_budget(user_id)
-                    db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+                if db.update_deposit_status(invoice_id, "SUCCESS", "WEBHOOK_VERIFIED"):
+                    db.adjust_balance(user_id, amount)
+                    db.log_event(user_id, "INFO", f"IntaSend deposit of KES {amount:.2f} completed successfully (verified). Invoice: {invoice_id}.")
+                    
+                    db.lock_deposit(user_id)
+                    items = db.get_budget_items(user_id)
+                    if items:
+                        db.lock_budget(user_id)
+                        db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
             elif status == "FAILED":
                 db.update_deposit_status(invoice_id, "FAILED")
                 db.log_event(user_id, "ERROR", f"IntaSend deposit failed (verified). Invoice: {invoice_id}.")
@@ -207,22 +207,22 @@ async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager
             gateway_res = await check_payout_status(tracking_id, dict(settings) if settings else {})
             status = gateway_res.get("status", "PENDING")
             if status == "SUCCESS":
-                db.update_payout_status(
+                if db.update_payout_status(
                     conversation_id=tracking_id,
                     status="SUCCESS",
                     transaction_id=tracking_id,
                     error_message=""
-                )
-                db.log_event(user_id, "INFO", f"IntaSend payout of KES {payout_amount:.2f} for date {payout_date} was completed successfully (verified). Payout ID: {tracking_id}.")
+                ):
+                    db.log_event(user_id, "INFO", f"IntaSend payout of KES {payout_amount:.2f} for date {payout_date} was completed successfully (verified). Payout ID: {tracking_id}.")
             elif status == "FAILED":
-                db.update_payout_status(
+                if db.update_payout_status(
                     conversation_id=tracking_id,
                     status="FAILED",
                     transaction_id="",
                     error_message="IntaSend disbursement failed"
-                )
-                db.adjust_balance(user_id, payout_amount)
-                db.log_event(user_id, "ERROR", f"IntaSend payout failed (verified) for date {payout_date}. KES {payout_amount:.2f} refunded.")
+                ):
+                    db.adjust_balance(user_id, payout_amount)
+                    db.log_event(user_id, "ERROR", f"IntaSend payout failed (verified) for date {payout_date}. KES {payout_amount:.2f} refunded.")
         except Exception as e:
             db.log_event(user_id, "WARNING", f"Webhook double-check failed for payout tracking_id {tracking_id}: {str(e)}")
             

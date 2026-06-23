@@ -499,16 +499,17 @@ class DatabaseManager:
         return cursor.lastrowid
 
     def update_payout_status(self, conversation_id: str, status: str, 
-                             transaction_id: str = "", error_message: str = "") -> None:
-        """Update payout record status by ConversationID (called by global webhook)."""
+                             transaction_id: str = "", error_message: str = "") -> bool:
+        """Update payout record status by ConversationID only if it is PENDING."""
         conn = self.connection
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE payouts 
             SET status = ?, transaction_id = ?, error_message = ? 
-            WHERE conversation_id = ?
+            WHERE conversation_id = ? AND status = 'PENDING'
         """, (status, transaction_id, error_message, conversation_id))
         conn.commit()
+        return cursor.rowcount > 0
 
     def get_payout_by_conversation_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a specific payout transaction by conversation ID across all users."""
@@ -609,13 +610,13 @@ class DatabaseManager:
         return dict(row) if row else None
 
     def update_deposit_status(self, checkout_request_id: str, status: str, mpesa_receipt: str = "") -> bool:
-        """Update the status and M-Pesa receipt of a deposit transaction."""
+        """Update the status and M-Pesa receipt of a deposit transaction only if it is PENDING."""
         conn = self.connection
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE deposits 
             SET status = ?, mpesa_receipt = ?
-            WHERE checkout_request_id = ?
+            WHERE checkout_request_id = ? AND status = 'PENDING'
         """, (status, mpesa_receipt, checkout_request_id))
         conn.commit()
         return cursor.rowcount > 0

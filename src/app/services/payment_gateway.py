@@ -9,7 +9,7 @@ from app.core.config import (
 PAYMENT_PROVIDER = "intasend"
 
 def create_intasend_client(user_settings: dict) -> IntasendClient:
-    user_mode = user_settings.get("mode", "sandbox")
+    user_mode = user_settings.get("mode", "sandbox").lower()
     client_mode = "simulation" if user_mode == "simulation" else INTASEND_MODE
     return IntasendClient(
         secret_key=INTASEND_SECRET_KEY,

@@ -431,6 +431,7 @@ def test_intasend_integration_flow(monkeypatch):
     from app.services import payment_gateway
     monkeypatch.setattr(payment_gateway, "PAYMENT_PROVIDER", "intasend")
     monkeypatch.setattr(payment_gateway, "INTASEND_MODE", "simulation")
+    monkeypatch.setenv("INTASEND_WEBHOOK_CHALLENGE", "testnet")
 
     c = TestClient(app)
     c.post("/api/auth/signup", json={"phone_number": "254700000007", "password": "pinpassword"})

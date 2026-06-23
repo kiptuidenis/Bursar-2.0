@@ -14,6 +14,11 @@ async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_c
     if not phone:
         raise HTTPException(status_code=400, detail="Target phone number must be configured in settings before depositing.")
         
+    daily_budget = settings.get("daily_budget", 0.0)
+    balance = settings.get("balance", 0.0)
+    if daily_budget > 0 and (balance + payload.amount) < daily_budget:
+        raise HTTPException(status_code=400, detail=f"Total balance after deposit (KES {balance + payload.amount:.2f}) cannot be less than your daily budget (KES {daily_budget:.2f}).")
+
     api_ref = f"DEP_{uuid.uuid4().hex[:12]}"
     
     try:
@@ -50,16 +55,15 @@ async def check_deposit_status(checkout_request_id: str, user_id: int = Depends(
             gateway_res = await check_stk_status(checkout_request_id, dict(settings) if settings else {})
             status = gateway_res.get("status", "PENDING")
             if status == "SUCCESS":
-                db.update_deposit_status(checkout_request_id, "SUCCESS", "POLL_VERIFIED")
-                db.adjust_balance(user_id, deposit["amount"])
-                db.log_event(user_id, "INFO", f"Deposit {checkout_request_id} verified as SUCCESS via active polling.")
-                
-                db.lock_deposit(user_id)
-                items = db.get_budget_items(user_id)
-                if items:
-                    db.lock_budget(user_id)
-                    db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
+                if db.update_deposit_status(checkout_request_id, "SUCCESS", "POLL_VERIFIED"):
+                    db.adjust_balance(user_id, deposit["amount"])
+                    db.log_event(user_id, "INFO", f"Deposit {checkout_request_id} verified as SUCCESS via active polling.")
                     
+                    db.lock_deposit(user_id)
+                    items = db.get_budget_items(user_id)
+                    if items:
+                        db.lock_budget(user_id)
+                        db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
                 deposit = db.get_deposit(checkout_request_id)
             elif status == "FAILED":
                 db.update_deposit_status(checkout_request_id, "FAILED", "POLL_FAILED")

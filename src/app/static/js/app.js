@@ -1012,12 +1012,25 @@ function updateDashboardMetrics(settings) {
 
     const editBudgetBtn = document.getElementById("edit-budget-btn");
     const budgetLockBadge = document.getElementById("budget-lock-badge");
+    const budgetWarningBadge = document.getElementById("budget-warning-badge");
+    
     if (settings.is_budget_locked) {
         if (editBudgetBtn) editBudgetBtn.style.display = "none";
         if (budgetLockBadge) budgetLockBadge.style.display = "inline-flex";
     } else {
         if (editBudgetBtn) editBudgetBtn.style.display = "inline-flex";
         if (budgetLockBadge) budgetLockBadge.style.display = "none";
+    }
+    
+    if (budgetWarningBadge) {
+        const budget = parseFloat(settings.daily_budget || 0);
+        const bal = parseFloat(settings.balance || 0);
+        if (budget > bal && bal > 0) {
+            budgetWarningBadge.style.display = "inline-flex";
+            budgetWarningBadge.title = "Your daily budget is greater than your current deposit balance.";
+        } else {
+            budgetWarningBadge.style.display = "none";
+        }
     }
 
     document.getElementById(`settings-time`).value = settings.payout_time || "08:00";

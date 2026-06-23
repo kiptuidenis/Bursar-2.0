@@ -55,12 +55,20 @@ def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_
         if new_val != old_val and db.is_budget_locked(user_id):
             raise HTTPException(status_code=400, detail="Daily budget is locked until the end of the month.")
             
+        balance = updates.get("balance", current.get("balance", 0.0) if current else 0.0)
+        if new_val > balance and balance > 0:
+            raise HTTPException(status_code=400, detail=f"Daily budget (KES {new_val:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+            
     # 2. Enforce deposit lock on balance updates (reject decreases)
     if "balance" in updates:
         new_bal = updates["balance"]
         old_bal = current.get("balance", 0.0) if current else 0.0
         if new_bal < old_bal and db.is_deposit_locked(user_id):
             raise HTTPException(status_code=400, detail="Deposits are locked and balance cannot be manually decreased until the end of the month.")
+            
+        daily_budget = updates.get("daily_budget", current.get("daily_budget", 0.0) if current else 0.0)
+        if daily_budget > new_bal and new_bal > 0:
+            raise HTTPException(status_code=400, detail=f"Deposit balance (KES {new_bal:.2f}) cannot be less than your daily budget (KES {daily_budget:.2f}).")
             
     for field in ["mpesa_consumer_secret", "mpesa_initiator_password"]:
         if updates.get(field) == "********":

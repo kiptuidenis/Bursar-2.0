@@ -20,6 +20,15 @@ def add_or_update_budget_item(payload: BudgetItemPayload, user_id: int = Depends
     if not category:
         raise HTTPException(status_code=400, detail="Category name cannot be empty")
         
+    # Check if this new daily budget would exceed balance (only if balance > 0)
+    settings = db.get_settings(user_id)
+    balance = settings.get("balance", 0.0)
+    items = db.get_budget_items(user_id)
+    other_sum = sum(item["amount"] for item in items if item["category"] != category)
+    new_budget = other_sum + payload.amount
+    if new_budget > balance and balance > 0:
+        raise HTTPException(status_code=400, detail=f"Total daily budget (KES {new_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+        
     item_id = db.add_or_update_budget_item(user_id, category, payload.amount)
     return {"status": "success", "item_id": item_id, "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
 
@@ -71,6 +80,12 @@ def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_i
             raise HTTPException(status_code=400, detail="Invalid end date format. Must be YYYY-MM-DD.")
     if start_date and end_date and end_date < start_date:
         raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+        
+    settings = db.get_settings(user_id)
+    daily_budget = settings.get("daily_budget", 0.0)
+    balance = settings.get("balance", 0.0)
+    if daily_budget > balance and balance > 0:
+        raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
         
     db.lock_budget(user_id)
     db.update_settings(user_id, start_date=start_date, end_date=end_date)
