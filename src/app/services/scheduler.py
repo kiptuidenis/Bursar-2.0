@@ -86,38 +86,53 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
             raise ValueError("No recipient phone number is configured in Settings.")
         return False
         
-    # 5. Verify balance
+    # 5. Verify balance (must have enough BEFORE initiating — we check first, deduct only after success)
     if balance < daily_budget:
         db.log_event(user_id, "ERROR", f"Payout for {today_date} skipped: Insufficient balance (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
         if raise_exceptions:
             raise ValueError(f"Insufficient wallet balance. (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
         return False
 
-    # 6. Deduct balance first
-    db.adjust_balance(user_id, -daily_budget)
-    
-    # 7. Create payout record (Composite unique constraint checks user_id + payout_date)
+    # 6. Find or prepare the payout record
+    #    - If a FAILED record already exists for today (prior failed attempt), reset it for retry
+    #    - Otherwise create a fresh PENDING record
+    #    - This PENDING record acts as the duplicate-date lock guard via UNIQUE (user_id, payout_date)
     payout_id = None
-    try:
-        payout_id = db.create_payout(
-            user_id=user_id,
-            payout_date=today_date,
-            amount=daily_budget,
-            phone_number=phone_number,
-            status="PENDING",
-            conversation_id="",
-            originator_conversation_id=""
-        )
-    except sqlite3.IntegrityError:
-        db.adjust_balance(user_id, daily_budget)
-        db.log_event(user_id, "WARNING", f"Aborted duplicate payout insertion for {today_date}.")
-        return False
-    except Exception as e:
-        db.adjust_balance(user_id, daily_budget)
-        db.log_event(user_id, "ERROR", f"Database error creating payout: {str(e)}")
+    existing = db.get_payout_by_user_date(user_id, today_date)
+    if existing and existing["status"] == "FAILED":
+        payout_id = existing["id"]
+        db.reset_failed_payout_for_retry(payout_id)
+        db.log_event(user_id, "INFO", f"Retrying previously failed payout for {today_date}.")
+    elif existing is None:
+        try:
+            payout_id = db.create_payout(
+                user_id=user_id,
+                payout_date=today_date,
+                amount=daily_budget,
+                phone_number=phone_number,
+                status="PENDING",
+                conversation_id="",
+                originator_conversation_id=""
+            )
+        except sqlite3.IntegrityError:
+            # Race condition: another process inserted between our check and create
+            db.log_event(user_id, "WARNING", f"Aborted duplicate payout insertion for {today_date}.")
+            if raise_exceptions:
+                raise ValueError("A payout has already been processed or is pending for today.")
+            return False
+        except Exception as e:
+            db.log_event(user_id, "ERROR", f"Database error creating payout: {str(e)}")
+            if raise_exceptions:
+                raise ValueError(f"Database error creating payout record: {str(e)}")
+            return False
+    else:
+        # Record exists with SUCCESS or PENDING — already handled above in check step 3
+        if raise_exceptions:
+            raise ValueError("A payout has already been processed or is pending for today.")
         return False
 
-    # 8. Trigger payment via unified payment gateway
+    # 7. Trigger payment via IntaSend — balance is NOT deducted yet
+    eat_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
     db.log_event(user_id, "INFO", f"Initiating {mode} payout of KES {daily_budget:.2f} for date {today_date} to {phone_number}.")
     try:
         gateway_res = await send_b2c_payout(
@@ -128,50 +143,61 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
             user_settings=settings
         )
 
-            
         response_code = gateway_res.get("ResponseCode", "")
         conversation_id = gateway_res.get("ConversationID", "")
         originator_conv_id = gateway_res.get("OriginatorConversationID", "")
         res_desc = gateway_res.get("ResponseDescription", "")
-        
+
         if response_code == "0":
             if mode == "simulation" or res_desc == "Completed":
-                status = "SUCCESS"
-                db.log_event(user_id, "INFO", f"Payout of KES {daily_budget:.2f} completed successfully.")
+                # Synchronous success — deduct balance immediately and stamp completed_at
+                db.adjust_balance(user_id, -daily_budget)
+                completed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
+                db.log_event(user_id, "INFO", f"Payout of KES {daily_budget:.2f} completed successfully at {completed_ts}.")
+                conn = db.connection
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE payouts
+                    SET status = 'SUCCESS', conversation_id = ?, originator_conversation_id = ?, completed_at = ?
+                    WHERE id = ?
+                """, (conversation_id, originator_conv_id, completed_ts, payout_id))
+                conn.commit()
             else:
-                status = "PENDING"
-                db.log_event(user_id, "INFO", f"Payout request accepted. ID: {conversation_id}.")
-                
-            # Update the payout record details
-            conn = db.connection
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE payouts 
-                SET status = ?, conversation_id = ?, originator_conversation_id = ? 
-                WHERE id = ?
-            """, (status, conversation_id, originator_conv_id, payout_id))
-            conn.commit()
-            
+                # Asynchronous (PENDING) — balance deducted when IntaSend webhook confirms
+                db.log_event(user_id, "INFO", f"Payout request accepted by IntaSend. Tracking ID: {conversation_id}. Awaiting confirmation.")
+                conn = db.connection
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE payouts
+                    SET status = 'PENDING', conversation_id = ?, originator_conversation_id = ?
+                    WHERE id = ?
+                """, (conversation_id, originator_conv_id, payout_id))
+                conn.commit()
+
             return True
         else:
             description = gateway_res.get("ResponseDescription", "Unknown error")
             raise Exception(f"Payment Gateway Error: {description} (Code: {response_code})")
-            
+
     except Exception as e:
-        db.adjust_balance(user_id, daily_budget)
+        # Gateway call failed — balance was never deducted, so no refund needed
         error_msg = str(e)
-        db.log_event(user_id, "ERROR", f"Payout failed for {today_date}: {error_msg}")
-        
+        failed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
+        db.log_event(user_id, "ERROR", f"Payout failed for {today_date} at {failed_ts}: {error_msg}")
+
         conn = db.connection
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE payouts 
-            SET status = 'FAILED', error_message = ? 
+            UPDATE payouts
+            SET status = 'FAILED', error_message = ?, failed_at = ?
             WHERE id = ?
-        """, (error_msg, payout_id))
+        """, (error_msg, failed_ts, payout_id))
         conn.commit()
-        
+
+        if raise_exceptions:
+            raise ValueError(f"Payout failed: {error_msg}")
         return False
+
 
 
 class BackgroundScheduler:

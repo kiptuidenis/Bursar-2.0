@@ -1055,7 +1055,7 @@ async function fetchPayouts() {
         const bodyRecent = document.getElementById("payout-history-body-recent");
         
         if (data.length === 0) {
-            const emptyHTML = `<tr><td colspan="5" class="empty-state">No transactions recorded yet.</td></tr>`;
+            const emptyHTML = `<tr><td colspan="6" class="empty-state">No transactions recorded yet.</td></tr>`;
             if (body) body.innerHTML = emptyHTML;
             if (bodyRecent) bodyRecent.innerHTML = emptyHTML;
             refreshChart();
@@ -1075,9 +1075,14 @@ async function fetchPayouts() {
                     tooltip = `title="${payout.error_message || 'Transaction rejected'}"`;
                 }
 
+                // Show the exact timestamp of completion or failure
+                const exactTime = payout.completed_at || payout.failed_at || "";
+                const timeDisplay = exactTime ? exactTime.split(" ")[1] || exactTime : "—";
+
                 return `
                     <tr>
                         <td data-label="Date"><strong>${payout.payout_date}</strong></td>
+                        <td data-label="Time" class="text-mono" style="font-size:0.82rem; color: var(--text-muted);">${timeDisplay}</td>
                         <td data-label="Amount">KES ${parseFloat(payout.amount).toFixed(2)}</td>
                         <td data-label="Recipient">${payout.phone_number}</td>
                         <td data-label="M-Pesa Ref" class="text-mono">${payout.transaction_id || payout.conversation_id || '—'}</td>
@@ -1258,9 +1263,13 @@ function startCountdownTimer() {
         const todayStr = `${year}-${month}-${day}`;
 
         const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
+        const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
 
         if (payoutToday) {
             target.setDate(target.getDate() + 1);
+        } else if (failedToday) {
+            timerLabel.innerText = "Payout Failed — Use Run Payout";
+            return;
         } else if (now >= target) {
             timerLabel.innerText = "Payout is due";
             return;
@@ -1433,7 +1442,7 @@ async function deleteCategory(itemId) {
 window.deleteCategory = deleteCategory;
 
 // Opens the Budget Creator modal and resets scroll positions & focus for optimal UX
-function openBudgetDesignerModal() {
+async function openBudgetDesignerModal() {
     const budgetModal = document.getElementById("budget-designer-modal");
     if (!budgetModal) return;
 
@@ -1449,17 +1458,12 @@ function openBudgetDesignerModal() {
     if (newCatName) newCatName.value = "";
     if (newCatAmount) newCatAmount.value = "";
 
-    const startDateInput = document.getElementById("lock-start-date");
-    const endDateInput = document.getElementById("lock-end-date");
-    if (startDateInput) startDateInput.value = currentSettings.start_date || "";
-    if (endDateInput) endDateInput.value = currentSettings.end_date || "";
-    
     // Reset collapsible schedule state to closed
     const collBody = document.getElementById("schedule-collapse-body");
     const collChevron = document.getElementById("schedule-chevron");
     if (collBody) collBody.style.display = "none";
     if (collChevron) collChevron.classList.remove("expanded");
-    
+
     // Reset scroll positions of both the modal overlay and the inner designer body to 0
     budgetModal.scrollTop = 0;
     const designerBody = budgetModal.querySelector(".designer-body");
@@ -1467,8 +1471,17 @@ function openBudgetDesignerModal() {
 
     // Show modal
     budgetModal.classList.add("active");
-    
-    // Render latest data
+
+    // Fetch fresh settings before rendering so lock state is always current
+    await fetchSettings();
+
+    // Fill date fields now that currentSettings is refreshed
+    const startDateInput = document.getElementById("lock-start-date");
+    const endDateInput = document.getElementById("lock-end-date");
+    if (startDateInput) startDateInput.value = currentSettings.start_date || "";
+    if (endDateInput) endDateInput.value = currentSettings.end_date || "";
+
+    // Render latest data with correct lock state
     renderBudgetBreakdown();
 
     // Focus on Category Name input field if budget is not locked
@@ -1479,6 +1492,7 @@ function openBudgetDesignerModal() {
         }, 50);
     }
 }
+
 
 // Profile Settings Frontend Controllers
 function setupProfileHandlers() {

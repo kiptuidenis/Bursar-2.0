@@ -201,28 +201,37 @@ async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager
         user_id = matching_payout["user_id"]
         payout_amount = matching_payout["amount"]
         payout_date = matching_payout["payout_date"]
-        
+
+        import datetime as _dt
+        eat_now = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=3))).replace(tzinfo=None)
+
         settings = db.get_settings(user_id)
         try:
             gateway_res = await check_payout_status(tracking_id, dict(settings) if settings else {})
             status = gateway_res.get("status", "PENDING")
             if status == "SUCCESS":
+                completed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
                 if db.update_payout_status(
                     conversation_id=tracking_id,
                     status="SUCCESS",
                     transaction_id=tracking_id,
-                    error_message=""
+                    error_message="",
+                    completed_at=completed_ts
                 ):
-                    db.log_event(user_id, "INFO", f"IntaSend payout of KES {payout_amount:.2f} for date {payout_date} was completed successfully (verified). Payout ID: {tracking_id}.")
+                    # Deduct balance now that IntaSend has confirmed the disbursement
+                    db.adjust_balance(user_id, -payout_amount)
+                    db.log_event(user_id, "INFO", f"IntaSend payout of KES {payout_amount:.2f} for date {payout_date} confirmed successfully at {completed_ts}. Tracking: {tracking_id}.")
             elif status == "FAILED":
+                failed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
                 if db.update_payout_status(
                     conversation_id=tracking_id,
                     status="FAILED",
                     transaction_id="",
-                    error_message="IntaSend disbursement failed"
+                    error_message="IntaSend disbursement failed",
+                    failed_at=failed_ts
                 ):
-                    db.adjust_balance(user_id, payout_amount)
-                    db.log_event(user_id, "ERROR", f"IntaSend payout failed (verified) for date {payout_date}. KES {payout_amount:.2f} refunded.")
+                    # Balance was never pre-deducted in the new flow — no refund needed
+                    db.log_event(user_id, "ERROR", f"IntaSend payout failed (confirmed via webhook) for date {payout_date} at {failed_ts}. Tracking: {tracking_id}.")
         except Exception as e:
             db.log_event(user_id, "WARNING", f"Webhook double-check failed for payout tracking_id {tracking_id}: {str(e)}")
             

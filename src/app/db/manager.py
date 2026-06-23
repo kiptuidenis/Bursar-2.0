@@ -97,6 +97,8 @@ class DatabaseManager:
                 originator_conversation_id TEXT DEFAULT '',
                 transaction_id TEXT DEFAULT '',
                 error_message TEXT DEFAULT '',
+                completed_at TEXT DEFAULT '',
+                failed_at TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 UNIQUE (user_id, payout_date)
@@ -184,6 +186,14 @@ class DatabaseManager:
         s_columns = [row["name"] for row in cursor.fetchall()]
         if "last_activity" not in s_columns:
             cursor.execute("ALTER TABLE sessions ADD COLUMN last_activity INTEGER")
+
+        # Add exact-timestamp columns to payouts if they do not exist (migration for existing DBs)
+        cursor.execute("PRAGMA table_info(payouts)")
+        p_columns = [row["name"] for row in cursor.fetchall()]
+        if "completed_at" not in p_columns:
+            cursor.execute("ALTER TABLE payouts ADD COLUMN completed_at TEXT DEFAULT ''")
+        if "failed_at" not in p_columns:
+            cursor.execute("ALTER TABLE payouts ADD COLUMN failed_at TEXT DEFAULT ''")
             
         conn.commit()
         self.close()
@@ -498,18 +508,42 @@ class DatabaseManager:
         conn.commit()
         return cursor.lastrowid
 
-    def update_payout_status(self, conversation_id: str, status: str, 
-                             transaction_id: str = "", error_message: str = "") -> bool:
+    def update_payout_status(self, conversation_id: str, status: str,
+                             transaction_id: str = "", error_message: str = "",
+                             completed_at: str = "", failed_at: str = "") -> bool:
         """Update payout record status by ConversationID only if it is PENDING."""
         conn = self.connection
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE payouts 
-            SET status = ?, transaction_id = ?, error_message = ? 
+            UPDATE payouts
+            SET status = ?, transaction_id = ?, error_message = ?, completed_at = ?, failed_at = ?
             WHERE conversation_id = ? AND status = 'PENDING'
-        """, (status, transaction_id, error_message, conversation_id))
+        """, (status, transaction_id, error_message, completed_at, failed_at, conversation_id))
         conn.commit()
         return cursor.rowcount > 0
+
+    def get_payout_by_user_date(self, user_id: int, payout_date: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a specific payout record for a user on a given date (YYYY-MM-DD)."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM payouts WHERE user_id = ? AND payout_date = ?",
+            (user_id, payout_date)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def reset_failed_payout_for_retry(self, payout_id: int) -> None:
+        """Reset a FAILED payout record back to PENDING so a retry can proceed."""
+        conn = self.connection
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE payouts
+            SET status = 'PENDING', conversation_id = '', originator_conversation_id = '',
+                transaction_id = '', error_message = '', failed_at = ''
+            WHERE id = ? AND status = 'FAILED'
+        """, (payout_id,))
+        conn.commit()
 
     def get_payout_by_conversation_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a specific payout transaction by conversation ID across all users."""
