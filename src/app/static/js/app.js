@@ -928,10 +928,14 @@ function setupEventHandlers() {
                 if (res.status === 401) return showAuthScreen();
                 const data = await res.json();
                 
-                if (data.triggered) {
-                    alert("Daily allowance scheduled distribution run completed! 🚀");
+                if (res.ok) {
+                    if (data.triggered) {
+                        alert("Daily allowance scheduled distribution run completed! 🚀");
+                    } else {
+                        alert(data.reason || "Payout trigger evaluation completed. No payout due or daily limit already hit today.");
+                    }
                 } else {
-                    alert("Payout trigger evaluation completed. No payout due or daily limit already hit today.");
+                    alert(data.detail || "Payout trigger failed. Please check your configuration.");
                 }
                 pollDashboardData();
             } catch (err) {
@@ -1231,14 +1235,35 @@ function startCountdownTimer() {
             return;
         }
 
+        if (!currentSettings.is_budget_locked) {
+            timerLabel.innerText = "Budget Unlocked";
+            return;
+        }
+
+        if (parseFloat(currentSettings.daily_budget || 0) <= 0) {
+            timerLabel.innerText = "Daily Budget is 0";
+            return;
+        }
+
         const now = new Date();
         const [hour, minute] = currentSettings.payout_time.split(":").map(Number);
         
         let target = new Date();
         target.setHours(hour, minute, 0, 0);
 
-        if (now >= target) {
+        // Format of payout_date in payout items is YYYY-MM-DD
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
+
+        if (payoutToday) {
             target.setDate(target.getDate() + 1);
+        } else if (now >= target) {
+            timerLabel.innerText = "Payout is due";
+            return;
         }
 
         const diffMs = target - now;

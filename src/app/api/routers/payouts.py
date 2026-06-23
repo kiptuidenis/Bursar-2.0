@@ -17,5 +17,8 @@ def list_logs(limit: int = 100, user_id: int = Depends(get_current_user_id), db:
 @router.post("/payout/trigger")
 async def trigger_payout_manually(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     now = datetime.datetime.now()
-    triggered = await check_and_trigger_payout(db, now, user_id=user_id)
-    return {"triggered": triggered}
+    try:
+        triggered = await check_and_trigger_payout(db, now, user_id=user_id, raise_exceptions=True)
+        return {"triggered": triggered, "reason": None}
+    except ValueError as e:
+        return {"triggered": False, "reason": str(e)}

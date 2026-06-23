@@ -10,13 +10,15 @@ from app.services.payment_gateway import send_b2c_payout
 
 logger = logging.getLogger("bursar.scheduler")
 
-async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.datetime, user_id: int) -> bool:
+async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.datetime, user_id: int, raise_exceptions: bool = False) -> bool:
     """
     Evaluates whether a payout is due for today for a specific user.
     If yes, updates database, deducts balance, and triggers B2C payout.
     """
     settings = db.get_settings(user_id)
     if not settings:
+        if raise_exceptions:
+            raise ValueError("User settings profile not found.")
         return False
         
     balance = settings.get("balance", 0.0)
@@ -27,10 +29,14 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     
     # Check if budget is locked (payouts can only run if budget is finalized and locked)
     if not db.is_budget_locked(user_id, today=current_time.date()):
+        if raise_exceptions:
+            raise ValueError("Your daily budget must be locked before triggering a payout.")
         return False
 
     # 1. Check if daily budget is positive
     if daily_budget <= 0:
+        if raise_exceptions:
+            raise ValueError("Daily budget must be greater than zero to trigger a payout.")
         return False
         
     # Check start and end date bounds
@@ -39,9 +45,13 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     today_date_str = current_time.strftime("%Y-%m-%d")
     
     if start_date_str and today_date_str < start_date_str:
+        if raise_exceptions:
+            raise ValueError(f"Payout schedule has not started yet (Start Date: {start_date_str}).")
         return False
         
     if end_date_str and today_date_str > end_date_str:
+        if raise_exceptions:
+            raise ValueError(f"Payout schedule has already ended (End Date: {end_date_str}).")
         return False
         
     # 2. Check current time vs payout_time
@@ -49,10 +59,14 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
         hour, minute = map(int, payout_time_str.split(":"))
     except ValueError:
         db.log_event(user_id, "ERROR", f"Invalid payout time configuration: {payout_time_str}")
+        if raise_exceptions:
+            raise ValueError(f"Invalid payout time configuration: {payout_time_str}")
         return False
         
     payout_time_today = current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if current_time < payout_time_today:
+        if raise_exceptions:
+            raise ValueError(f"Scheduled payout time ({payout_time_str}) has not been reached yet today.")
         return False
         
     # 3. Check if a payout already exists for today's date for this user
@@ -61,16 +75,22 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     payouts = db.get_payouts(user_id, limit=50)
     for p in payouts:
         if p["payout_date"] == today_date and p["status"] in ("SUCCESS", "PENDING"):
+            if raise_exceptions:
+                raise ValueError("A payout has already been processed or is pending for today.")
             return False
             
     # 4. Check if phone number is set
     if not phone_number:
         db.log_event(user_id, "WARNING", f"Skipping payout for {today_date} because no phone number is configured.")
+        if raise_exceptions:
+            raise ValueError("No recipient phone number is configured in Settings.")
         return False
         
     # 5. Verify balance
     if balance < daily_budget:
         db.log_event(user_id, "ERROR", f"Payout for {today_date} skipped: Insufficient balance (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
+        if raise_exceptions:
+            raise ValueError(f"Insufficient wallet balance. (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
         return False
 
     # 6. Deduct balance first
