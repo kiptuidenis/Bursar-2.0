@@ -402,7 +402,8 @@ def test_settings_payout_time_validation():
     
     # 1. Successful update with a future time (e.g. 15 minutes in the future)
     import datetime
-    now = datetime.datetime.now()
+    eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now = datetime.datetime.now(eat_tz).replace(tzinfo=None)
     future_time = now + datetime.timedelta(minutes=15)
     
     # Handle overflow to next day safely by capping to 23:59 if it rolls over
