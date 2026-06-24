@@ -6,7 +6,7 @@ import sqlite3
 import logging
 from typing import Optional
 from app.db.manager import DatabaseManager
-from app.services.payment_gateway import send_b2c_payout
+from app.services.payment_gateway import send_b2c_payout, check_stk_status, check_payout_status
 
 logger = logging.getLogger("bursar.scheduler")
 
@@ -200,6 +200,102 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
 
 
 
+async def poll_pending_deposits(db: DatabaseManager) -> None:
+    """
+    Polls IntaSend for all PENDING deposit transactions older than 30 seconds.
+    Resolves them as SUCCESS or leaves them PENDING based on gateway response.
+    This is the fallback for when IntaSend webhooks cannot reach the server (e.g. local dev).
+    """
+    conn = db.connection
+    cursor = conn.cursor()
+    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        SELECT checkout_request_id, user_id, amount
+        FROM deposits
+        WHERE status = 'PENDING' AND created_at <= ?
+    """, (cutoff,))
+    pending = [dict(row) for row in cursor.fetchall()]
+
+    for deposit in pending:
+        checkout_request_id = deposit["checkout_request_id"]
+        user_id = deposit["user_id"]
+        amount = deposit["amount"]
+        settings = db.get_settings(user_id)
+        if not settings:
+            continue
+        try:
+            gateway_res = await check_stk_status(checkout_request_id, dict(settings))
+            status = gateway_res.get("status", "PENDING")
+            if status == "SUCCESS":
+                if db.update_deposit_status(checkout_request_id, "SUCCESS", "POLL_VERIFIED"):
+                    db.adjust_balance(user_id, amount)
+                    db.log_event(user_id, "INFO", f"[Scheduler Poll] Deposit {checkout_request_id} verified as SUCCESS. KES {amount:.2f} credited.")
+                    db.lock_deposit(user_id)
+                    items = db.get_budget_items(user_id)
+                    if items:
+                        db.lock_budget(user_id)
+                        db.log_event(user_id, "INFO", "Budget automatically locked due to confirmed deposit.")
+            elif status == "FAILED":
+                db.update_deposit_status(checkout_request_id, "FAILED", "POLL_FAILED")
+                db.log_event(user_id, "WARNING", f"[Scheduler Poll] Deposit {checkout_request_id} confirmed FAILED by gateway.")
+        except Exception as e:
+            logger.warning(f"Deposit poll error for {checkout_request_id}: {e}")
+
+
+async def poll_pending_payouts(db: DatabaseManager) -> None:
+    """
+    Polls IntaSend for all PENDING payout transactions that have a conversation_id
+    and are older than 30 seconds. Resolves them as SUCCESS or FAILED.
+    This is the fallback for when IntaSend webhooks cannot reach the server (e.g. local dev).
+    """
+    conn = db.connection
+    cursor = conn.cursor()
+    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        SELECT id, user_id, amount, payout_date, conversation_id
+        FROM payouts
+        WHERE status = 'PENDING' AND conversation_id != '' AND created_at <= ?
+    """, (cutoff,))
+    pending = [dict(row) for row in cursor.fetchall()]
+
+    eat_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
+
+    for payout in pending:
+        tracking_id = payout["conversation_id"]
+        user_id = payout["user_id"]
+        payout_amount = payout["amount"]
+        payout_date = payout["payout_date"]
+        settings = db.get_settings(user_id)
+        if not settings:
+            continue
+        try:
+            gateway_res = await check_payout_status(tracking_id, dict(settings))
+            status = gateway_res.get("status", "PENDING")
+            if status == "SUCCESS":
+                completed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
+                if db.update_payout_status(
+                    conversation_id=tracking_id,
+                    status="SUCCESS",
+                    transaction_id=tracking_id,
+                    error_message="",
+                    completed_at=completed_ts
+                ):
+                    db.adjust_balance(user_id, -payout_amount)
+                    db.log_event(user_id, "INFO", f"[Scheduler Poll] Payout of KES {payout_amount:.2f} for {payout_date} confirmed SUCCESS. Tracking: {tracking_id}.")
+            elif status == "FAILED":
+                failed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
+                if db.update_payout_status(
+                    conversation_id=tracking_id,
+                    status="FAILED",
+                    transaction_id="",
+                    error_message="Gateway confirmed FAILED",
+                    failed_at=failed_ts
+                ):
+                    db.log_event(user_id, "ERROR", f"[Scheduler Poll] Payout for {payout_date} confirmed FAILED by gateway. Tracking: {tracking_id}.")
+        except Exception as e:
+            logger.warning(f"Payout poll error for tracking_id {tracking_id}: {e}")
+
+
 class BackgroundScheduler:
     def __init__(self, db: DatabaseManager, interval_seconds: int = 60):
         self.db = db
@@ -239,6 +335,10 @@ class BackgroundScheduler:
                 # Periodically clean up expired or inactive sessions (5 minutes timeout)
                 db.cleanup_expired_sessions(inactivity_timeout_seconds=300)
                 
+                # Poll and resolve any stuck PENDING deposits and payouts
+                loop.run_until_complete(poll_pending_deposits(db))
+                loop.run_until_complete(poll_pending_payouts(db))
+
                 # Fetch all registered users and process payouts individually
                 users = db.get_all_users()
                 for user in users:
