@@ -1719,6 +1719,26 @@ async function fetchProfile() {
         const avatarPlaceholder = document.getElementById("profile-avatar-placeholder");
         const headerAvatar = document.getElementById("user-avatar");
         const headerIcon = document.getElementById("user-icon");
+
+        // --- Dashboard profile mini-card ---
+        const dashName = document.getElementById("dash-profile-name");
+        const dashPhone = document.getElementById("dash-profile-phone");
+        const dashEmail = document.getElementById("dash-profile-email");
+        const dashInitials = document.getElementById("dash-profile-initials");
+        const dashAvatarImg = document.getElementById("dash-profile-avatar-img");
+
+        const firstName = profile.first_name || "";
+        const lastName = profile.last_name || "";
+        const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+        if (dashName) dashName.textContent = fullName || profile.phone_number || "—";
+        if (dashPhone) dashPhone.textContent = profile.phone_number || "—";
+        if (dashEmail) dashEmail.textContent = profile.email || "No email set";
+        if (dashInitials) {
+            const initials = [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase();
+            dashInitials.textContent = initials || (profile.phone_number ? profile.phone_number.slice(-2) : "?");
+        }
+        // --- End dashboard mini-card ---
         
         if (profile.avatar_url) {
             const cacheBuster = `${profile.avatar_url}?v=${Date.now()}`;
@@ -1733,6 +1753,13 @@ async function fetchProfile() {
                 headerAvatar.style.display = "block";
             }
             if (headerIcon) headerIcon.style.display = "none";
+
+            // Dashboard mini-card: show avatar photo
+            if (dashAvatarImg) {
+                dashAvatarImg.src = cacheBuster;
+                dashAvatarImg.style.display = "block";
+            }
+            if (dashInitials) dashInitials.style.display = "none";
         } else {
             if (avatarImg) {
                 avatarImg.src = "";
@@ -1745,6 +1772,13 @@ async function fetchProfile() {
                 headerAvatar.style.display = "none";
             }
             if (headerIcon) headerIcon.style.display = "block";
+
+            // Dashboard mini-card: show initials
+            if (dashAvatarImg) {
+                dashAvatarImg.src = "";
+                dashAvatarImg.style.display = "none";
+            }
+            if (dashInitials) dashInitials.style.display = "block";
         }
         if (window.lucide) {
             window.lucide.createIcons();

@@ -394,4 +394,60 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const timerText = await page.locator('#countdown-timer').innerText();
     expect(timerText).toContain('Payout Failed');
   });
+
+  test('Dashboard profile mini-card should display logged-in user profile info', async ({ page }) => {
+    const dialogMessages = [];
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+      dialogMessages.push(dialog.message());
+    });
+
+    // 1. Signup & auto-login
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254700${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // 2. Verify profile mini-card exists on the dashboard
+    await expect(page.locator('#dashboard-profile-card')).toBeVisible();
+
+    // 3. Before setting a profile name, the card should show the phone number as fallback
+    await expect(page.locator('#dash-profile-phone')).toContainText(testPhoneNumber);
+
+    // 4. Initials should show last 2 digits of phone (no name yet)
+    const initialsBefore = await page.locator('#dash-profile-initials').innerText();
+    expect(initialsBefore).toBe(testPhoneNumber.slice(-2));
+
+    // 5. Navigate to profile via the pencil edit button on the mini-card
+    await page.click('#dashboard-profile-card button[title="Edit Profile"]');
+    await expect(page.locator('#view-profile')).toHaveClass(/active/);
+
+    // 6. Fill profile details
+    await page.fill('#profile-first-name', 'Denis');
+    await page.fill('#profile-last-name', 'Kiptui');
+    await page.fill('#profile-email', 'denis.kiptui@example.com');
+    await page.click('#profile-info-form button[type="submit"]');
+    await expect.poll(() => dialogMessages).toContain('Profile details saved successfully!');
+
+    // 7. Switch back to dashboard
+    await page.click('[data-tab="dashboard"]');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+
+    // 8. Verify the mini-card now shows the updated name, email, and initials
+    await expect(page.locator('#dash-profile-name')).toContainText('Denis Kiptui');
+    await expect(page.locator('#dash-profile-email')).toContainText('denis.kiptui@example.com');
+    await expect(page.locator('#dash-profile-phone')).toContainText(testPhoneNumber);
+
+    const initialsAfter = await page.locator('#dash-profile-initials').innerText();
+    expect(initialsAfter).toBe('DK');
+
+    // 9. No console errors during entire flow
+    expect(pageErrors).toHaveLength(0);
+  });
 });
