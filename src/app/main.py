@@ -24,6 +24,25 @@ async def lifespan(app: FastAPI):
             
     db_manager.initialize()
     
+    # Verify that the database is writable in production/development modes (skip in unit tests to avoid lock issues)
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        import sqlite3
+        import logging
+        try:
+            conn = db_manager.connection
+            cursor = conn.cursor()
+            cursor.execute("CREATE TABLE IF NOT EXISTS _startup_test (id INTEGER PRIMARY KEY)")
+            cursor.execute("INSERT INTO _startup_test DEFAULT VALUES")
+            cursor.execute("DROP TABLE _startup_test")
+            conn.commit()
+        except sqlite3.OperationalError as e:
+            logger = logging.getLogger("bursar.startup")
+            logger.critical(f"Database at {db_manager.db_path} is read-only or not writable! Error: {e}")
+            raise RuntimeError(
+                f"The database file at {db_manager.db_path} or its directory is read-only or permission is denied. "
+                f"Please ensure it is writable by the server process. Error: {e}"
+            )
+            
     if "PYTEST_CURRENT_TEST" not in os.environ and os.environ.get("DISABLE_SCHEDULER") != "1":
         app.state.scheduler = BackgroundScheduler(db_manager, interval_seconds=60)
         app.state.scheduler.start()
@@ -37,6 +56,33 @@ async def lifespan(app: FastAPI):
     db_manager.close()
 
 app = FastAPI(lifespan=lifespan, title="Bursar 2.0 API")
+
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    import logging
+    logger = logging.getLogger("bursar.api")
+    
+    if isinstance(exc, StarletteHTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors()}
+        )
+        
+    logger.error(f"Unhandled Exception: {str(exc)}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"}
+    )
 
 app.add_middleware(
     CORSMiddleware,
