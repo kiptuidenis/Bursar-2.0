@@ -53,3 +53,4 @@ class PasswordChange(BaseModel):
 class DeactivateRequest(BaseModel):
     password: str
     confirmation: str
+

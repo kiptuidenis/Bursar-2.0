@@ -10,7 +10,9 @@ def load_dotenv(filepath=".env"):
                         continue
                     if "=" in line:
                         key, value = line.split("=", 1)
-                        os.environ[key.strip()] = value.strip().strip('"').strip("'")
+                        k = key.strip()
+                        if k not in os.environ:
+                            os.environ[k] = value.strip().strip('"').strip("'")
         except Exception:
             pass
 
@@ -22,6 +24,9 @@ import sys
 if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
     os.environ["MPESA_MODE"] = "simulation"
     os.environ["INTASEND_MODE"] = "simulation"
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "bursar_default_session_secret_key_change_in_prod")
+
 
 # Load Configuration Properties
 MPESA_MODE = os.environ.get("MPESA_MODE", "sandbox").lower()

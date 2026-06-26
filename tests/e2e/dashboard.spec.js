@@ -373,7 +373,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
 
     // 2. Inject a FAILED payout record for today directly via the API
     //    First we need to get a session cookie to make authenticated calls
-    const todayStr = new Date().toISOString().split('T')[0];
+    const localDate = new Date();
+    const todayStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
     const injectRes = await page.request.post('/api/payout/inject-failed', {
       data: { payout_date: todayStr }
     });
@@ -426,6 +427,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     // 5. Navigate to profile via the pencil edit button on the mini-card
     await page.click('#dashboard-profile-card button[title="Edit Profile"]');
     await expect(page.locator('#view-profile')).toHaveClass(/active/);
+    await page.waitForTimeout(500);
 
     // 6. Fill profile details
     await page.fill('#profile-first-name', 'Denis');
