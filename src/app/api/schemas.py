@@ -5,6 +5,8 @@ from typing import Optional, List
 class AuthPayload(BaseModel):
     phone_number: str = Field(..., description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
     password: str = Field(..., min_length=4, description="Password PIN (minimum 4 characters)")
+    recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
+
 
 class SettingsUpdate(BaseModel):
     balance: Optional[float] = None

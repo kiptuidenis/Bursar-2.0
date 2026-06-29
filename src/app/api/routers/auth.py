@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id, session_manager
 from app.api.schemas import AuthPayload
+from app.services.recaptcha import verify_recaptcha_token
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -24,7 +25,11 @@ def sanitize_phone_number(phone: str) -> str:
     return phone
 
 @router.post("/signup")
-def signup_user(payload: AuthPayload, db: DatabaseManager = Depends(get_db)):
+def signup_user(payload: AuthPayload, request: Request, db: DatabaseManager = Depends(get_db)):
+    client_ip = request.client.host if request.client else None
+    if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
+        raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
+
     sanitized_phone = sanitize_phone_number(payload.phone_number)
     try:
         user_id = db.create_user(sanitized_phone, payload.password)
@@ -35,6 +40,10 @@ def signup_user(payload: AuthPayload, db: DatabaseManager = Depends(get_db)):
 
 @router.post("/login")
 def login_user(payload: AuthPayload, response: Response, request: Request, db: DatabaseManager = Depends(get_db)):
+    client_ip = request.client.host if request.client else None
+    if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
+        raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
+
     sanitized_phone = sanitize_phone_number(payload.phone_number)
     user_id = db.authenticate_user(sanitized_phone, payload.password)
     
@@ -54,6 +63,7 @@ def login_user(payload: AuthPayload, response: Response, request: Request, db: D
     )
     db.log_event(user_id, "INFO", "User successfully authenticated.")
     return {"status": "success", "user_id": user_id}
+
 
 @router.post("/logout")
 def logout_user(response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
@@ -78,3 +88,12 @@ def get_me(user_id: int = Depends(get_current_user_id), db: DatabaseManager = De
 @router.post("/ping")
 def ping_session(user_id: int = Depends(get_current_user_id)):
     return {"status": "ok"}
+
+@router.get("/config")
+def get_auth_config():
+    from app.core import config
+    return {
+        "recaptcha_enabled": config.RECAPTCHA_ENABLED and bool(config.RECAPTCHA_SITE_KEY) and config.RECAPTCHA_SITE_KEY != "your_recaptcha_site_key_here",
+        "recaptcha_site_key": config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_SITE_KEY != "your_recaptcha_site_key_here" else ""
+    }
+

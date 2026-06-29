@@ -21,9 +21,12 @@ load_dotenv(".env")
 
 # Default to simulation mode when running tests
 import sys
-if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules or os.environ.get("ALLOW_TEST_ENDPOINTS") == "1":
     os.environ["MPESA_MODE"] = "simulation"
     os.environ["INTASEND_MODE"] = "simulation"
+    os.environ["RECAPTCHA_ENABLED"] = "false"
+
+
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "bursar_default_session_secret_key_change_in_prod")
 
@@ -51,3 +54,13 @@ PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "intasend").lower()
 INTASEND_MODE = os.environ.get("INTASEND_MODE", "simulation").lower()
 INTASEND_SECRET_KEY = os.environ.get("INTASEND_SECRET_KEY", "")
 INTASEND_PUBLISHABLE_KEY = os.environ.get("INTASEND_PUBLISHABLE_KEY", "")
+
+# Google reCAPTCHA Configuration
+RECAPTCHA_ENABLED = os.environ.get("RECAPTCHA_ENABLED", "true").lower() in ("true", "1", "yes")
+RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "")
+try:
+    RECAPTCHA_SCORE_THRESHOLD = float(os.environ.get("RECAPTCHA_SCORE_THRESHOLD", "0.5"))
+except ValueError:
+    RECAPTCHA_SCORE_THRESHOLD = 0.5
+

@@ -561,6 +561,23 @@
         window.addEventListener("hashchange", handleHash);
         window.addEventListener("load", handleHash);
 
+        // Fetch reCAPTCHA config dynamically
+        let recaptchaConfig = { enabled: false, siteKey: "" };
+        fetch("/api/auth/config")
+            .then(res => res.json())
+            .then(data => {
+                if (data.recaptcha_enabled && data.recaptcha_site_key) {
+                    recaptchaConfig.enabled = true;
+                    recaptchaConfig.siteKey = data.recaptcha_site_key;
+                    // Inject Google reCAPTCHA v3 script dynamically
+                    const script = document.createElement("script");
+                    script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(data.recaptcha_site_key)}`;
+                    script.async = true;
+                    document.head.appendChild(script);
+                }
+            })
+            .catch(err => console.error("Failed to load auth config:", err));
+
         // Form submit handler
         if (authForm) {
             authForm.addEventListener("submit", async (e) => {
@@ -570,13 +587,23 @@
                 const phone_number = document.getElementById("auth-phone").value.trim();
                 const password = authPassword.value;
 
+                let recaptcha_token = null;
+                if (recaptchaConfig.enabled && window.grecaptcha && recaptchaConfig.siteKey) {
+                    try {
+                        await new Promise(resolve => window.grecaptcha.ready(resolve));
+                        recaptcha_token = await window.grecaptcha.execute(recaptchaConfig.siteKey, { action: currentAuthAction });
+                    } catch (gErr) {
+                        console.warn("Google reCAPTCHA execution error:", gErr);
+                    }
+                }
+
                 const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
 
                 try {
                     const res = await fetch(url, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ phone_number, password })
+                        body: JSON.stringify({ phone_number, password, recaptcha_token })
                     });
 
                     const data = await res.json();
