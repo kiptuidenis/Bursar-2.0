@@ -8,6 +8,18 @@ try:
     print(f"[DIAGNOSTIC] Successfully imported pymysql from {pymysql.__file__}")
 except Exception as e:
     print(f"[DIAGNOSTIC] Failed to import pymysql: {e}")
+
+try:
+    import sqlalchemy
+    print(f"[DIAGNOSTIC] Successfully imported sqlalchemy from {sqlalchemy.__file__} (version {sqlalchemy.__version__})")
+except Exception as e:
+    print(f"[DIAGNOSTIC] Failed to import sqlalchemy: {e}")
+
+try:
+    import sqlalchemy.dialects.mysql.pymysql as sqla_mysql
+    print(f"[DIAGNOSTIC] Successfully imported sqlalchemy.dialects.mysql.pymysql from {sqla_mysql.__file__}")
+except Exception as e:
+    print(f"[DIAGNOSTIC] Failed to import sqlalchemy.dialects.mysql.pymysql: {e}")
     import traceback
     traceback.print_exc()
 
