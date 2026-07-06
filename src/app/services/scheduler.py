@@ -2,7 +2,8 @@ import datetime
 import os
 import time
 import threading
-import sqlite3
+import sqlalchemy
+from app.db.models import Payout, Deposit
 import logging
 from typing import Optional
 from app.db.manager import DatabaseManager
@@ -114,7 +115,7 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
                 conversation_id="",
                 originator_conversation_id=""
             )
-        except sqlite3.IntegrityError:
+        except sqlalchemy.exc.IntegrityError:
             # Race condition: another process inserted between our check and create
             db.log_event(user_id, "WARNING", f"Aborted duplicate payout insertion for {today_date}.")
             if raise_exceptions:
@@ -154,25 +155,22 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
                 db.adjust_balance(user_id, -daily_budget)
                 completed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
                 db.log_event(user_id, "INFO", f"Payout of KES {daily_budget:.2f} completed successfully at {completed_ts}.")
-                conn = db.connection
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE payouts
-                    SET status = 'SUCCESS', conversation_id = ?, originator_conversation_id = ?, completed_at = ?
-                    WHERE id = ?
-                """, (conversation_id, originator_conv_id, completed_ts, payout_id))
-                conn.commit()
+                payout = db.session.query(Payout).filter(Payout.id == payout_id).first()
+                if payout:
+                    payout.status = 'SUCCESS'
+                    payout.conversation_id = conversation_id
+                    payout.originator_conversation_id = originator_conv_id
+                    payout.completed_at = completed_ts
+                    db._commit()
             else:
                 # Asynchronous (PENDING) — balance deducted when IntaSend webhook confirms
                 db.log_event(user_id, "INFO", f"Payout request accepted by IntaSend. Tracking ID: {conversation_id}. Awaiting confirmation.")
-                conn = db.connection
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE payouts
-                    SET status = 'PENDING', conversation_id = ?, originator_conversation_id = ?
-                    WHERE id = ?
-                """, (conversation_id, originator_conv_id, payout_id))
-                conn.commit()
+                payout = db.session.query(Payout).filter(Payout.id == payout_id).first()
+                if payout:
+                    payout.status = 'PENDING'
+                    payout.conversation_id = conversation_id
+                    payout.originator_conversation_id = originator_conv_id
+                    db._commit()
 
             return True
         else:
@@ -185,14 +183,12 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
         failed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
         db.log_event(user_id, "ERROR", f"Payout failed for {today_date} at {failed_ts}: {error_msg}")
 
-        conn = db.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE payouts
-            SET status = 'FAILED', error_message = ?, failed_at = ?
-            WHERE id = ?
-        """, (error_msg, failed_ts, payout_id))
-        conn.commit()
+        payout = db.session.query(Payout).filter(Payout.id == payout_id).first()
+        if payout:
+            payout.status = 'FAILED'
+            payout.error_message = error_msg
+            payout.failed_at = failed_ts
+            db._commit()
 
         if raise_exceptions:
             raise ValueError(f"Payout failed: {error_msg}")
@@ -206,15 +202,15 @@ async def poll_pending_deposits(db: DatabaseManager) -> None:
     Resolves them as SUCCESS or leaves them PENDING based on gateway response.
     This is the fallback for when IntaSend webhooks cannot reach the server (e.g. local dev).
     """
-    conn = db.connection
-    cursor = conn.cursor()
-    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute("""
-        SELECT checkout_request_id, user_id, amount
-        FROM deposits
-        WHERE status = 'PENDING' AND created_at <= ?
-    """, (cutoff,))
-    pending = [dict(row) for row in cursor.fetchall()]
+    cutoff_dt = datetime.datetime.utcnow() - datetime.timedelta(seconds=30)
+    pending_records = db.session.query(Deposit).filter(
+        Deposit.status == 'PENDING',
+        Deposit.created_at <= cutoff_dt
+    ).all()
+    pending = [
+        {"checkout_request_id": d.checkout_request_id, "user_id": d.user_id, "amount": d.amount}
+        for d in pending_records
+    ]
 
     for deposit in pending:
         checkout_request_id = deposit["checkout_request_id"]
@@ -248,15 +244,22 @@ async def poll_pending_payouts(db: DatabaseManager) -> None:
     and are older than 30 seconds. Resolves them as SUCCESS or FAILED.
     This is the fallback for when IntaSend webhooks cannot reach the server (e.g. local dev).
     """
-    conn = db.connection
-    cursor = conn.cursor()
-    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute("""
-        SELECT id, user_id, amount, payout_date, conversation_id
-        FROM payouts
-        WHERE status = 'PENDING' AND conversation_id != '' AND created_at <= ?
-    """, (cutoff,))
-    pending = [dict(row) for row in cursor.fetchall()]
+    cutoff_dt = datetime.datetime.utcnow() - datetime.timedelta(seconds=30)
+    pending_records = db.session.query(Payout).filter(
+        Payout.status == 'PENDING',
+        Payout.conversation_id != '',
+        Payout.created_at <= cutoff_dt
+    ).all()
+    pending = [
+        {
+            "id": p.id,
+            "user_id": p.user_id,
+            "amount": p.amount,
+            "payout_date": p.payout_date,
+            "conversation_id": p.conversation_id
+        }
+        for p in pending_records
+    ]
 
     eat_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
 

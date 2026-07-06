@@ -1,6 +1,7 @@
 import os
 import pytest
 import sqlite3
+import sqlalchemy
 from app.db.manager import DatabaseManager
 
 DB_FILE = "test_bursar_multitenant.db"
@@ -23,8 +24,8 @@ def test_user_registration_and_auth(db):
     user1_id = db.create_user("254712345678", "securepin123")
     assert user1_id is not None
     
-    # Try duplicate registration (must raise sqlite3.IntegrityError)
-    with pytest.raises(sqlite3.IntegrityError):
+    # Try duplicate registration (must raise sqlalchemy.exc.IntegrityError)
+    with pytest.raises(sqlalchemy.exc.IntegrityError):
         db.create_user("254712345678", "anotherpassword")
         
     # Register second user
@@ -95,7 +96,7 @@ def test_payout_creation_and_composite_idempotency(db):
     assert p2 is not None
     
     # User 1 attempts a second payout for date 2026-06-18 (should raise IntegrityError - double-spend protection)
-    with pytest.raises(sqlite3.IntegrityError):
+    with pytest.raises(sqlalchemy.exc.IntegrityError):
         db.create_payout(user1_id, "2026-06-18", 200.0, "254712345678", "PENDING", "conv3")
         
     # Verify history lists are isolated

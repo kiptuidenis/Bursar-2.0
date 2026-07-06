@@ -24,23 +24,19 @@ async def lifespan(app: FastAPI):
             
     db_manager.initialize()
     
-    # Verify that the database is writable in production/development modes (skip in unit tests to avoid lock issues)
+    # Verify that the database is accessible in production/development modes (skip in unit tests to avoid lock issues)
     if "PYTEST_CURRENT_TEST" not in os.environ:
-        import sqlite3
+        import sqlalchemy
         import logging
         try:
-            conn = db_manager.connection
-            cursor = conn.cursor()
-            cursor.execute("CREATE TABLE IF NOT EXISTS _startup_test (id INTEGER PRIMARY KEY)")
-            cursor.execute("INSERT INTO _startup_test DEFAULT VALUES")
-            cursor.execute("DROP TABLE _startup_test")
-            conn.commit()
-        except sqlite3.OperationalError as e:
+            with db_manager.engine.connect() as conn:
+                conn.execute(sqlalchemy.text("SELECT 1"))
+        except Exception as e:
             logger = logging.getLogger("bursar.startup")
-            logger.critical(f"Database at {db_manager.db_path} is read-only or not writable! Error: {e}")
+            logger.critical(f"Database at {db_manager.db_path} is not accessible! Error: {e}")
             raise RuntimeError(
-                f"The database file at {db_manager.db_path} or its directory is read-only or permission is denied. "
-                f"Please ensure it is writable by the server process. Error: {e}"
+                f"The database at {db_manager.db_path} is not accessible or connection is refused. "
+                f"Please verify your connection settings. Error: {e}"
             )
             
     if "PYTEST_CURRENT_TEST" not in os.environ and os.environ.get("DISABLE_SCHEDULER") != "1":

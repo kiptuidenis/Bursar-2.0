@@ -18,20 +18,19 @@ def get_test_db():
 
 app.dependency_overrides[get_db] = get_test_db
 
+from app.db.models import User, Settings, Payout, Log, BudgetItem, Deposit, Session as DbSession
+
 @pytest.fixture(autouse=True)
 def clean_db():
     db = get_test_db()
-    conn = db.connection
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA foreign_keys = OFF")
-    cursor.execute("DELETE FROM users")
-    cursor.execute("DELETE FROM settings")
-    cursor.execute("DELETE FROM payouts")
-    cursor.execute("DELETE FROM logs")
-    cursor.execute("DELETE FROM budget_items")
-    cursor.execute("DELETE FROM sessions")
-    cursor.execute("PRAGMA foreign_keys = ON")
-    conn.commit()
+    db.session.query(DbSession).delete()
+    db.session.query(BudgetItem).delete()
+    db.session.query(Log).delete()
+    db.session.query(Deposit).delete()
+    db.session.query(Payout).delete()
+    db.session.query(Settings).delete()
+    db.session.query(User).delete()
+    db._commit()
     yield
 
 def test_profile_endpoints():

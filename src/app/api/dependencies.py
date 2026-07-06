@@ -5,12 +5,7 @@ from app.db.manager import DatabaseManager
 from app.core.security import SessionManager
 from app.core.config import SECRET_KEY
 
-raw_db_url = os.environ.get("DATABASE_URL", "bursar.db")
-if raw_db_url.startswith("postgres://") or raw_db_url.startswith("postgresql://"):
-    # Fallback to local SQLite file since SQLite cannot parse postgres URLs
-    DB_FILE = "bursar.db"
-else:
-    DB_FILE = raw_db_url
+DB_FILE = os.environ.get("DATABASE_URL", "bursar.db")
 
 db_manager = DatabaseManager(DB_FILE)
 session_manager = SessionManager(secret_key=SECRET_KEY)

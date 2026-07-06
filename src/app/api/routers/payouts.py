@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.db.manager import DatabaseManager
+from app.db.models import Payout
 from app.api.dependencies import get_db, get_current_user_id
 from app.services.scheduler import check_and_trigger_payout
 
@@ -58,10 +59,8 @@ def inject_failed_payout(
     # Remove any existing record for this date first (idempotent for tests)
     existing = db.get_payout_by_user_date(user_id, payout_date)
     if existing:
-        conn = db.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM payouts WHERE id = ?", (existing["id"],))
-        conn.commit()
+        db.session.query(Payout).filter(Payout.id == existing["id"]).delete(synchronize_session=False)
+        db._commit()
 
     payout_id = db.create_payout(
         user_id=user_id,
@@ -72,12 +71,10 @@ def inject_failed_payout(
         conversation_id="",
         originator_conversation_id=""
     )
-    conn = db.connection
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE payouts SET error_message = ?, failed_at = ? WHERE id = ?",
-        ("Injected failure for E2E testing", failed_ts, payout_id)
-    )
-    conn.commit()
+    payout = db.session.query(Payout).filter(Payout.id == payout_id).first()
+    if payout:
+        payout.error_message = "Injected failure for E2E testing"
+        payout.failed_at = failed_ts
+        db._commit()
     db.log_event(user_id, "INFO", f"[TEST] Injected FAILED payout record for {payout_date}.")
     return {"payout_id": payout_id, "payout_date": payout_date, "status": "FAILED"}

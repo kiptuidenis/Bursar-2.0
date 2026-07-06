@@ -1,203 +1,121 @@
-import sqlite3
 import hashlib
 import secrets
 import time
 import os
-from typing import Dict, List, Any, Optional
 import datetime
+from typing import Dict, List, Any, Optional
+
+from sqlalchemy import create_engine, func, event
+from sqlalchemy.orm import sessionmaker
+from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session
+
+def _row_to_dict(model_instance, fields=None):
+    if not model_instance:
+        return {}
+    res = {}
+    cols = fields if fields else [c.name for c in model_instance.__table__.columns]
+    for col in cols:
+        val = getattr(model_instance, col)
+        if isinstance(val, datetime.datetime):
+            res[col] = val.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            res[col] = val
+    return res
+
+_engines_cache = {}
 
 class DatabaseManager:
     def __init__(self, db_path: str = "bursar.db"):
         self.db_path = db_path
-        self._conn: Optional[sqlite3.Connection] = None
+        
+        # Format database path/URL
+        if db_path.startswith("mysql://"):
+            self.db_url = db_path.replace("mysql://", "mysql+pymysql://", 1)
+        elif "://" not in db_path:
+            abs_path = os.path.abspath(db_path).replace("\\", "/")
+            self.db_url = f"sqlite:///{abs_path}"
+        else:
+            self.db_url = db_path
+            
+        global _engines_cache
+        if self.db_url not in _engines_cache:
+            connect_args = {}
+            engine_kwargs = {}
+            if self.db_url.startswith("sqlite"):
+                connect_args["check_same_thread"] = False
+            else:
+                # Enable pre-ping and recycle to prevent stale RDS MySQL connection drops
+                engine_kwargs["pool_pre_ping"] = True
+                engine_kwargs["pool_recycle"] = 3600
+                
+            engine = create_engine(self.db_url, connect_args=connect_args, **engine_kwargs)
+            
+            # Register SQLite performance tuning pragmas
+            if self.db_url.startswith("sqlite"):
+                @event.listens_for(engine, "connect")
+                def set_sqlite_pragma(dbapi_connection, connection_record):
+                    import sqlite3
+                    if isinstance(dbapi_connection, sqlite3.Connection):
+                        cursor = dbapi_connection.cursor()
+                        cursor.execute("PRAGMA foreign_keys = ON")
+                        
+                        is_pytest = (
+                            "TESTING" in os.environ 
+                            or "PYTEST_CURRENT_TEST" in os.environ
+                        )
+                        if is_pytest:
+                            try:
+                                cursor.execute("PRAGMA synchronous = OFF")
+                                cursor.execute("PRAGMA journal_mode = MEMORY")
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                cursor.execute("PRAGMA journal_mode = WAL")
+                            except Exception:
+                                pass
+                        cursor.close()
+            _engines_cache[self.db_url] = engine
+            
+        self.engine = _engines_cache[self.db_url]
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self._session = None
+        self._raw_conn = None
 
     @property
-    def connection(self) -> sqlite3.Connection:
-        if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
-            self._conn.row_factory = sqlite3.Row
-            
-            # Optimize SQLite performance in test mode to completely bypass disk I/O locks
-            if "TESTING" in os.environ or "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("DATABASE_URL", "").endswith("_test.db"):
-                try:
-                    self._conn.execute("PRAGMA synchronous = OFF")
-                    self._conn.execute("PRAGMA journal_mode = MEMORY")
-                except sqlite3.OperationalError:
-                    pass
-            else:
-                try:
-                    self._conn.execute("PRAGMA journal_mode=WAL")
-                except sqlite3.OperationalError:
-                    pass
-        return self._conn
+    def session(self):
+        if self._session is None:
+            self._session = self.SessionLocal()
+        return self._session
+
+    @property
+    def connection(self):
+        """Expose raw driver connection for temporary backwards compatibility."""
+        if self._raw_conn is None:
+            raw_conn = self.engine.raw_connection()
+            if self.engine.dialect.name == "sqlite":
+                import sqlite3
+                actual_conn = raw_conn
+                if hasattr(raw_conn, "driver_connection"):
+                    actual_conn = raw_conn.driver_connection
+                elif hasattr(raw_conn, "connection"):
+                    actual_conn = raw_conn.connection
+                actual_conn.row_factory = sqlite3.Row
+            self._raw_conn = raw_conn
+        return self._raw_conn
+
+    def _commit(self) -> None:
+        """Helper to commit transactions and rollback on exceptions to keep the session clean."""
+        try:
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
 
     def initialize(self) -> None:
-        """Initialize the database schema for multi-tenancy."""
-        conn = self.connection
-        cursor = conn.cursor()
-        
-        # Detect legacy single-user schema and recreate tables if necessary
-        cursor.execute("PRAGMA table_info(logs)")
-        columns = [row["name"] for row in cursor.fetchall()]
-        if columns and "user_id" not in columns:
-            cursor.execute("DROP TABLE IF EXISTS logs")
-            cursor.execute("DROP TABLE IF EXISTS payouts")
-            cursor.execute("DROP TABLE IF EXISTS settings")
-            cursor.execute("DROP TABLE IF EXISTS users")
-            conn.commit()
-            
-        # Enable foreign keys
-        cursor.execute("PRAGMA foreign_keys = ON")
-        
-        # Create users table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                phone_number TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                salt TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Create settings table (keyed by user_id)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
-                user_id INTEGER PRIMARY KEY,
-                balance REAL DEFAULT 0.0,
-                daily_budget REAL DEFAULT 0.0,
-                phone_number TEXT DEFAULT '',
-                payout_time TEXT DEFAULT '08:00',
-                mode TEXT DEFAULT 'sandbox',
-                mpesa_consumer_key TEXT DEFAULT '',
-                mpesa_consumer_secret TEXT DEFAULT '',
-                mpesa_shortcode TEXT DEFAULT '',
-                mpesa_initiator_name TEXT DEFAULT '',
-                mpesa_initiator_password TEXT DEFAULT '',
-                mpesa_b2c_result_url TEXT DEFAULT '',
-                mpesa_b2c_timeout_url TEXT DEFAULT '',
-                budget_locked_until TEXT DEFAULT '',
-                deposit_locked_until TEXT DEFAULT '',
-                start_date TEXT DEFAULT '',
-                end_date TEXT DEFAULT '',
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
-        
-        # Create payouts table with composite uniqueness constraint (user_id + payout_date)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payouts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                payout_date TEXT NOT NULL,
-                amount REAL NOT NULL,
-                phone_number TEXT NOT NULL,
-                status TEXT NOT NULL,
-                conversation_id TEXT DEFAULT '',
-                originator_conversation_id TEXT DEFAULT '',
-                transaction_id TEXT DEFAULT '',
-                error_message TEXT DEFAULT '',
-                completed_at TEXT DEFAULT '',
-                failed_at TEXT DEFAULT '',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE (user_id, payout_date)
-            )
-        """)
-        
-        # Create system logs table per user
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                level TEXT NOT NULL,
-                message TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
-        
-        # Create budget items table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS budget_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                category TEXT NOT NULL,
-                amount REAL NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE (user_id, category)
-            )
-        """)
-        
-        # Create deposits table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS deposits (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                checkout_request_id TEXT UNIQUE NOT NULL,
-                amount REAL NOT NULL,
-                status TEXT NOT NULL DEFAULT 'PENDING',
-                mpesa_receipt TEXT DEFAULT '',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
-        
-        # Create sessions table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                session_token TEXT UNIQUE NOT NULL,
-                user_agent TEXT DEFAULT '',
-                ip_address TEXT DEFAULT '',
-                expires_at INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
+        """Initialize database schema tables."""
+        Base.metadata.create_all(bind=self.engine)
 
-        # Add dynamic locking columns to settings if they do not exist
-        cursor.execute("PRAGMA table_info(settings)")
-        columns = [row["name"] for row in cursor.fetchall()]
-        if "budget_locked_until" not in columns:
-            cursor.execute("ALTER TABLE settings ADD COLUMN budget_locked_until TEXT DEFAULT ''")
-        if "deposit_locked_until" not in columns:
-            cursor.execute("ALTER TABLE settings ADD COLUMN deposit_locked_until TEXT DEFAULT ''")
-        if "start_date" not in columns:
-            cursor.execute("ALTER TABLE settings ADD COLUMN start_date TEXT DEFAULT ''")
-        if "end_date" not in columns:
-            cursor.execute("ALTER TABLE settings ADD COLUMN end_date TEXT DEFAULT ''")
-            
-        # Add dynamic profile columns to users if they do not exist
-        cursor.execute("PRAGMA table_info(users)")
-        u_columns = [row["name"] for row in cursor.fetchall()]
-        for col_name in ["first_name", "last_name", "email", "avatar_url", "bio", "theme"]:
-            if col_name not in u_columns:
-                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} TEXT DEFAULT ''")
-        if "notifications_enabled" not in u_columns:
-            cursor.execute("ALTER TABLE users ADD COLUMN notifications_enabled INTEGER DEFAULT 1")
-            
-        # Migrate any legacy 'simulation' modes to 'sandbox'
-        cursor.execute("UPDATE settings SET mode = 'sandbox' WHERE mode = 'simulation'")
-        
-        # Add dynamic columns to sessions if they do not exist
-        cursor.execute("PRAGMA table_info(sessions)")
-        s_columns = [row["name"] for row in cursor.fetchall()]
-        if "last_activity" not in s_columns:
-            cursor.execute("ALTER TABLE sessions ADD COLUMN last_activity INTEGER")
-
-        # Add exact-timestamp columns to payouts if they do not exist (migration for existing DBs)
-        cursor.execute("PRAGMA table_info(payouts)")
-        p_columns = [row["name"] for row in cursor.fetchall()]
-        if "completed_at" not in p_columns:
-            cursor.execute("ALTER TABLE payouts ADD COLUMN completed_at TEXT DEFAULT ''")
-        if "failed_at" not in p_columns:
-            cursor.execute("ALTER TABLE payouts ADD COLUMN failed_at TEXT DEFAULT ''")
-            
-        conn.commit()
-        self.close()
- 
     # Cryptographic Hashing Helpers
     def _hash_password(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:
         """Hash a plaintext password using PBKDF2-HMAC-SHA256 with 100,000 iterations."""
@@ -225,222 +143,191 @@ class DatabaseManager:
     # User Auth Operations
     def create_user(self, phone_number: str, password_plaintext: str) -> int:
         """Register a new user, hashes password, and creates default settings row."""
-        conn = self.connection
-        cursor = conn.cursor()
-        
         password_hash, salt = self._hash_password(password_plaintext)
         
-        cursor.execute("""
-            INSERT INTO users (phone_number, password_hash, salt)
-            VALUES (?, ?, ?)
-        """, (phone_number, password_hash, salt))
-        
-        user_id = cursor.lastrowid
+        db_user = User(
+            phone_number=phone_number,
+            password_hash=password_hash,
+            salt=salt
+        )
+        self.session.add(db_user)
+        self._commit()
         
         # Create user's settings profile automatically (defaulting settings phone number to registration phone number)
-        cursor.execute("""
-            INSERT INTO settings (user_id, phone_number)
-            VALUES (?, ?)
-        """, (user_id, phone_number))
-        
-        conn.commit()
-        return user_id
+        db_settings = Settings(
+            user_id=db_user.id,
+            phone_number=phone_number
+        )
+        self.session.add(db_settings)
+        self._commit()
+        return db_user.id
 
     def authenticate_user(self, phone_number: str, password_plaintext: str) -> Optional[int]:
         """Authenticate user credentials. Returns user_id if valid, None otherwise."""
-        conn = self.connection
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT id, password_hash, salt FROM users WHERE phone_number = ?", (phone_number,))
-        row = cursor.fetchone()
-        if not row:
+        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        if not user:
             return None
             
-        user_id = row["id"]
-        stored_hash = row["password_hash"]
-        stored_salt = row["salt"]
-        
-        if self._verify_password(password_plaintext, stored_hash, stored_salt):
-            return user_id
+        if self._verify_password(password_plaintext, user.password_hash, user.salt):
+            return user.id
         return None
 
     def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Fetch user profile details."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, phone_number, first_name, last_name, email, avatar_url, bio, theme, notifications_enabled, created_at 
-            FROM users WHERE id = ?
-        """, (user_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        user = self.session.query(User).filter(User.id == user_id).first()
+        return _row_to_dict(user) if user else None
 
     def update_profile(self, user_id: int, **kwargs: Any) -> None:
         """Update user profile fields."""
         if not kwargs:
             return
-        conn = self.connection
-        cursor = conn.cursor()
-        fields = []
-        values = []
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return
         allowed_fields = {"first_name", "last_name", "email", "avatar_url", "bio", "theme", "notifications_enabled"}
         for key, val in kwargs.items():
             if key in allowed_fields:
-                fields.append(f"{key} = ?")
-                values.append(val)
-        if not fields:
-            return
-        values.append(user_id)
-        query = f"UPDATE users SET {', '.join(fields)} WHERE id = ?"
-        cursor.execute(query, values)
-        conn.commit()
+                setattr(user, key, val)
+        self._commit()
 
     def update_password(self, user_id: int, new_password_plaintext: str) -> None:
         """Update user's password PIN."""
-        conn = self.connection
-        cursor = conn.cursor()
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return
         password_hash, salt = self._hash_password(new_password_plaintext)
-        cursor.execute("""
-            UPDATE users SET password_hash = ?, salt = ? WHERE id = ?
-        """, (password_hash, salt, user_id))
-        conn.commit()
+        user.password_hash = password_hash
+        user.salt = salt
+        self._commit()
 
     def create_session_db(self, user_id: int, token: str, user_agent: str, ip_address: str, expires_at: int) -> None:
         """Insert a session token record in database."""
-        conn = self.connection
-        cursor = conn.cursor()
         current_time = int(time.time())
-        cursor.execute("""
-            INSERT INTO sessions (user_id, session_token, user_agent, ip_address, expires_at, last_activity)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (user_id, token, user_agent, ip_address, expires_at, current_time))
-        conn.commit()
+        db_session = Session(
+            user_id=user_id,
+            session_token=token,
+            user_agent=user_agent,
+            ip_address=ip_address,
+            expires_at=expires_at,
+            last_activity=current_time
+        )
+        self.session.add(db_session)
+        self._commit()
 
     def get_active_sessions(self, user_id: int) -> List[Dict[str, Any]]:
         """Retrieve all active session records for a user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, user_id, session_token, user_agent, ip_address, expires_at, created_at 
-            FROM sessions 
-            WHERE user_id = ? AND expires_at > ?
-            ORDER BY created_at DESC
-        """, (user_id, int(time.time())))
-        return [dict(row) for row in cursor.fetchall()]
+        sessions = self.session.query(Session).filter(
+            Session.user_id == user_id,
+            Session.expires_at > int(time.time())
+        ).order_by(Session.created_at.desc()).all()
+        return [_row_to_dict(s) for s in sessions]
 
     def revoke_session(self, user_id: int, session_id: int) -> bool:
         """Revoke a specific session for a user by session record ID."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM sessions WHERE user_id = ? AND id = ?", (user_id, session_id))
-        conn.commit()
-        return cursor.rowcount > 0
+        session = self.session.query(Session).filter(
+            Session.user_id == user_id,
+            Session.id == session_id
+        ).first()
+        if session:
+            self.session.delete(session)
+            self._commit()
+            return True
+        return False
 
     def revoke_other_sessions(self, user_id: int, current_token: str) -> None:
         """Revoke all sessions except the current one for a user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM sessions WHERE user_id = ? AND session_token != ?", (user_id, current_token))
-        conn.commit()
+        self.session.query(Session).filter(
+            Session.user_id == user_id,
+            Session.session_token != current_token
+        ).delete(synchronize_session=False)
+        self._commit()
 
     def verify_session_token_db(self, token: str, is_poll: bool = False) -> Optional[int]:
         """Verify the token exists in DB and is active, checking inactivity timeout."""
-        conn = self.connection
-        cursor = conn.cursor()
         now = int(time.time())
-        cursor.execute("""
-            SELECT user_id, expires_at, last_activity FROM sessions 
-            WHERE session_token = ? AND expires_at > ?
-        """, (token, now))
-        row = cursor.fetchone()
-        if not row:
+        session = self.session.query(Session).filter(
+            Session.session_token == token,
+            Session.expires_at > now
+        ).first()
+        if not session:
             return None
             
-        user_id = row["user_id"]
-        last_act = row["last_activity"]
+        user_id = session.user_id
+        last_act = session.last_activity
         if last_act is None:
-            last_act = row["expires_at"] - 86400
+            last_act = session.expires_at - 86400
             
         # Inactivity check: 5 minutes (300 seconds)
         if now - last_act > 300:
-            cursor.execute("DELETE FROM sessions WHERE session_token = ?", (token,))
-            conn.commit()
+            self.session.delete(session)
+            self._commit()
             return None
             
         # If valid and not a background poll, update last activity to now
         if not is_poll:
-            cursor.execute("""
-                UPDATE sessions 
-                SET last_activity = ? 
-                WHERE session_token = ?
-            """, (now, token))
-            conn.commit()
+            session.last_activity = now
+            self._commit()
             
         return user_id
 
     def cleanup_expired_sessions(self, inactivity_timeout_seconds: int = 300) -> None:
         """Delete sessions that are expired absolutely or idle for too long."""
-        conn = self.connection
-        cursor = conn.cursor()
         now = int(time.time())
-        cursor.execute("""
-            DELETE FROM sessions 
-            WHERE expires_at < ? 
-               OR (? - COALESCE(last_activity, expires_at - 86400)) > ?
-        """, (now, now, inactivity_timeout_seconds))
-        conn.commit()
+        sessions = self.session.query(Session).all()
+        to_delete = []
+        for s in sessions:
+            if s.expires_at < now:
+                to_delete.append(s)
+            else:
+                last_act = s.last_activity if s.last_activity is not None else (s.expires_at - 86400)
+                if now - last_act > inactivity_timeout_seconds:
+                    to_delete.append(s)
+        
+        for s in to_delete:
+            self.session.delete(s)
+        if to_delete:
+            self._commit()
 
     def deactivate_user(self, user_id: int) -> None:
         """Permanently delete user account and trigger cascading deletions."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        conn.commit()
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if user:
+            self.session.delete(user)
+            self._commit()
 
     def get_all_users(self) -> List[Dict[str, Any]]:
         """Fetch all user profiles (useful for the background scheduler run)."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, phone_number FROM users")
-        return [dict(row) for row in cursor.fetchall()]
+        users = self.session.query(User).all()
+        return [{"id": u.id, "phone_number": u.phone_number} for u in users]
 
     # Settings Operations (Isolated per user)
     def get_settings(self, user_id: int) -> Dict[str, Any]:
         """Retrieve the configuration settings for a specific user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM settings WHERE user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else {}
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        return _row_to_dict(settings) if settings else {}
 
     def update_settings(self, user_id: int, **kwargs: Any) -> None:
         """Dynamically update settings columns for a specific user."""
         if not kwargs:
             return
         
-        conn = self.connection
-        cursor = conn.cursor()
-        
-        fields = []
-        values = []
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if not settings:
+            return
+            
         for key, val in kwargs.items():
-            # Filter out user_id updates
             if key == "user_id":
                 continue
-            fields.append(f"{key} = ?")
-            values.append(val)
-            
-        values.append(user_id)
-        query = f"UPDATE settings SET {', '.join(fields)} WHERE user_id = ?"
-        cursor.execute(query, values)
-        conn.commit()
+            if hasattr(settings, key):
+                setattr(settings, key, val)
+        self._commit()
 
     def adjust_balance(self, user_id: int, amount: float) -> None:
         """Add or subtract from the current wallet balance of a specific user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("UPDATE settings SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
-        conn.commit()
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.balance += amount
+            self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if the user's budget allocations are locked for the current calendar month."""
@@ -493,170 +380,192 @@ class DatabaseManager:
         lock_date = self._get_first_of_next_month()
         self.update_settings(user_id, deposit_locked_until=lock_date)
 
-
     # Payout Operations (Isolated per user)
     def create_payout(self, user_id: int, payout_date: str, amount: float, phone_number: str, 
                       status: str, conversation_id: str = "", 
                       originator_conversation_id: str = "") -> int:
         """Create a new payout transaction log. Raises IntegrityError on duplicate date per user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO payouts (user_id, payout_date, amount, phone_number, status, conversation_id, originator_conversation_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (user_id, payout_date, amount, phone_number, status, conversation_id, originator_conversation_id))
-        conn.commit()
-        return cursor.lastrowid
+        payout = Payout(
+            user_id=user_id,
+            payout_date=payout_date,
+            amount=amount,
+            phone_number=phone_number,
+            status=status,
+            conversation_id=conversation_id,
+            originator_conversation_id=originator_conversation_id
+        )
+        self.session.add(payout)
+        self._commit()
+        return payout.id
 
     def update_payout_status(self, conversation_id: str, status: str,
                              transaction_id: str = "", error_message: str = "",
                              completed_at: str = "", failed_at: str = "") -> bool:
         """Update payout record status by ConversationID only if it is PENDING."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE payouts
-            SET status = ?, transaction_id = ?, error_message = ?, completed_at = ?, failed_at = ?
-            WHERE conversation_id = ? AND status = 'PENDING'
-        """, (status, transaction_id, error_message, completed_at, failed_at, conversation_id))
-        conn.commit()
-        return cursor.rowcount > 0
+        payout = self.session.query(Payout).filter(
+            Payout.conversation_id == conversation_id,
+            Payout.status == 'PENDING'
+        ).first()
+        if payout:
+            payout.status = status
+            payout.transaction_id = transaction_id
+            payout.error_message = error_message
+            payout.completed_at = completed_at
+            payout.failed_at = failed_at
+            self._commit()
+            return True
+        return False
 
     def get_payout_by_user_date(self, user_id: int, payout_date: str) -> Optional[Dict[str, Any]]:
         """Retrieve a specific payout record for a user on a given date (YYYY-MM-DD)."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM payouts WHERE user_id = ? AND payout_date = ?",
-            (user_id, payout_date)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        payout = self.session.query(Payout).filter(
+            Payout.user_id == user_id,
+            Payout.payout_date == payout_date
+        ).first()
+        return _row_to_dict(payout) if payout else None
 
     def reset_failed_payout_for_retry(self, payout_id: int) -> None:
         """Reset a FAILED payout record back to PENDING so a retry can proceed."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE payouts
-            SET status = 'PENDING', conversation_id = '', originator_conversation_id = '',
-                transaction_id = '', error_message = '', failed_at = ''
-            WHERE id = ? AND status = 'FAILED'
-        """, (payout_id,))
-        conn.commit()
+        payout = self.session.query(Payout).filter(
+            Payout.id == payout_id,
+            Payout.status == 'FAILED'
+        ).first()
+        if payout:
+            payout.status = 'PENDING'
+            payout.conversation_id = ''
+            payout.originator_conversation_id = ''
+            payout.transaction_id = ''
+            payout.error_message = ''
+            payout.failed_at = ''
+            self._commit()
 
     def get_payout_by_conversation_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a specific payout transaction by conversation ID across all users."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM payouts WHERE conversation_id = ?", (conversation_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        payout = self.session.query(Payout).filter(Payout.conversation_id == conversation_id).first()
+        return _row_to_dict(payout) if payout else None
 
     def get_payouts(self, user_id: int, limit: int = 100) -> List[Dict[str, Any]]:
         """Fetch past payouts for a specific user, sorted by created_at DESC, id DESC."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM payouts WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?", (user_id, limit))
-        return [dict(row) for row in cursor.fetchall()]
+        payouts = self.session.query(Payout).filter(Payout.user_id == user_id).order_by(
+            Payout.created_at.desc(),
+            Payout.id.desc()
+        ).limit(limit).all()
+        return [_row_to_dict(p) for p in payouts]
 
     # Logging Operations (Isolated per user)
     def log_event(self, user_id: int, level: str, message: str) -> None:
         """Write a system event to logs for a specific user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO logs (user_id, level, message) VALUES (?, ?, ?)", (user_id, level, message))
-        conn.commit()
+        log = Log(
+            user_id=user_id,
+            level=level,
+            message=message
+        )
+        self.session.add(log)
+        self._commit()
 
     def get_logs(self, user_id: int, limit: int = 100) -> List[Dict[str, Any]]:
         """Fetch system logs for a specific user, sorted by id DESC."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM logs WHERE user_id = ? ORDER BY id DESC LIMIT ?", (user_id, limit))
-        return [dict(row) for row in cursor.fetchall()]
+        logs = self.session.query(Log).filter(Log.user_id == user_id).order_by(Log.id.desc()).limit(limit).all()
+        return [_row_to_dict(l) for l in logs]
 
     def get_budget_items(self, user_id: int) -> List[Dict[str, Any]]:
         """Fetch all budget allocation items for a specific user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM budget_items WHERE user_id = ? ORDER BY category ASC", (user_id,))
-        return [dict(row) for row in cursor.fetchall()]
+        items = self.session.query(BudgetItem).filter(BudgetItem.user_id == user_id).order_by(BudgetItem.category.asc()).all()
+        return [_row_to_dict(i) for i in items]
 
     def add_or_update_budget_item(self, user_id: int, category: str, amount: float) -> int:
         """Add a new budget allocation item or update it if the category already exists."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO budget_items (user_id, category, amount)
-            VALUES (?, ?, ?)
-            ON CONFLICT(user_id, category) DO UPDATE SET amount = excluded.amount
-        """, (user_id, category, amount))
-        conn.commit()
-        item_id = cursor.lastrowid
+        item = self.session.query(BudgetItem).filter(
+            BudgetItem.user_id == user_id,
+            BudgetItem.category == category
+        ).first()
+        if item:
+            item.amount = amount
+        else:
+            item = BudgetItem(
+                user_id=user_id,
+                category=category,
+                amount=amount
+            )
+            self.session.add(item)
+        self._commit()
+        item_id = item.id
         self.recalculate_daily_budget(user_id)
         return item_id
 
     def delete_budget_item(self, user_id: int, item_id: int) -> bool:
         """Delete a specific budget allocation item for a user."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM budget_items WHERE user_id = ? AND id = ?", (user_id, item_id))
-        conn.commit()
-        deleted = cursor.rowcount > 0
-        if deleted:
+        item = self.session.query(BudgetItem).filter(
+            BudgetItem.user_id == user_id,
+            BudgetItem.id == item_id
+        ).first()
+        if item:
+            self.session.delete(item)
+            self._commit()
             self.recalculate_daily_budget(user_id)
-        return deleted
+            return True
+        return False
 
     def recalculate_daily_budget(self, user_id: int) -> float:
         """Sum all allocation items and update the user's daily budget settings."""
-        conn = self.connection
-        cursor = conn.cursor()
-        
-        # Calculate sum
-        cursor.execute("SELECT SUM(amount) as total FROM budget_items WHERE user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        total = row["total"] if row and row["total"] is not None else 0.0
-        
-        # Update settings table
-        cursor.execute("UPDATE settings SET daily_budget = ? WHERE user_id = ?", (total, user_id))
-        conn.commit()
-        
+        total = self.session.query(func.sum(BudgetItem.amount)).filter(BudgetItem.user_id == user_id).scalar()
+        if total is None:
+            total = 0.0
+            
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.daily_budget = total
+            self._commit()
+            
         self.log_event(user_id, "INFO", f"Recalculated daily budget allocation total: KES {total:.2f}.")
         return total
 
     def create_deposit(self, user_id: int, checkout_request_id: str, amount: float) -> int:
         """Create a pending deposit transaction record."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO deposits (user_id, checkout_request_id, amount, status)
-            VALUES (?, ?, ?, 'PENDING')
-        """, (user_id, checkout_request_id, amount))
-        conn.commit()
-        return cursor.lastrowid
+        deposit = Deposit(
+            user_id=user_id,
+            checkout_request_id=checkout_request_id,
+            amount=amount,
+            status='PENDING'
+        )
+        self.session.add(deposit)
+        self._commit()
+        return deposit.id
 
     def get_deposit(self, checkout_request_id: str) -> Optional[Dict[str, Any]]:
         """Fetch a deposit record by its checkout request ID."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM deposits WHERE checkout_request_id = ?", (checkout_request_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        deposit = self.session.query(Deposit).filter(Deposit.checkout_request_id == checkout_request_id).first()
+        return _row_to_dict(deposit) if deposit else None
 
     def update_deposit_status(self, checkout_request_id: str, status: str, mpesa_receipt: str = "") -> bool:
         """Update the status and M-Pesa receipt of a deposit transaction only if it is PENDING."""
-        conn = self.connection
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE deposits 
-            SET status = ?, mpesa_receipt = ?
-            WHERE checkout_request_id = ? AND status = 'PENDING'
-        """, (status, mpesa_receipt, checkout_request_id))
-        conn.commit()
-        return cursor.rowcount > 0
+        deposit = self.session.query(Deposit).filter(
+            Deposit.checkout_request_id == checkout_request_id,
+            Deposit.status == 'PENDING'
+        ).first()
+        if deposit:
+            deposit.status = status
+            deposit.mpesa_receipt = mpesa_receipt
+            self._commit()
+            return True
+        return False
 
     def close(self) -> None:
-        """Close the sqlite database connection."""
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        """Close the database connection and dispose of engine if in pytest mode."""
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+        if self._raw_conn is not None:
+            self._raw_conn.close()
+            self._raw_conn = None
+            
+        # For unit tests, we dispose the engine to release file locks on Windows
+        is_pytest = (
+            "TESTING" in os.environ 
+            or "PYTEST_CURRENT_TEST" in os.environ
+        )
+        if is_pytest and hasattr(self, 'engine'):
+            self.engine.dispose()
+            global _engines_cache
+            if self.db_url in _engines_cache:
+                del _engines_cache[self.db_url]

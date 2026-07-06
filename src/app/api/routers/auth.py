@@ -1,6 +1,7 @@
 import re
-import sqlite3
+import sqlalchemy
 from typing import Optional
+from app.db.models import User, Session as DbSession
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id, session_manager
@@ -35,7 +36,7 @@ def signup_user(payload: AuthPayload, request: Request, db: DatabaseManager = De
         user_id = db.create_user(sanitized_phone, payload.password)
         db.log_event(user_id, "INFO", "User registration completed successfully.")
         return {"status": "success", "user_id": user_id}
-    except sqlite3.IntegrityError:
+    except sqlalchemy.exc.IntegrityError:
         raise HTTPException(status_code=400, detail="This phone number is already registered.")
 
 @router.post("/login")
@@ -69,21 +70,21 @@ def login_user(payload: AuthPayload, response: Response, request: Request, db: D
 def logout_user(response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
     response.delete_cookie(key="session_token")
     if session_token:
-        conn = db.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM sessions WHERE session_token = ?", (session_token,))
-        conn.commit()
+        db.session.query(DbSession).filter(DbSession.session_token == session_token).delete(synchronize_session=False)
+        db._commit()
     return {"status": "success"}
 
 @router.get("/me")
 def get_me(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    conn = db.connection
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, phone_number, created_at FROM users WHERE id = ?", (user_id,))
-    row = cursor.fetchone()
-    if not row:
+    import datetime
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user:
         raise HTTPException(status_code=404, detail="User not found.")
-    return dict(row)
+    return {
+        "id": user.id,
+        "phone_number": user.phone_number,
+        "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(user.created_at, datetime.datetime) else user.created_at
+    }
 
 @router.post("/ping")
 def ping_session(user_id: int = Depends(get_current_user_id)):

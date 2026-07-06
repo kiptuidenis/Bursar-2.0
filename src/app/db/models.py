@@ -1,0 +1,125 @@
+import datetime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy.orm import declarative_base, relationship
+
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    phone_number = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    salt = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    first_name = Column(String(100), default="")
+    last_name = Column(String(100), default="")
+    email = Column(String(100), default="")
+    avatar_url = Column(String(255), default="")
+    bio = Column(String(500), default="")
+    theme = Column(String(50), default="")
+    notifications_enabled = Column(Integer, default=1)
+    
+    # Relationships
+    settings = relationship("Settings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    payouts = relationship("Payout", back_populates="user", cascade="all, delete-orphan")
+    logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
+    budget_items = relationship("BudgetItem", back_populates="user", cascade="all, delete-orphan")
+    deposits = relationship("Deposit", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+class Settings(Base):
+    __tablename__ = "settings"
+    
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    balance = Column(Float, default=0.0)
+    daily_budget = Column(Float, default=0.0)
+    phone_number = Column(String(50), default="")
+    payout_time = Column(String(10), default="08:00")
+    mode = Column(String(50), default="sandbox")
+    mpesa_consumer_key = Column(String(255), default="")
+    mpesa_consumer_secret = Column(String(255), default="")
+    mpesa_shortcode = Column(String(50), default="")
+    mpesa_initiator_name = Column(String(100), default="")
+    mpesa_initiator_password = Column(String(255), default="")
+    mpesa_b2c_result_url = Column(String(255), default="")
+    mpesa_b2c_timeout_url = Column(String(255), default="")
+    budget_locked_until = Column(String(50), default="")
+    deposit_locked_until = Column(String(50), default="")
+    start_date = Column(String(50), default="")
+    end_date = Column(String(50), default="")
+    
+    user = relationship("User", back_populates="settings")
+
+class Payout(Base):
+    __tablename__ = "payouts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "payout_date", name="uq_user_payout_date"),
+    )
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    payout_date = Column(String(50), nullable=False)
+    amount = Column(Float, nullable=False)
+    phone_number = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
+    conversation_id = Column(String(100), default="")
+    originator_conversation_id = Column(String(100), default="")
+    transaction_id = Column(String(100), default="")
+    error_message = Column(String(500), default="")
+    completed_at = Column(String(50), default="")
+    failed_at = Column(String(50), default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    user = relationship("User", back_populates="payouts")
+
+class Log(Base):
+    __tablename__ = "logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    level = Column(String(20), nullable=False)
+    message = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    user = relationship("User", back_populates="logs")
+
+class BudgetItem(Base):
+    __tablename__ = "budget_items"
+    __table_args__ = (
+        UniqueConstraint("user_id", "category", name="uq_user_category"),
+    )
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    category = Column(String(100), nullable=False)
+    amount = Column(Float, nullable=False)
+    
+    user = relationship("User", back_populates="budget_items")
+
+class Deposit(Base):
+    __tablename__ = "deposits"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    checkout_request_id = Column(String(100), unique=True, nullable=False)
+    amount = Column(Float, nullable=False)
+    status = Column(String(50), default="PENDING", nullable=False)
+    mpesa_receipt = Column(String(100), default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    user = relationship("User", back_populates="deposits")
+
+class Session(Base):
+    __tablename__ = "sessions"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    session_token = Column(String(255), unique=True, nullable=False)
+    user_agent = Column(String(255), default="")
+    ip_address = Column(String(100), default="")
+    expires_at = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_activity = Column(Integer)
+    
+    user = relationship("User", back_populates="sessions")

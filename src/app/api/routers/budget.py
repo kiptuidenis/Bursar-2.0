@@ -2,6 +2,7 @@ import re
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Body
 from app.db.manager import DatabaseManager
+from app.db.models import BudgetItem
 from app.api.dependencies import get_db, get_current_user_id
 from app.api.schemas import BudgetItemPayload, BudgetLockPayload
 
@@ -51,18 +52,14 @@ def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_i
         if db.is_budget_locked(user_id):
             raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
         
-        conn = db.connection
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM budget_items WHERE user_id = ?", (user_id,))
+        db.session.query(BudgetItem).filter(BudgetItem.user_id == user_id).delete(synchronize_session=False)
         for item in payload.items:
             category = item.category.strip()
             if not category:
                 raise HTTPException(status_code=400, detail="Category name cannot be empty")
-            cursor.execute("""
-                INSERT INTO budget_items (user_id, category, amount)
-                VALUES (?, ?, ?)
-            """, (user_id, category, item.amount))
-        conn.commit()
+            db_item = BudgetItem(user_id=user_id, category=category, amount=item.amount)
+            db.session.add(db_item)
+        db._commit()
         db.recalculate_daily_budget(user_id)
         
     items = db.get_budget_items(user_id)
