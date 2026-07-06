@@ -3445,3 +3445,8 @@ body:not(.landing-body) {
 [data-theme="light"] .glow-bg {
     opacity: 0.1 !important;
 }
+
+/* Hide Google reCAPTCHA v3 badge */
+.grecaptcha-badge {
+    display: none !important;
+}
