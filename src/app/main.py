@@ -1,5 +1,19 @@
 import os
+import sys
 import datetime
+
+# DIAGNOSTIC LOGGING
+try:
+    import pymysql
+    print(f"[DIAGNOSTIC] Successfully imported pymysql from {pymysql.__file__}")
+except Exception as e:
+    print(f"[DIAGNOSTIC] Failed to import pymysql: {e}")
+    import traceback
+    traceback.print_exc()
+
+print(f"[DIAGNOSTIC] sys.executable: {sys.executable}")
+print(f"[DIAGNOSTIC] sys.path: {sys.path}")
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
