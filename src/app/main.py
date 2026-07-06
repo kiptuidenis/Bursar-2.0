@@ -23,6 +23,7 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
+print(f"[DIAGNOSTIC] DATABASE_URL: {repr(os.environ.get('DATABASE_URL'))}")
 print(f"[DIAGNOSTIC] sys.executable: {sys.executable}")
 print(f"[DIAGNOSTIC] sys.path: {sys.path}")
 
