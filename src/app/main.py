@@ -2,6 +2,10 @@ import os
 import sys
 import datetime
 
+# Trigger configuration loading early for diagnostic logs
+from app.core.config import load_dotenv
+load_dotenv(".env")
+
 # DIAGNOSTIC LOGGING
 try:
     import pymysql
