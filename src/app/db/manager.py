@@ -70,6 +70,11 @@ class DatabaseManager:
         else:
             self.db_url = db_path
             
+        self._session = None
+        self._raw_conn = None
+
+    @property
+    def engine(self):
         global _engines_cache
         if self.db_url not in _engines_cache:
             connect_args = {}
@@ -109,11 +114,11 @@ class DatabaseManager:
                                 pass
                         cursor.close()
             _engines_cache[self.db_url] = engine
-            
-        self.engine = _engines_cache[self.db_url]
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        self._session = None
-        self._raw_conn = None
+        return _engines_cache[self.db_url]
+
+    @property
+    def SessionLocal(self):
+        return sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
     @property
     def session(self):
