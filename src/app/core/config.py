@@ -1,5 +1,12 @@
 import os
 
+# Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
+try:
+    from sqlalchemy.dialects import registry
+    registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+except ImportError:
+    pass
+
 def load_dotenv(filepath=".env"):
     resolved_path = filepath
     if not os.path.isabs(filepath) and not os.path.exists(filepath):
