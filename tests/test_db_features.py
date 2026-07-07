@@ -50,3 +50,57 @@ def test_sqlite_pragmas():
     db.close()
     if os.path.exists(db_file):
         os.remove(db_file)
+
+def test_mysql_url_special_characters():
+    # Verify that URLs with special characters in the password are correctly sanitized and encoded
+    from app.db.manager import sanitize_db_url
+    
+    # 1. URL with '@' in the password
+    url1 = "mysql://db_user:my@password@rds-instance.amazonaws.com:3306/db_name"
+    sanitized1 = sanitize_db_url(url1)
+    assert sanitized1 == "mysql+pymysql://db_user:my%40password@rds-instance.amazonaws.com:3306/db_name"
+    
+    # 2. URL with ':' and '@' in the password
+    url2 = "mysql+pymysql://db_user:my:pass@word@rds-instance.amazonaws.com/db_name"
+    sanitized2 = sanitize_db_url(url2)
+    assert sanitized2 == "mysql+pymysql://db_user:my%3Apass%40word@rds-instance.amazonaws.com/db_name"
+    
+    # 3. URL already encoded
+    url3 = "mysql://db_user:my%40password@rds-instance.amazonaws.com:3306/db_name"
+    sanitized3 = sanitize_db_url(url3)
+    assert sanitized3 == "mysql+pymysql://db_user:my%40password@rds-instance.amazonaws.com:3306/db_name"
+
+def test_load_dotenv_relative_path(tmp_path):
+    import os
+    from app.core.config import load_dotenv
+    
+    # Define an environment variable key that is not set
+    env_key = "TEST_TEMPORARY_ENV_VAR_X"
+    if env_key in os.environ:
+        del os.environ[env_key]
+        
+    # Find project root
+    import app.core.config as config_mod
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(config_mod.__file__), "..", "..", ".."))
+    
+    # Create a temporary file at the project root
+    temp_env_path = os.path.join(root_dir, "temp_test_dotenv.env")
+    with open(temp_env_path, "w") as f:
+        f.write(f"{env_key}=loaded_value_successfully\n")
+        
+    # Change working directory to a completely different path (tmp_path)
+    old_cwd = os.getcwd()
+    os.chdir(str(tmp_path))
+    
+    try:
+        # Load using a relative path, from a different working directory
+        load_dotenv("temp_test_dotenv.env")
+        
+        # Verify it was loaded successfully by finding it at the project root
+        assert os.environ.get(env_key) == "loaded_value_successfully"
+    finally:
+        os.chdir(old_cwd)
+        if os.path.exists(temp_env_path):
+            os.remove(temp_env_path)
+        if env_key in os.environ:
+            del os.environ[env_key]

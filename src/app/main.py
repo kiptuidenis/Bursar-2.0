@@ -20,6 +20,17 @@ except Exception as e:
     print(f"[DIAGNOSTIC] Failed to import sqlalchemy: {e}")
 
 try:
+    from sqlalchemy.engine.url import make_url
+    url = make_url(os.environ.get("DATABASE_URL", "bursar.db"))
+    print(f"[DIAGNOSTIC] Successfully made SQLAlchemy URL: {repr(url)}")
+    dialect_cls = url._get_entrypoint()
+    print(f"[DIAGNOSTIC] Successfully resolved SQLAlchemy dialect entrypoint: {dialect_cls}")
+except Exception as e:
+    print(f"[DIAGNOSTIC] Failed to resolve dialect entrypoint: {e}")
+    import traceback
+    traceback.print_exc()
+
+try:
     import sqlalchemy.dialects.mysql.pymysql as sqla_mysql
     print(f"[DIAGNOSTIC] Successfully imported sqlalchemy.dialects.mysql.pymysql from {sqla_mysql.__file__}")
 except Exception as e:
@@ -53,22 +64,33 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
             
-    db_manager.initialize()
-    
-    # Verify that the database is accessible in production/development modes (skip in unit tests to avoid lock issues)
+    # Verify database accessibility and initialize schema (skip connection check in unit tests)
     if "PYTEST_CURRENT_TEST" not in os.environ:
         import sqlalchemy
         import logging
+        logger = logging.getLogger("bursar.startup")
         try:
+            # 1. Verify connection first
             with db_manager.engine.connect() as conn:
                 conn.execute(sqlalchemy.text("SELECT 1"))
+            # 2. Then initialize database schema/tables
+            db_manager.initialize()
         except Exception as e:
-            logger = logging.getLogger("bursar.startup")
-            logger.critical(f"Database at {db_manager.db_path} is not accessible! Error: {e}")
+            db_uri = db_manager.db_path
+            try:
+                from sqlalchemy.engine.url import make_url
+                parsed_url = make_url(db_uri)
+                if parsed_url.password:
+                    db_uri = parsed_url.render_as_string(hide_password=True)
+            except Exception:
+                pass
+            logger.critical(f"Database connection verification failed for {db_uri}! Error: {e}")
             raise RuntimeError(
-                f"The database at {db_manager.db_path} is not accessible or connection is refused. "
-                f"Please verify your connection settings. Error: {e}"
-            )
+                f"The database at {db_uri} is not accessible or connection was refused. "
+                f"Please verify your connection settings, credentials, network routes, and security groups. Error: {e}"
+            ) from e
+    else:
+        db_manager.initialize()
             
     if "PYTEST_CURRENT_TEST" not in os.environ and os.environ.get("DISABLE_SCHEDULER") != "1":
         app.state.scheduler = BackgroundScheduler(db_manager, interval_seconds=60)

@@ -1,9 +1,20 @@
 import os
 
 def load_dotenv(filepath=".env"):
-    if os.path.exists(filepath):
+    resolved_path = filepath
+    if not os.path.isabs(filepath) and not os.path.exists(filepath):
         try:
-            with open(filepath, "r") as f:
+            # config.py is in src/app/core/config.py, project root is 3 levels up
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+            possible_path = os.path.join(root_dir, filepath)
+            if os.path.exists(possible_path):
+                resolved_path = possible_path
+        except Exception:
+            pass
+
+    if os.path.exists(resolved_path):
+        try:
+            with open(resolved_path, "r") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -15,6 +26,7 @@ def load_dotenv(filepath=".env"):
                             os.environ[k] = value.strip().strip('"').strip("'")
         except Exception:
             pass
+
 
 # Trigger loading .env from project root
 load_dotenv(".env")

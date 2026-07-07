@@ -24,13 +24,46 @@ def _row_to_dict(model_instance, fields=None):
 
 _engines_cache = {}
 
+def sanitize_db_url(url: str) -> str:
+    """
+    Parse a database URL and automatically URL-encode any special characters in the password.
+    Supports both mysql:// and mysql+pymysql:// schemes.
+    """
+    if not (url.startswith("mysql://") or url.startswith("mysql+pymysql://")):
+        return url
+        
+    scheme = "mysql+pymysql://"
+    prefix_len = len("mysql://")
+    if url.startswith("mysql+pymysql://"):
+        prefix_len = len("mysql+pymysql://")
+        
+    rest = url[prefix_len:]
+    
+    # Split the authority component (userinfo@host) from the rest of the path (database, query params etc.)
+    path_split = rest.split("/", 1)
+    authority = path_split[0]
+    path = path_split[1] if len(path_split) > 1 else ""
+    
+    if "@" in authority:
+        # The last '@' symbol in the authority separates userinfo (user:password) from hostinfo
+        userinfo, host = authority.rsplit("@", 1)
+        if ":" in userinfo:
+            from urllib.parse import quote_plus, unquote
+            username, password = userinfo.split(":", 1)
+            # Safely unquote first to prevent double-encoding, then quote_plus
+            username = quote_plus(unquote(username))
+            password = quote_plus(unquote(password))
+            authority = f"{username}:{password}@{host}"
+            
+    return f"{scheme}{authority}/{path}"
+
 class DatabaseManager:
     def __init__(self, db_path: str = "bursar.db"):
         self.db_path = db_path
         
         # Format database path/URL
-        if db_path.startswith("mysql://"):
-            self.db_url = db_path.replace("mysql://", "mysql+pymysql://", 1)
+        if db_path.startswith("mysql://") or db_path.startswith("mysql+pymysql://"):
+            self.db_url = sanitize_db_url(db_path)
         elif "://" not in db_path:
             abs_path = os.path.abspath(db_path).replace("\\", "/")
             self.db_url = f"sqlite:///{abs_path}"
