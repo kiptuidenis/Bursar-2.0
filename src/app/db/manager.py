@@ -96,12 +96,18 @@ class DatabaseManager:
                 engine_kwargs["pool_recycle"] = 3600
             # DIAGNOSTIC / FORCED REGISTER
             try:
-                from sqlalchemy.dialects import registry as r
                 import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
-                print(f"[DIAGNOSTIC ENGINE] registry: {id(r)}, keys: {list(r.impls.keys())}")
-                r.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-                r.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-                print(f"[DIAGNOSTIC ENGINE AFTER] keys: {list(r.impls.keys())}")
+                # 1. Register in dialects registry
+                from sqlalchemy.dialects import registry as d_registry
+                d_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+                d_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+                
+                # 2. Register in engine url registry
+                from sqlalchemy.engine.url import registry as url_registry
+                url_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+                url_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+                
+                print(f"[DIAGNOSTIC ENGINE] registered mysql+pymysql successfully on both registries!")
             except Exception as e:
                 print(f"[DIAGNOSTIC ENGINE] failed: {e}")
 

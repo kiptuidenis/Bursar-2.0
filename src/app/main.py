@@ -4,10 +4,21 @@ import datetime
 
 # Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
 try:
-    from sqlalchemy.dialects import registry
     import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
-    registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    
+    # 1. Register in dialects registry
+    from sqlalchemy.dialects import registry as d_registry
+    d_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    d_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    d_registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+    d_registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+
+    # 2. Register in engine url registry
+    from sqlalchemy.engine.url import registry as url_registry
+    url_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    url_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    url_registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+    url_registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
 except Exception:
     pass
 
