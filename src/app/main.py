@@ -2,6 +2,15 @@ import os
 import sys
 import datetime
 
+# Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
+try:
+    from sqlalchemy.dialects import registry
+    import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
+    registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+except Exception:
+    pass
+
 # Trigger configuration loading early for diagnostic logs
 from app.core.config import load_dotenv
 load_dotenv(".env")

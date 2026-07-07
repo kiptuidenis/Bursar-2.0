@@ -9,6 +9,15 @@ from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
 from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session
 
+# Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
+try:
+    from sqlalchemy.dialects import registry
+    import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
+    registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+except Exception:
+    pass
+
 def _row_to_dict(model_instance, fields=None):
     if not model_instance:
         return {}
