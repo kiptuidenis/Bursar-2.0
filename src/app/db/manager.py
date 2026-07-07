@@ -94,7 +94,17 @@ class DatabaseManager:
                 # Enable pre-ping and recycle to prevent stale RDS MySQL connection drops
                 engine_kwargs["pool_pre_ping"] = True
                 engine_kwargs["pool_recycle"] = 3600
-                
+            # DIAGNOSTIC / FORCED REGISTER
+            try:
+                from sqlalchemy.dialects import registry as r
+                import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
+                print(f"[DIAGNOSTIC ENGINE] registry: {id(r)}, keys: {list(r.impls.keys())}")
+                r.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+                r.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+                print(f"[DIAGNOSTIC ENGINE AFTER] keys: {list(r.impls.keys())}")
+            except Exception as e:
+                print(f"[DIAGNOSTIC ENGINE] failed: {e}")
+
             engine = create_engine(self.db_url, connect_args=connect_args, **engine_kwargs)
             
             # Register SQLite performance tuning pragmas
