@@ -3,9 +3,16 @@ import os
 # Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
 try:
     from sqlalchemy.dialects import registry
+    try:
+        import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
+        registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+        registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
+    except Exception as e:
+        print(f"[DIAGNOSTIC] Failed direct registry mapping in config.py: {e}")
     registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-except ImportError:
-    pass
+    registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+except Exception as e:
+    print(f"[DIAGNOSTIC] Failed to import or register mysql dialect in config.py: {e}")
 
 def load_dotenv(filepath=".env"):
     resolved_path = filepath

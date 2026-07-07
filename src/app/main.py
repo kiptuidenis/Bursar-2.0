@@ -20,6 +20,10 @@ except Exception as e:
     print(f"[DIAGNOSTIC] Failed to import sqlalchemy: {e}")
 
 try:
+    from sqlalchemy.dialects import registry
+    print(f"[DIAGNOSTIC] mysql.pymysql in registry.impls: {'mysql.pymysql' in registry.impls}")
+    if "mysql.pymysql" in registry.impls:
+        print(f"[DIAGNOSTIC] registry.impls['mysql.pymysql'] resolves to: {registry.impls['mysql.pymysql']()}")
     from sqlalchemy.engine.url import make_url
     url = make_url(os.environ.get("DATABASE_URL", "bursar.db"))
     print(f"[DIAGNOSTIC] Successfully made SQLAlchemy URL: {repr(url)}")
