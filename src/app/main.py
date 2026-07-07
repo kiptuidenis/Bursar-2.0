@@ -2,25 +2,6 @@ import os
 import sys
 import datetime
 
-# Monkey-patch SQLAlchemy's PluginLoader.load to bypass Python 3.14+ entrypoint
-# compatibility bugs that prevent the mysql+pymysql dialect from being resolved.
-# This intercepts the load() call at the method level, which is the only approach
-# that works reliably under Python 3.14 where both registry.impls mapping and
-# importlib.metadata entrypoint discovery are broken.
-try:
-    from sqlalchemy.util.langhelpers import PluginLoader
-    _original_load = PluginLoader.load
-
-    def _patched_load(self, name):
-        if name in ("mysql.pymysql", "mysql+pymysql"):
-            from sqlalchemy.dialects.mysql.pymysql import MySQLDialect_pymysql
-            return MySQLDialect_pymysql
-        return _original_load(self, name)
-
-    PluginLoader.load = _patched_load
-except Exception:
-    pass
-
 # Trigger configuration loading early
 from app.core.config import load_dotenv
 load_dotenv(".env")
