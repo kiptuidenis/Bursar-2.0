@@ -2,69 +2,28 @@ import os
 import sys
 import datetime
 
-# Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
+# Monkey-patch SQLAlchemy's PluginLoader.load to bypass Python 3.14+ entrypoint
+# compatibility bugs that prevent the mysql+pymysql dialect from being resolved.
+# This intercepts the load() call at the method level, which is the only approach
+# that works reliably under Python 3.14 where both registry.impls mapping and
+# importlib.metadata entrypoint discovery are broken.
 try:
-    import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
-    
-    # 1. Register in dialects registry
-    from sqlalchemy.dialects import registry as d_registry
-    d_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    d_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    d_registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-    d_registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+    from sqlalchemy.util.langhelpers import PluginLoader
+    _original_load = PluginLoader.load
 
-    # 2. Register in engine url registry
-    from sqlalchemy.engine.url import registry as url_registry
-    url_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    url_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    url_registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-    url_registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
+    def _patched_load(self, name):
+        if name in ("mysql.pymysql", "mysql+pymysql"):
+            from sqlalchemy.dialects.mysql.pymysql import MySQLDialect_pymysql
+            return MySQLDialect_pymysql
+        return _original_load(self, name)
+
+    PluginLoader.load = _patched_load
 except Exception:
     pass
 
-# Trigger configuration loading early for diagnostic logs
+# Trigger configuration loading early
 from app.core.config import load_dotenv
 load_dotenv(".env")
-
-# DIAGNOSTIC LOGGING
-try:
-    import pymysql
-    print(f"[DIAGNOSTIC] Successfully imported pymysql from {pymysql.__file__}")
-except Exception as e:
-    print(f"[DIAGNOSTIC] Failed to import pymysql: {e}")
-
-try:
-    import sqlalchemy
-    print(f"[DIAGNOSTIC] Successfully imported sqlalchemy from {sqlalchemy.__file__} (version {sqlalchemy.__version__})")
-except Exception as e:
-    print(f"[DIAGNOSTIC] Failed to import sqlalchemy: {e}")
-
-try:
-    from sqlalchemy.dialects import registry
-    print(f"[DIAGNOSTIC] mysql.pymysql in registry.impls: {'mysql.pymysql' in registry.impls}")
-    if "mysql.pymysql" in registry.impls:
-        print(f"[DIAGNOSTIC] registry.impls['mysql.pymysql'] resolves to: {registry.impls['mysql.pymysql']()}")
-    from sqlalchemy.engine.url import make_url
-    url = make_url(os.environ.get("DATABASE_URL", "bursar.db"))
-    print(f"[DIAGNOSTIC] Successfully made SQLAlchemy URL: {repr(url)}")
-    dialect_cls = url._get_entrypoint()
-    print(f"[DIAGNOSTIC] Successfully resolved SQLAlchemy dialect entrypoint: {dialect_cls}")
-except Exception as e:
-    print(f"[DIAGNOSTIC] Failed to resolve dialect entrypoint: {e}")
-    import traceback
-    traceback.print_exc()
-
-try:
-    import sqlalchemy.dialects.mysql.pymysql as sqla_mysql
-    print(f"[DIAGNOSTIC] Successfully imported sqlalchemy.dialects.mysql.pymysql from {sqla_mysql.__file__}")
-except Exception as e:
-    print(f"[DIAGNOSTIC] Failed to import sqlalchemy.dialects.mysql.pymysql: {e}")
-    import traceback
-    traceback.print_exc()
-
-print(f"[DIAGNOSTIC] DATABASE_URL: {repr(os.environ.get('DATABASE_URL'))}")
-print(f"[DIAGNOSTIC] sys.executable: {sys.executable}")
-print(f"[DIAGNOSTIC] sys.path: {sys.path}")
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Depends

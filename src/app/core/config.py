@@ -1,25 +1,5 @@
 import os
 
-# Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
-try:
-    import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
-    
-    # 1. Register in dialects registry
-    from sqlalchemy.dialects import registry as d_registry
-    d_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    d_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    d_registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-    d_registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-
-    # 2. Register in engine url registry
-    from sqlalchemy.engine.url import registry as url_registry
-    url_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    url_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    url_registry.register("mysql.pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-    url_registry.register("mysql+pymysql", "sqlalchemy.dialects.mysql.pymysql", "MySQLDialect_pymysql")
-except Exception as e:
-    print(f"[DIAGNOSTIC] Failed to import or register mysql dialect in config.py: {e}")
-
 def load_dotenv(filepath=".env"):
     resolved_path = filepath
     if not os.path.isabs(filepath) and not os.path.exists(filepath):

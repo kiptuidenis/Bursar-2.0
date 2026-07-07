@@ -9,14 +9,7 @@ from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
 from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session
 
-# Manually register mysql+pymysql dialect to bypass Python 3.14+ entrypoint compatibility issues
-try:
-    from sqlalchemy.dialects import registry
-    import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
-    registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-    registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-except Exception:
-    pass
+
 
 def _row_to_dict(model_instance, fields=None):
     if not model_instance:
@@ -94,22 +87,6 @@ class DatabaseManager:
                 # Enable pre-ping and recycle to prevent stale RDS MySQL connection drops
                 engine_kwargs["pool_pre_ping"] = True
                 engine_kwargs["pool_recycle"] = 3600
-            # DIAGNOSTIC / FORCED REGISTER
-            try:
-                import sqlalchemy.dialects.mysql.pymysql as mysql_pymysql
-                # 1. Register in dialects registry
-                from sqlalchemy.dialects import registry as d_registry
-                d_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-                d_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-                
-                # 2. Register in engine url registry
-                from sqlalchemy.engine.url import registry as url_registry
-                url_registry.impls["mysql.pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-                url_registry.impls["mysql+pymysql"] = lambda: mysql_pymysql.MySQLDialect_pymysql
-                
-                print(f"[DIAGNOSTIC ENGINE] registered mysql+pymysql successfully on both registries!")
-            except Exception as e:
-                print(f"[DIAGNOSTIC ENGINE] failed: {e}")
 
             engine = create_engine(self.db_url, connect_args=connect_args, **engine_kwargs)
             
