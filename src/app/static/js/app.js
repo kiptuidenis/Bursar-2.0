@@ -1274,13 +1274,13 @@ function startCountdownTimer() {
             return;
         }
 
-        if (!currentSettings.is_budget_locked) {
-            timerLabel.innerText = "Budget Unlocked";
+        if (parseFloat(currentSettings.daily_budget || 0) <= 0) {
+            timerLabel.innerText = "No Budget Set";
             return;
         }
 
-        if (parseFloat(currentSettings.daily_budget || 0) <= 0) {
-            timerLabel.innerText = "Daily Budget is 0";
+        if (!currentSettings.is_budget_locked) {
+            timerLabel.innerText = "Lock Budget to Activate";
             return;
         }
 
