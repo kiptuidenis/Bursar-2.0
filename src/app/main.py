@@ -97,13 +97,17 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": f"Internal Server Error: {str(exc)}"}
     )
 
+from app.core import config
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=config.CORS_ALLOWED_METHODS,
+    allow_headers=config.CORS_ALLOWED_HEADERS,
+    max_age=config.CORS_MAX_AGE,
 )
+
 
 # Register routers
 app.include_router(auth.router)

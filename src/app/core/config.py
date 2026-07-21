@@ -33,6 +33,7 @@ def load_dotenv(filepath=".env"):
 # Trigger loading .env from project root
 load_dotenv(".env")
 
+import re
 from typing import List, Union
 from pydantic import SecretStr
 
@@ -42,6 +43,63 @@ INSECURE_SECRET_PLACEHOLDERS = {
     "change_me",
     "secret",
 }
+
+ORIGIN_REGEX = re.compile(r"^https?://[a-zA-Z0-9.-]+(?::\d+)?$")
+DEFAULT_DEV_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+]
+
+
+def parse_allowed_origins(
+    raw_origins: str, 
+    is_test_mode: bool = False, 
+    is_dev_mode: bool = True
+) -> List[str]:
+    """
+    Parses, validates, and normalizes allowed CORS origins.
+    Rejects wildcards '*' when credentials are enabled.
+    In production mode (non-dev, non-test), missing ALLOWED_ORIGINS raises RuntimeError.
+    """
+    raw_clean = (raw_origins or "").strip()
+
+    if not raw_clean:
+        if is_test_mode or is_dev_mode:
+            return list(DEFAULT_DEV_ORIGINS)
+        raise RuntimeError(
+            "CRITICAL CORS CONFIGURATION ERROR: ALLOWED_ORIGINS environment variable must be explicitly defined in production mode.\n"
+            "Example: ALLOWED_ORIGINS=https://bursar.co.ke,https://app.bursar.co.ke\n"
+        )
+
+    parsed = []
+    items = raw_clean.split(",")
+    for item in items:
+        cleaned = item.strip().rstrip("/")
+        if not cleaned:
+            continue
+        if cleaned == "*":
+            raise ValueError(
+                "CRITICAL CORS SECURITY ERROR: Wildcard '*' origin is forbidden when allow_credentials=True. "
+                "Specify explicit allowed origins."
+            )
+        if not ORIGIN_REGEX.match(cleaned):
+            raise ValueError(
+                f"Invalid CORS origin format: '{cleaned}'. Origin must include scheme (http:// or https://), "
+                "valid host/domain/IP, optional port, and no path segments."
+            )
+        if cleaned not in parsed:
+            parsed.append(cleaned)
+
+    if not parsed:
+        if is_test_mode or is_dev_mode:
+            return list(DEFAULT_DEV_ORIGINS)
+        raise RuntimeError(
+            "CRITICAL CORS CONFIGURATION ERROR: ALLOWED_ORIGINS environment variable must be explicitly defined in production mode."
+        )
+
+    return parsed
+
 
 def parse_secret_key(key_input: Union[str, SecretStr, bytes]) -> bytes:
     """Validate secret key strength and return raw bytes representation."""
@@ -125,6 +183,19 @@ if IS_TEST_MODE:
 
 SECRET_KEY: SecretStr = validate_environment_secret_keys(is_test_mode=IS_TEST_MODE)
 FALLBACK_SECRET_KEYS: List[bytes] = parse_fallback_secret_keys(os.environ.get("OLD_SECRET_KEYS", ""), max_fallbacks=3)
+
+APP_ENV = os.environ.get("APP_ENV", "development").lower()
+IS_DEV_MODE = APP_ENV in ("development", "dev", "local")
+
+ALLOWED_ORIGINS: List[str] = parse_allowed_origins(
+    os.environ.get("ALLOWED_ORIGINS", ""),
+    is_test_mode=IS_TEST_MODE,
+    is_dev_mode=IS_DEV_MODE
+)
+CORS_ALLOWED_METHODS: List[str] = ["GET", "POST", "DELETE", "OPTIONS"]
+CORS_ALLOWED_HEADERS: List[str] = ["Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Background-Poll"]
+CORS_MAX_AGE: int = 600
+
 
 
 
