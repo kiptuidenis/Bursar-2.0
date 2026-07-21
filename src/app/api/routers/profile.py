@@ -7,8 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, UploadF
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id, session_manager
 from app.api.schemas import ProfileUpdate, PasswordChange, DeactivateRequest
+from app.core.config import SESSION_COOKIE_SECURE
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
+
+
 
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
@@ -183,5 +186,6 @@ def deactivate_account(
     db.deactivate_user(user_id)
     
     # Clean up session cookie
-    response.delete_cookie(key="session_token")
+    response.delete_cookie(key="session_token", secure=SESSION_COOKIE_SECURE)
     return {"status": "success"}
+

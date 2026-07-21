@@ -196,6 +196,11 @@ CORS_ALLOWED_METHODS: List[str] = ["GET", "POST", "DELETE", "OPTIONS"]
 CORS_ALLOWED_HEADERS: List[str] = ["Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Background-Poll"]
 CORS_MAX_AGE: int = 600
 
+SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+if not IS_DEV_MODE and not IS_TEST_MODE:
+    SESSION_COOKIE_SECURE = True
+
+
 
 
 

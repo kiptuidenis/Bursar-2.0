@@ -6,9 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id, session_manager
 from app.api.schemas import AuthPayload
+from app.core.config import SESSION_COOKIE_SECURE
 from app.services.recaptcha import verify_recaptcha_token
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+
+
 
 def sanitize_phone_number(phone: str) -> str:
     phone = phone.strip()
@@ -54,11 +58,11 @@ def login_user(payload: AuthPayload, response: Response, request: Request, db: D
     user_agent = request.headers.get("user-agent", "Unknown Device")
     ip_address = request.client.host if request.client else "Unknown IP"
     token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent=user_agent, ip_address=ip_address) # Valid for 24 hours
-    # Set HTTP-only secure cookie session
     response.set_cookie(
         key="session_token",
         value=token,
         httponly=True,
+        secure=SESSION_COOKIE_SECURE,
         samesite="lax",
         max_age=86400
     )
@@ -68,7 +72,7 @@ def login_user(payload: AuthPayload, response: Response, request: Request, db: D
 
 @router.post("/logout")
 def logout_user(response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
-    response.delete_cookie(key="session_token")
+    response.delete_cookie(key="session_token", secure=SESSION_COOKIE_SECURE)
     if session_token:
         db.session.query(DbSession).filter(DbSession.session_token == session_token).delete(synchronize_session=False)
         db._commit()
