@@ -15,8 +15,8 @@
     </defs>
     <!-- Rounded Background Container -->
     <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bursar-bg)" stroke="rgba(255, 91, 34, 0.4)" stroke-width="2"/>
-    <!-- Centered Wallet Icon -->
-    <g transform="translate(14, 14) scale(1.5)" fill="none" stroke="url(#bursar-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+    <!-- Wallet Icon — larger, centered in the tile -->
+    <g transform="translate(8, 8) scale(2.0)" fill="none" stroke="url(#bursar-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
         <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3"/>
         <path d="M3 7h15a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3"/>
         <path d="M16 12h.01"/>
