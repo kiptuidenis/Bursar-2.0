@@ -234,19 +234,6 @@ npx playwright test
 4. If the API call fails, the deducted balance is **refunded** to the wallet and the payout is marked `FAILED` for auditing.
 5. A subsequent tick picks up any pending payouts to check their transaction status via the gateway's status API.
 
----
-
-## Security Summary
-
-| Control | Implementation |
-|---|---|
-| Password storage | PBKDF2-HMAC-SHA256, 100,000 iterations |
-| Session tokens | HMAC-signed, HTTP-only cookie, 24h inactivity expiry |
-| Bot protection | Google reCAPTCHA v3 on auth forms |
-| Double-spend | DB-level unique constraint on `(user_id, payout_date)` |
-| Budget locks | Enforced at DB manager layer — cannot be bypassed via API |
-| M-Pesa PIN | Never seen or stored; STK Push authorizes on the user's device |
-| Admin access | No admin panel; user data is strictly account-scoped |
 
 ---
 
