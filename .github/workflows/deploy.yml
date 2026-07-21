@@ -25,8 +25,11 @@ jobs:
       - name: Run Python Unit Tests
         env:
           MPESA_MODE: simulation
+          SECRET_KEY: ci_test_secret_key_for_github_actions_32chars_min
+          SESSION_COOKIE_SECURE: "false"
         run: |
           python -m pytest
+
 
       - name: Run Static Syntax Audits
         run: |

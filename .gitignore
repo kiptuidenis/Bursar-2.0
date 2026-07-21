@@ -12,6 +12,9 @@ __pycache__/
 # SQLite Database Files
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
+
 
 # Testing Cache
 .pytest_cache/
@@ -28,3 +31,7 @@ node_modules/
 test-results/
 playwright-report/
 blob-report/
+
+# User Uploads
+src/app/static/uploads/
+

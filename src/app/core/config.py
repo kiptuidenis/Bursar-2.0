@@ -196,9 +196,17 @@ CORS_ALLOWED_METHODS: List[str] = ["GET", "POST", "DELETE", "OPTIONS"]
 CORS_ALLOWED_HEADERS: List[str] = ["Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Background-Poll"]
 CORS_MAX_AGE: int = 600
 
-SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+_cookie_secure_env = os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower()
 if not IS_DEV_MODE and not IS_TEST_MODE:
+    # Production: always enforce True regardless of env setting
+    SESSION_COOKIE_SECURE: bool = True
+elif _cookie_secure_env in ("true", "1", "yes"):
+    # Dev/test: only enable if explicitly opted in
     SESSION_COOKIE_SECURE = True
+else:
+    # Default for dev/test: False (HTTP TestClient needs cookies without Secure flag)
+    SESSION_COOKIE_SECURE = False
+
 
 
 

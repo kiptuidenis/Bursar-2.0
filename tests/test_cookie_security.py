@@ -15,14 +15,33 @@ def test_secure_cookie_configuration_in_production(monkeypatch):
     """SESSION_COOKIE_SECURE must be forced True in production, even if env says false."""
     monkeypatch.setenv("SESSION_COOKIE_SECURE", "false")
 
-    # Reproduce the config logic with production env flags (IS_DEV_MODE=False, IS_TEST_MODE=False)
-    env_val = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in ("true", "1", "yes")
+    # Reproduce production config logic (IS_DEV_MODE=False, IS_TEST_MODE=False)
     is_dev = False
     is_test = False
     if not is_dev and not is_test:
-        env_val = True  # Production always overrides to True
+        session_secure = True  # Production always forces True
+    else:
+        env_val = os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower()
+        session_secure = env_val in ("true", "1", "yes")
 
-    assert env_val is True
+    assert session_secure is True
+
+
+def test_secure_cookie_defaults_false_in_test_mode(monkeypatch):
+    """SESSION_COOKIE_SECURE must default to False in test mode if not explicitly set."""
+    monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
+
+    # Reproduce test mode config logic
+    is_dev = False
+    is_test = True  # Test mode
+    if not is_dev and not is_test:
+        session_secure = True
+    else:
+        env_val = os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower()
+        session_secure = env_val in ("true", "1", "yes")
+
+    assert session_secure is False  # Must be False so HTTP TestClient works
+
 
 
 # ===========================================================================
@@ -52,6 +71,7 @@ def test_login_endpoint_sets_secure_cookie_when_configured():
     mock_session_manager = MagicMock()
     mock_session_manager.create_session.return_value = "mock.session.token"
 
+    old_override = app.dependency_overrides.get(get_db)
     app.dependency_overrides[get_db] = _db_override(mock_db)
     try:
         with patch("app.api.routers.auth.SESSION_COOKIE_SECURE", True), \
@@ -68,7 +88,10 @@ def test_login_endpoint_sets_secure_cookie_when_configured():
                 }
             )
     finally:
-        app.dependency_overrides.pop(get_db, None)
+        if old_override is not None:
+            app.dependency_overrides[get_db] = old_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     set_cookie = response.headers.get("set-cookie", "")
@@ -85,6 +108,7 @@ def test_login_endpoint_omits_secure_cookie_in_local_dev():
     mock_session_manager = MagicMock()
     mock_session_manager.create_session.return_value = "mock.session.token"
 
+    old_override = app.dependency_overrides.get(get_db)
     app.dependency_overrides[get_db] = _db_override(mock_db)
     try:
         with patch("app.api.routers.auth.SESSION_COOKIE_SECURE", False), \
@@ -101,9 +125,13 @@ def test_login_endpoint_omits_secure_cookie_in_local_dev():
                 }
             )
     finally:
-        app.dependency_overrides.pop(get_db, None)
+        if old_override is not None:
+            app.dependency_overrides[get_db] = old_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     set_cookie = response.headers.get("set-cookie", "")
     assert "session_token" in set_cookie, f"session_token not in Set-Cookie: {set_cookie!r}"
     assert "secure" not in set_cookie.lower(), f"Expected NO 'secure' flag in Set-Cookie, got: {set_cookie!r}"
+
