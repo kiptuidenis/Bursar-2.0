@@ -1,4 +1,6 @@
 import os
+import sys
+
 
 def load_dotenv(filepath=".env"):
     resolved_path = filepath
@@ -31,16 +33,100 @@ def load_dotenv(filepath=".env"):
 # Trigger loading .env from project root
 load_dotenv(".env")
 
-# Default to simulation mode when running tests
-import sys
-if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules or os.environ.get("ALLOW_TEST_ENDPOINTS") == "1":
+from typing import List, Union
+from pydantic import SecretStr
+
+INSECURE_SECRET_PLACEHOLDERS = {
+    "bursar_default_session_secret_key_change_in_prod",
+    "your_secret_key_here",
+    "change_me",
+    "secret",
+}
+
+def parse_secret_key(key_input: Union[str, SecretStr, bytes]) -> bytes:
+    """Validate secret key strength and return raw bytes representation."""
+    if isinstance(key_input, SecretStr):
+        raw_val = key_input.get_secret_value()
+    elif isinstance(key_input, bytes):
+        raw_val = key_input.decode("utf-8")
+    else:
+        raw_val = str(key_input or "")
+
+    cleaned = raw_val.strip().strip('"').strip("'")
+    if not cleaned:
+        raise ValueError("Secret key cannot be empty or contain only whitespace.")
+
+    if cleaned.lower() in INSECURE_SECRET_PLACEHOLDERS:
+        raise ValueError("Insecure default or placeholder secret key detected.")
+
+    if len(cleaned) < 32:
+        raise ValueError(f"Secret key must be at least 32 characters long (got {len(cleaned)}).")
+
+    # Attempt hex decoding if 64 hex characters (e.g. from secrets.token_hex(32))
+    if len(cleaned) == 64:
+        try:
+            return bytes.fromhex(cleaned)
+        except ValueError:
+            pass
+
+    return cleaned.encode("utf-8")
+
+
+def parse_fallback_secret_keys(raw_fallbacks: str, max_fallbacks: int = 3) -> List[bytes]:
+    """Parse comma-separated fallback secret keys, stripping whitespace and capping at max_fallbacks."""
+    if not raw_fallbacks or not raw_fallbacks.strip():
+        return []
+
+    fallbacks = []
+    items = raw_fallbacks.split(",")
+    for item in items:
+        item_clean = item.strip()
+        if not item_clean:
+            continue
+        try:
+            parsed_key = parse_secret_key(item_clean)
+            fallbacks.append(parsed_key)
+        except ValueError:
+            continue
+        if len(fallbacks) >= max_fallbacks:
+            break
+    return fallbacks
+
+
+def validate_environment_secret_keys(is_test_mode: bool = False) -> SecretStr:
+    """Validate environment SECRET_KEY. In non-test mode, raises RuntimeError if invalid."""
+    env_secret = os.environ.get("SECRET_KEY", "").strip()
+
+    if is_test_mode and not env_secret:
+        # Fixed deterministic fallback for test environment only
+        return SecretStr("test_environment_secret_key_32_chars_minimum_len")
+
+    try:
+        parse_secret_key(env_secret)
+        return SecretStr(env_secret)
+    except ValueError as e:
+        if is_test_mode:
+            return SecretStr("test_environment_secret_key_32_chars_minimum_len")
+        raise RuntimeError(
+            "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY environment variable is not configured correctly.\n"
+            f"Details: {e}\n"
+            "To fix this, set a strong SECRET_KEY in your environment or .env file.\n"
+            "You can generate a cryptographically secure key by running:\n"
+            "  python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+        ) from e
+
+
+IS_TEST_MODE = "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules or os.environ.get("ALLOW_TEST_ENDPOINTS") == "1"
+
+if IS_TEST_MODE:
     os.environ["MPESA_MODE"] = "simulation"
     os.environ["INTASEND_MODE"] = "simulation"
     os.environ["RECAPTCHA_ENABLED"] = "false"
 
+SECRET_KEY: SecretStr = validate_environment_secret_keys(is_test_mode=IS_TEST_MODE)
+FALLBACK_SECRET_KEYS: List[bytes] = parse_fallback_secret_keys(os.environ.get("OLD_SECRET_KEYS", ""), max_fallbacks=3)
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "bursar_default_session_secret_key_change_in_prod")
 
 
 # Load Configuration Properties

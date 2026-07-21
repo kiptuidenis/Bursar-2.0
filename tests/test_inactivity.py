@@ -17,7 +17,8 @@ def db():
 
 @pytest.fixture
 def security_manager():
-    return SessionManager(secret_key="test_secret_key_inactivity")
+    return SessionManager(secret_key="test_secret_key_inactivity_32_chars_len")
+
 
 def test_session_inactivity_expiry(db, security_manager):
     user_id = db.create_user("254711111111", "1234")

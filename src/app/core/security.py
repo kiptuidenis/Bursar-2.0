@@ -4,19 +4,40 @@ import time
 import secrets
 from typing import Optional
 
+from typing import Optional, List, Union
+from pydantic import SecretStr
+
 class SessionManager:
-    def __init__(self, secret_key: Optional[str] = None):
-        # Generate a random 32-byte hexadecimal key if none is provided
-        self.secret_key = secret_key if secret_key is not None else secrets.token_hex(32)
+    def __init__(
+        self, 
+        secret_key: Optional[Union[str, SecretStr, bytes]] = None,
+        fallback_secret_keys: Optional[List[Union[str, SecretStr, bytes]]] = None
+    ):
+        from app.core.config import parse_secret_key
+        if secret_key is not None:
+            self.primary_key_bytes = parse_secret_key(secret_key)
+        else:
+            self.primary_key_bytes = secrets.token_bytes(32)
+
+        self.all_keys_bytes: List[bytes] = [self.primary_key_bytes]
+
+        if fallback_secret_keys:
+            for fk in fallback_secret_keys:
+                try:
+                    parsed_fk = parse_secret_key(fk)
+                    if parsed_fk not in self.all_keys_bytes:
+                        self.all_keys_bytes.append(parsed_fk)
+                except ValueError:
+                    continue
 
     def create_session(self, user_id: int, expires_in_seconds: int = 3600, db = None, user_agent: str = "", ip_address: str = "") -> str:
-        """Create a cryptographically signed session token for a user."""
+        """Create a cryptographically signed session token for a user using the primary key."""
         expiration = time.time() + expires_in_seconds
         session_payload = f"{user_id}:{expiration}"
         
-        # Calculate HMAC SHA-256 signature
+        # Calculate HMAC SHA-256 signature using primary key bytes
         signature = hmac.new(
-            self.secret_key.encode("utf-8"),
+            self.primary_key_bytes,
             session_payload.encode("utf-8"),
             hashlib.sha256
         ).hexdigest()
@@ -30,7 +51,7 @@ class SessionManager:
         return token
 
     def validate_session(self, token: Optional[str], db = None, is_poll: bool = False) -> Optional[int]:
-        """Verify the signature and expiration of a session token. Returns user_id if valid."""
+        """Verify the signature across primary and fallback keys, and check expiration."""
         if not token:
             return None
             
@@ -39,17 +60,24 @@ class SessionManager:
             return None
             
         user_id_str, expiration_str, signature = parts
-        
-        # Verify signature
         session_payload = f"{user_id_str}:{expiration_str}"
-        expected_signature = hmac.new(
-            self.secret_key.encode("utf-8"),
-            session_payload.encode("utf-8"),
-            hashlib.sha256
-        ).hexdigest()
+        payload_bytes = session_payload.encode("utf-8")
+
+        # Verify signature using constant-time comparison against primary key and fallback keys
+        signature_valid = False
+        for k_bytes in self.all_keys_bytes:
+            expected_signature = hmac.new(
+                k_bytes,
+                payload_bytes,
+                hashlib.sha256
+            ).hexdigest()
+            if hmac.compare_digest(signature, expected_signature):
+                signature_valid = True
+                break
         
-        if not hmac.compare_digest(signature, expected_signature):
+        if not signature_valid:
             return None
+
             
         # Verify expiration
         try:

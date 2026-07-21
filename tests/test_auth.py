@@ -4,8 +4,8 @@ from app.core.security import SessionManager
 
 @pytest.fixture
 def manager():
-    # Setup with a fixed secret for testing determinism
-    return SessionManager(secret_key="test_signing_secret_key_123")
+    # Setup with a fixed secret for testing determinism (must be at least 32 chars)
+    return SessionManager(secret_key="test_signing_secret_key_32_chars_123")
 
 def test_generate_and_validate_session(manager):
     user_id = 42
@@ -52,9 +52,10 @@ def test_invalid_format(manager):
     assert manager.validate_session("123:456") is None
 
 def test_different_secret_key():
-    m1 = SessionManager(secret_key="secret_one")
-    m2 = SessionManager(secret_key="secret_two")
+    m1 = SessionManager(secret_key="secret_one_32_characters_minimum_len")
+    m2 = SessionManager(secret_key="secret_two_32_characters_minimum_len")
     
     token = m1.create_session(5, expires_in_seconds=10)
     # Validation by m2 must fail because secret keys don't match
     assert m2.validate_session(token) is None
+

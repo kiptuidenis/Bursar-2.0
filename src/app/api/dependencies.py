@@ -3,12 +3,13 @@ from typing import Optional, Generator
 from fastapi import Depends, HTTPException, Cookie, Request
 from app.db.manager import DatabaseManager
 from app.core.security import SessionManager
-from app.core.config import SECRET_KEY
+from app.core.config import SECRET_KEY, FALLBACK_SECRET_KEYS
 
 DB_FILE = os.environ.get("DATABASE_URL", "bursar.db")
 
 db_manager = DatabaseManager(DB_FILE)
-session_manager = SessionManager(secret_key=SECRET_KEY)
+session_manager = SessionManager(secret_key=SECRET_KEY, fallback_secret_keys=FALLBACK_SECRET_KEYS)
+
 
 def get_db() -> Generator[DatabaseManager, None, None]:
     db = DatabaseManager(DB_FILE)
