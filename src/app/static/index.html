@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bursar 2.0</title>
-    <meta name="description" content="Drip-feed your monthly budget into daily allowances with automated, double-spend protected M-Pesa payouts. Lock in your financial discipline today.">
+    <meta name="description"
+        content="Drip-feed your monthly budget into daily allowances with automated, double-spend protected M-Pesa payouts. Lock in your financial discipline today.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2.0">
     <!-- CSS Style -->
@@ -19,15 +23,16 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body class="landing-body">
     <!-- Blur Glow Orbs for Mockup Background -->
     <div class="glow-bg"></div>
     <div class="glow-orb glow-green"></div>
     <div class="glow-orb glow-purple"></div>
     <div class="glow-orb glow-pink"></div>
-    
+
     <div class="app-container landing-container">
-        
+
         <!-- Header -->
         <header class="app-header glass-panel landing-header" id="landing-header">
             <div class="header-logo">
@@ -45,8 +50,11 @@
         <!-- Hero Section -->
         <section class="landing-hero" id="hero-section">
             <div class="hero-content">
-                <h1 class="hero-title">Empower Your Spending. <br><span class="gradient-text">Build Your Future.</span></h1>
-                <p class="hero-subtitle">Take control of your money with automated daily allowances. Bursar safely holds your deposit and sends a fixed allowance to your M-Pesa every day, helping you avoid spending everything at once.</p>
+                <h1 class="hero-title">Control Your Spending. <br><span class="gradient-text">Build Your Future.</span>
+                </h1>
+                <p class="hero-subtitle">Take control of your money with automated daily allowances. Bursar safely holds
+                    your deposit and sends a fixed allowance to your M-Pesa every day, helping you avoid spending
+                    everything at once.</p>
                 <div class="hero-actions">
                     <a href="#signup" class="btn btn-primary btn-lg" id="hero-cta-btn">
                         Get Started Free
@@ -87,12 +95,13 @@
                                     <i data-lucide="battery" style="width: 0.7rem; height: 0.7rem;"></i>
                                 </div>
                             </div>
-                            
+
                             <!-- Phone App Header -->
                             <div class="phone-app-header">
                                 <i data-lucide="chevron-left" style="width: 1rem; height: 1rem;"></i>
                                 <span class="phone-header-title">Daily Spending Insights</span>
-                                <i data-lucide="circle-dot" style="width: 0.9rem; height: 0.9rem; color: var(--color-accent-rose);"></i>
+                                <i data-lucide="circle-dot"
+                                    style="width: 0.9rem; height: 0.9rem; color: var(--color-accent-rose);"></i>
                             </div>
 
                             <!-- Phone Dashboard Inner Widget -->
@@ -109,7 +118,8 @@
                             <!-- Phone Dashboard Status Info -->
                             <div class="phone-status-info">
                                 <span class="phone-status-title">On Track</span>
-                                <span class="phone-status-desc">Your spending is within your daily budget this week.</span>
+                                <span class="phone-status-desc">Your spending is within your daily budget this
+                                    week.</span>
                             </div>
 
                             <!-- Phone Dashboard Bottom Nav -->
@@ -119,7 +129,7 @@
                                 <i data-lucide="clock"></i>
                                 <i data-lucide="settings"></i>
                             </div>
-                            
+
                             <div class="phone-home-indicator"></div>
                         </div>
                     </div>
@@ -131,7 +141,8 @@
                         <h4>7-Day Spending Trend</h4>
                         <span class="dots">...</span>
                     </div>
-                    <div class="widget-chart-container" style="position: relative; height: 160px; width: 100%; margin-bottom: 1rem;">
+                    <div class="widget-chart-container"
+                        style="position: relative; height: 160px; width: 100%; margin-bottom: 1rem;">
                         <canvas id="pacing-sim-chart"></canvas>
                     </div>
                     <!-- Widget Bottom Info Columns -->
@@ -158,8 +169,9 @@
         <!-- Feature Matrix Table (Lump Sum vs. Paced) -->
         <section class="landing-section" id="matrix-section">
             <h2 class="section-title text-center">Conquer the impulse to spend</h2>
-            <p class="section-subtitle text-center">See how Bursar helps you stay within budget compared to keeping a lump sum in your wallet.</p>
-            
+            <p class="section-subtitle text-center">See how Bursar helps you stay within budget compared to keeping a
+                lump sum in your wallet.</p>
+
             <div class="table-container glass-panel comparison-table-container">
                 <table class="comparison-table" id="comparison-table">
                     <thead>
@@ -172,18 +184,24 @@
                     <tbody>
                         <tr>
                             <td><strong>Budget Durability</strong></td>
-                            <td class="negative-cell"><i data-lucide="x-circle"></i> Spent by Week 2 on impulse purchases</td>
-                            <td class="positive-cell"><i data-lucide="check-circle"></i> Guaranteed distribution over 30 days</td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> Spent by Week 2 on impulse
+                                purchases</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Guaranteed distribution over 30
+                                days</td>
                         </tr>
                         <tr>
                             <td><strong>Spending Limits</strong></td>
-                            <td class="negative-cell"><i data-lucide="x-circle"></i> Easy to override settings emotionally</td>
-                            <td class="positive-cell"><i data-lucide="check-circle"></i> Strict rules protect your savings until next month</td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> Easy to override settings
+                                emotionally</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Strict rules protect your
+                                savings until next month</td>
                         </tr>
                         <tr>
                             <td><strong>M-Pesa Integration</strong></td>
-                            <td class="negative-cell"><i data-lucide="x-circle"></i> Manual tracking, transfers, & fees</td>
-                            <td class="positive-cell"><i data-lucide="check-circle"></i> Automatic daily transfers straight to your M-Pesa</td>
+                            <td class="negative-cell"><i data-lucide="x-circle"></i> Manual tracking, transfers, & fees
+                            </td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Automatic daily transfers
+                                straight to your M-Pesa</td>
                         </tr>
                     </tbody>
                 </table>
@@ -194,23 +212,29 @@
         <section class="landing-section lock-highlights-section" id="lock-features">
             <div class="lock-highlight-grid">
                 <div class="lock-highlight-text">
-                    <span class="section-eyebrow"><i data-lucide="shield-check"></i> Built-In Financial Discipline</span>
+                    <span class="section-eyebrow"><i data-lucide="shield-check"></i> Built-In Financial
+                        Discipline</span>
                     <h2 class="section-title">Smart Rules.<br>Protected Against Impulse Spending.</h2>
-                    <p class="section-text">Bursar uses strict rules to help you stick to your budget. Once you set up your daily allowance, your funds are safely protected until scheduled payouts:</p>
-                    
+                    <p class="section-text">Bursar uses strict rules to help you stick to your budget. Once you set up
+                        your daily allowance, your funds are safely protected until scheduled payouts:</p>
+
                     <div class="lock-details-list">
                         <div class="lock-detail-item">
-                            <div class="lock-icon-container"><i data-lucide="lock" style="color: var(--color-accent-amber);"></i></div>
+                            <div class="lock-icon-container"><i data-lucide="lock"
+                                    style="color: var(--color-accent-amber);"></i></div>
                             <div class="lock-detail-text">
                                 <h3>Deposit lock</h3>
-                                <p>Once deposited, your funds are set aside to be paid out as steady daily allowances throughout the month.</p>
+                                <p>Once deposited, your funds are set aside to be paid out as steady daily allowances
+                                    throughout the month.</p>
                             </div>
                         </div>
                         <div class="lock-detail-item">
-                            <div class="lock-icon-container"><i data-lucide="lock" style="color: var(--color-accent-violet);"></i></div>
+                            <div class="lock-icon-container"><i data-lucide="lock"
+                                    style="color: var(--color-accent-violet);"></i></div>
                             <div class="lock-detail-text">
                                 <h3>Budget lock</h3>
-                                <p>Your daily allowances remain fixed throughout the month, keeping your spending predictable and stress-free.</p>
+                                <p>Your daily allowances remain fixed throughout the month, keeping your spending
+                                    predictable and stress-free.</p>
                             </div>
                         </div>
                     </div>
@@ -228,7 +252,8 @@
                         </div>
                         <div class="lock-metric">
                             <span class="label">Lock status</span>
-                            <span class="status-indicator locked"><i data-lucide="lock" style="width: 0.9rem; height: 0.9rem;"></i> Enforced</span>
+                            <span class="status-indicator locked"><i data-lucide="lock"
+                                    style="width: 0.9rem; height: 0.9rem;"></i> Enforced</span>
                         </div>
                         <div class="lock-progress">
                             <div class="progress-bar-labels">
@@ -247,8 +272,9 @@
         <!-- FAQ Section -->
         <section class="landing-section faq-section" id="faq-section">
             <h2 class="section-title text-center">Frequently Asked Questions</h2>
-            <p class="section-subtitle text-center">Everything you need to know about how Bursar helps you manage your money.</p>
-            
+            <p class="section-subtitle text-center">Everything you need to know about how Bursar helps you manage your
+                money.</p>
+
             <div class="faq-accordion-container" id="faq-accordion">
                 <div class="faq-item glass-panel" id="faq-1">
                     <button class="faq-question-btn" onclick="toggleFaq('faq-1')">
@@ -256,7 +282,8 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Yes. Your account is secured with industry-standard encryption, and your password PIN is cryptographically hashed so no one else can access your data.</p>
+                        <p>Yes. Your account is secured with industry-standard encryption, and your password PIN is
+                            cryptographically hashed so no one else can access your data.</p>
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-2">
@@ -265,7 +292,8 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>No. Once deposited, your funds are set aside to be sent as daily allowances until the end of the month, helping you resist impulse spending and stick to your financial goals.</p>
+                        <p>No. Once deposited, your funds are set aside to be sent as daily allowances until the end of
+                            the month, helping you resist impulse spending and stick to your financial goals.</p>
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-3">
@@ -274,7 +302,9 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>If a transfer fails or times out, Bursar automatically detects the issue and refunds the amount back to your wallet balance. It will safely retry the transfer on the next scheduled run.</p>
+                        <p>If a transfer fails or times out, Bursar automatically detects the issue and refunds the
+                            amount back to your wallet balance. It will safely retry the transfer on the next scheduled
+                            run.</p>
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-4">
@@ -283,7 +313,8 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Yes! Bursar includes a built-in Simulation mode so you can test how daily allowances work and track your budget risk-free before connecting real M-Pesa payouts.</p>
+                        <p>Yes! Bursar includes a built-in Simulation mode so you can test how daily allowances work and
+                            track your budget risk-free before connecting real M-Pesa payouts.</p>
                     </div>
                 </div>
             </div>
@@ -302,26 +333,29 @@
     <!-- Authentication Overlay Modal -->
     <div class="auth-overlay" id="auth-overlay">
         <div class="auth-card glass-panel">
-            <button class="close-btn" id="close-auth-btn" style="position: absolute; top: 1rem; right: 1.5rem;">&times;</button>
+            <button class="close-btn" id="close-auth-btn"
+                style="position: absolute; top: 1rem; right: 1.5rem;">&times;</button>
             <div class="auth-header">
                 <i data-lucide="wallet" class="logo-icon auth-logo-icon"></i>
                 <h2>BURSAR <span class="version-tag">2.0</span></h2>
                 <p class="subtitle" id="auth-subtitle">Log in to manage your daily allowances</p>
             </div>
-            
+
             <div class="auth-tabs">
                 <button class="auth-tab active" id="tab-login">Log In</button>
                 <button class="auth-tab" id="tab-signup">Register</button>
             </div>
-            
+
             <form id="auth-form" class="auth-form">
                 <div class="form-group">
                     <label for="auth-phone">Safaricom Phone Number</label>
-                    <input type="tel" id="auth-phone" inputmode="tel" autocomplete="username" placeholder="e.g. 0712345678 or 254712345678" required>
+                    <input type="tel" id="auth-phone" inputmode="tel" autocomplete="username"
+                        placeholder="e.g. 0712345678 or 254712345678" required>
                 </div>
                 <div class="form-group">
                     <label for="auth-password" id="password-label">Password PIN</label>
-                    <input type="password" id="auth-password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" placeholder="Enter password (min 4 chars)" required>
+                    <input type="password" id="auth-password" inputmode="numeric" pattern="[0-9]*"
+                        autocomplete="current-password" placeholder="Enter password (min 4 chars)" required>
                 </div>
                 <div class="error-msg" id="auth-error-msg" style="display: none;"></div>
                 <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log In</button>
@@ -340,7 +374,7 @@
         function toggleFaq(id) {
             const item = document.getElementById(id);
             const allItems = document.querySelectorAll('.faq-item');
-            
+
             allItems.forEach(faq => {
                 if (faq.id === id) {
                     faq.classList.toggle('active');
@@ -367,7 +401,7 @@
             const canvasLarge = document.getElementById("pacing-sim-chart");
             if (canvasLarge) {
                 const ctx = canvasLarge.getContext("2d");
-                
+
                 // Orange gradient for area background
                 const gradient = ctx.createLinearGradient(0, 0, 0, 160);
                 gradient.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
@@ -404,7 +438,7 @@
                                 borderWidth: 1,
                                 padding: 6,
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         return ` Wallet: KES ${context.raw.toLocaleString()}`;
                                     }
                                 }
@@ -426,7 +460,7 @@
                                     stepSize: 1000,
                                     color: 'rgba(255, 255, 255, 0.5)',
                                     font: { family: 'Outfit', size: 9 },
-                                    callback: function(value) {
+                                    callback: function (value) {
                                         return 'KES ' + value.toLocaleString();
                                     }
                                 }
@@ -440,7 +474,7 @@
             const canvasPhone = document.getElementById("phone-sim-chart");
             if (canvasPhone) {
                 const ctx = canvasPhone.getContext("2d");
-                
+
                 const gradientPhone = ctx.createLinearGradient(0, 0, 0, 90);
                 gradientPhone.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
                 gradientPhone.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
@@ -506,7 +540,7 @@
             currentAuthAction = action;
             authOverlay.classList.add("active");
             errorMsg.style.display = "none";
-            
+
             if (action === "login") {
                 tabLogin.classList.add("active");
                 tabSignup.classList.remove("active");
@@ -627,4 +661,5 @@
         }
     </script>
 </body>
+
 </html>
