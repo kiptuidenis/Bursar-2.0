@@ -277,7 +277,7 @@
 
             <div class="faq-accordion-container" id="faq-accordion">
                 <div class="faq-item glass-panel" id="faq-1">
-                    <button class="faq-question-btn" onclick="toggleFaq('faq-1')">
+                    <button class="faq-question-btn">
                         <span>Is my money safe with Bursar 2.0?</span>
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
@@ -287,7 +287,7 @@
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-2">
-                    <button class="faq-question-btn" onclick="toggleFaq('faq-2')">
+                    <button class="faq-question-btn">
                         <span>Can I unlock my deposits early if I need them?</span>
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
@@ -297,7 +297,7 @@
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-3">
-                    <button class="faq-question-btn" onclick="toggleFaq('faq-3')">
+                    <button class="faq-question-btn">
                         <span>What happens if an M-Pesa transfer fails?</span>
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
@@ -308,7 +308,7 @@
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-4">
-                    <button class="faq-question-btn" onclick="toggleFaq('faq-4')">
+                    <button class="faq-question-btn">
                         <span>How do I get started with Bursar?</span>
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
@@ -364,303 +364,8 @@
         </div>
     </div>
 
-    <!-- Script for FAQ and Simulation Charts -->
-    <script>
-        // Init Lucide
-        if (window.lucide) {
-            window.lucide.createIcons();
-        }
-
-        // Toggle FAQ answers
-        function toggleFaq(id) {
-            const item = document.getElementById(id);
-            const allItems = document.querySelectorAll('.faq-item');
-
-            allItems.forEach(faq => {
-                if (faq.id === id) {
-                    faq.classList.toggle('active');
-                } else {
-                    faq.classList.remove('active');
-                }
-            });
-        }
-
-        // Simulation charts
-        document.addEventListener("DOMContentLoaded", () => {
-            // Check auth status and redirect if already authenticated
-            fetch("/api/auth/me")
-                .then(res => {
-                    if (res.status === 200) {
-                        window.location.replace("/dashboard");
-                    }
-                })
-                .catch(err => console.error(err));
-            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-            const balanceData = [7500, 6800, 6000, 5200, 4700, 4200, 3500];
-
-            // 1. Large Pacing Chart Widget
-            const canvasLarge = document.getElementById("pacing-sim-chart");
-            if (canvasLarge) {
-                const ctx = canvasLarge.getContext("2d");
-
-                // Orange gradient for area background
-                const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-                gradient.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
-                gradient.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: days,
-                        datasets: [{
-                            label: 'Wallet Balance (KES)',
-                            data: balanceData,
-                            fill: true,
-                            backgroundColor: gradient,
-                            borderColor: 'rgba(245, 158, 11, 0.85)',
-                            borderWidth: 2.5,
-                            tension: 0.35,
-                            pointRadius: 4,
-                            pointBackgroundColor: 'rgba(245, 158, 11, 1)',
-                            pointBorderColor: 'rgba(255, 255, 255, 0.2)',
-                            pointHoverRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: 'rgba(18, 22, 37, 0.95)',
-                                titleFont: { family: 'Outfit', size: 11, weight: '600' },
-                                bodyFont: { family: 'Outfit', size: 10 },
-                                borderColor: 'rgba(255, 255, 255, 0.08)',
-                                borderWidth: 1,
-                                padding: 6,
-                                callbacks: {
-                                    label: function (context) {
-                                        return ` Wallet: KES ${context.raw.toLocaleString()}`;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                grid: { display: false },
-                                ticks: {
-                                    color: 'rgba(255, 255, 255, 0.5)',
-                                    font: { family: 'Outfit', size: 9 }
-                                }
-                            },
-                            y: {
-                                grid: { color: 'rgba(255, 255, 255, 0.04)' },
-                                min: 2500,
-                                max: 7500,
-                                ticks: {
-                                    stepSize: 1000,
-                                    color: 'rgba(255, 255, 255, 0.5)',
-                                    font: { family: 'Outfit', size: 9 },
-                                    callback: function (value) {
-                                        return 'KES ' + value.toLocaleString();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // 2. Small Phone Screen Mock Pacing Chart
-            const canvasPhone = document.getElementById("phone-sim-chart");
-            if (canvasPhone) {
-                const ctx = canvasPhone.getContext("2d");
-
-                const gradientPhone = ctx.createLinearGradient(0, 0, 0, 90);
-                gradientPhone.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
-                gradientPhone.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: days,
-                        datasets: [{
-                            data: balanceData,
-                            fill: true,
-                            backgroundColor: gradientPhone,
-                            borderColor: 'rgba(245, 158, 11, 0.85)',
-                            borderWidth: 1.5,
-                            tension: 0.35,
-                            pointRadius: 2,
-                            pointBackgroundColor: 'rgba(245, 158, 11, 1)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { enabled: false }
-                        },
-                        scales: {
-                            x: {
-                                grid: { display: false },
-                                ticks: {
-                                    color: 'rgba(255, 255, 255, 0.3)',
-                                    font: { family: 'Outfit', size: 7 }
-                                }
-                            },
-                            y: {
-                                grid: { color: 'rgba(255, 255, 255, 0.03)' },
-                                ticks: {
-                                    stepSize: 2000,
-                                    color: 'rgba(255, 255, 255, 0.3)',
-                                    font: { family: 'Outfit', size: 7 }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        });
-
-        // Open/Close Auth Modal Overlay based on Hash routing
-        const authOverlay = document.getElementById("auth-overlay");
-        const tabLogin = document.getElementById("tab-login");
-        const tabSignup = document.getElementById("tab-signup");
-        const authSubmitBtn = document.getElementById("auth-submit-btn");
-        const authSubtitle = document.getElementById("auth-subtitle");
-        const passwordLabel = document.getElementById("password-label");
-        const authPassword = document.getElementById("auth-password");
-        const errorMsg = document.getElementById("auth-error-msg");
-        const authForm = document.getElementById("auth-form");
-
-        let currentAuthAction = "login";
-
-        function showAuthOverlay(action) {
-            currentAuthAction = action;
-            authOverlay.classList.add("active");
-            errorMsg.style.display = "none";
-
-            if (action === "login") {
-                tabLogin.classList.add("active");
-                tabSignup.classList.remove("active");
-                authSubmitBtn.innerText = "Log In";
-                authSubtitle.innerText = "Log in to manage your daily allowances";
-                passwordLabel.innerText = "Password PIN";
-                authPassword.placeholder = "Enter password (min 4 chars)";
-            } else {
-                tabSignup.classList.add("active");
-                tabLogin.classList.remove("active");
-                authSubmitBtn.innerText = "Register";
-                authSubtitle.innerText = "Create an account with your Safaricom number";
-                passwordLabel.innerText = "Create Password PIN";
-                authPassword.placeholder = "Choose password (min 4 chars)";
-            }
-        }
-
-        function closeAuthOverlay() {
-            authOverlay.classList.remove("active");
-            // Clear URL hash cleanly without forcing scroll jumps
-            history.replaceState(null, null, window.location.pathname);
-        }
-
-        // Tabbing inside modal
-        if (tabLogin) tabLogin.addEventListener("click", () => showAuthOverlay("login"));
-        if (tabSignup) tabSignup.addEventListener("click", () => showAuthOverlay("signup"));
-
-        // Close button click
-        const closeBtn = document.getElementById("close-auth-btn");
-        if (closeBtn) closeBtn.addEventListener("click", closeAuthOverlay);
-        if (authOverlay) {
-            authOverlay.addEventListener("click", (e) => {
-                if (e.target === authOverlay) closeAuthOverlay();
-            });
-        }
-
-        // Listen for URL hash changes to trigger modal
-        function handleHash() {
-            const hash = window.location.hash;
-            if (hash === "#login") {
-                showAuthOverlay("login");
-            } else if (hash === "#signup") {
-                showAuthOverlay("signup");
-            } else {
-                if (authOverlay) authOverlay.classList.remove("active");
-            }
-        }
-        window.addEventListener("hashchange", handleHash);
-        window.addEventListener("load", handleHash);
-
-        // Fetch reCAPTCHA config dynamically
-        let recaptchaConfig = { enabled: false, siteKey: "" };
-        fetch("/api/auth/config")
-            .then(res => res.json())
-            .then(data => {
-                if (data.recaptcha_enabled && data.recaptcha_site_key) {
-                    recaptchaConfig.enabled = true;
-                    recaptchaConfig.siteKey = data.recaptcha_site_key;
-                    // Inject Google reCAPTCHA v3 script dynamically
-                    const script = document.createElement("script");
-                    script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(data.recaptcha_site_key)}`;
-                    script.async = true;
-                    document.head.appendChild(script);
-                }
-            })
-            .catch(err => console.error("Failed to load auth config:", err));
-
-        // Form submit handler
-        if (authForm) {
-            authForm.addEventListener("submit", async (e) => {
-                e.preventDefault();
-                errorMsg.style.display = "none";
-
-                const phone_number = document.getElementById("auth-phone").value.trim();
-                const password = authPassword.value;
-
-                let recaptcha_token = null;
-                if (recaptchaConfig.enabled && window.grecaptcha && recaptchaConfig.siteKey) {
-                    try {
-                        await new Promise(resolve => window.grecaptcha.ready(resolve));
-                        recaptcha_token = await window.grecaptcha.execute(recaptchaConfig.siteKey, { action: currentAuthAction });
-                    } catch (gErr) {
-                        console.warn("Google reCAPTCHA execution error:", gErr);
-                    }
-                }
-
-                const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
-
-                try {
-                    const res = await fetch(url, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ phone_number, password, recaptcha_token })
-                    });
-
-                    const data = await res.json();
-
-                    if (!res.ok) {
-                        throw new Error(data.detail || "Authentication request failed.");
-                    }
-
-                    if (currentAuthAction === "signup") {
-                        // Registration succeeded, auto-login for slick UX
-                        currentAuthAction = "login";
-                        showAuthOverlay("login");
-                        authPassword.value = password;
-                        // Trigger submission again programmatically
-                        authForm.dispatchEvent(new Event("submit"));
-                    } else {
-                        // Login succeeded, redirect cleanly to /dashboard
-                        window.location.replace("/dashboard");
-                    }
-                } catch (err) {
-                    errorMsg.innerText = err.message;
-                    errorMsg.style.display = "block";
-                }
-            });
-        }
-    </script>
+    <!-- External Landing Page Script -->
+    <script src="js/landing.js" defer></script>
 </body>
 
-</html>
+</html>
