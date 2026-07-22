@@ -34,7 +34,6 @@
                 <i data-lucide="wallet" class="logo-icon"></i>
                 <div class="logo-text">
                     <h1>BURSAR <span class="version-tag">2.0</span></h1>
-                    <p class="subtitle">Automated Micro-Allowance Scheduler</p>
                 </div>
             </div>
             <div class="header-actions" style="display: flex; gap: 0.75rem;">
@@ -46,9 +45,8 @@
         <!-- Hero Section -->
         <section class="landing-hero" id="hero-section">
             <div class="hero-content">
-                <span class="hero-badge"><i data-lucide="sparkles"></i> Automated Pacing Assistant</span>
                 <h1 class="hero-title">Empower Your Spending. <br><span class="gradient-text">Build Your Future.</span></h1>
-                <p class="hero-subtitle">Master your finances with automated pacing and disciplined spending habits. Bursar secures your deposits and drip-feeds your cash into daily allowances via M-Pesa. Lock in your pacing today.</p>
+                <p class="hero-subtitle">Take control of your money with automated daily allowances. Bursar safely holds your deposit and sends a fixed allowance to your M-Pesa every day, helping you avoid spending everything at once.</p>
                 <div class="hero-actions">
                     <a href="#signup" class="btn btn-primary btn-lg" id="hero-cta-btn">
                         Get Started Free
@@ -93,14 +91,14 @@
                             <!-- Phone App Header -->
                             <div class="phone-app-header">
                                 <i data-lucide="chevron-left" style="width: 1rem; height: 1rem;"></i>
-                                <span class="phone-header-title">Pacing Insights</span>
+                                <span class="phone-header-title">Daily Spending Insights</span>
                                 <i data-lucide="circle-dot" style="width: 0.9rem; height: 0.9rem; color: var(--color-accent-rose);"></i>
                             </div>
 
                             <!-- Phone Dashboard Inner Widget -->
                             <div class="phone-chart-card">
                                 <div class="phone-chart-header">
-                                    <span>7-Day Pacing Trend</span>
+                                    <span>7-Day Spending Trend</span>
                                     <span class="dots">...</span>
                                 </div>
                                 <div style="height: 90px; width: 100%; position: relative;">
@@ -111,7 +109,7 @@
                             <!-- Phone Dashboard Status Info -->
                             <div class="phone-status-info">
                                 <span class="phone-status-title">On Track</span>
-                                <span class="phone-status-desc">Your spending is below the paced limit this week.</span>
+                                <span class="phone-status-desc">Your spending is within your daily budget this week.</span>
                             </div>
 
                             <!-- Phone Dashboard Bottom Nav -->
@@ -130,7 +128,7 @@
                 <!-- Glassmorphic Large Pacing Widget -->
                 <div class="pacing-chart-widget" id="pacing-widget">
                     <div class="widget-header">
-                        <h4>7-Day Pacing Trend</h4>
+                        <h4>7-Day Spending Trend</h4>
                         <span class="dots">...</span>
                     </div>
                     <div class="widget-chart-container" style="position: relative; height: 160px; width: 100%; margin-bottom: 1rem;">
@@ -140,7 +138,7 @@
                     <div class="widget-footer-info">
                         <div class="footer-left">
                             <span class="status-title">On Track</span>
-                            <p class="status-desc">Your spending is below the paced limit this week.</p>
+                            <p class="status-desc">Your spending is within your daily budget this week.</p>
                         </div>
                         <div class="footer-right-card">
                             <div class="right-metric">
@@ -160,7 +158,7 @@
         <!-- Feature Matrix Table (Lump Sum vs. Paced) -->
         <section class="landing-section" id="matrix-section">
             <h2 class="section-title text-center">Conquer the impulse to spend</h2>
-            <p class="section-subtitle text-center">Compare how carrying a lump sum compares to automating your daily allowances with Bursar 2.0.</p>
+            <p class="section-subtitle text-center">See how Bursar helps you stay within budget compared to keeping a lump sum in your wallet.</p>
             
             <div class="table-container glass-panel comparison-table-container">
                 <table class="comparison-table" id="comparison-table">
@@ -168,7 +166,7 @@
                         <tr>
                             <th>Feature Behavior</th>
                             <th>Lump Sum in Wallet</th>
-                            <th class="accent-col">Paced Payouts with Bursar</th>
+                            <th class="accent-col">Daily Allowances with Bursar</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -180,17 +178,12 @@
                         <tr>
                             <td><strong>Spending Limits</strong></td>
                             <td class="negative-cell"><i data-lucide="x-circle"></i> Easy to override settings emotionally</td>
-                            <td class="positive-cell"><i data-lucide="check-circle"></i> Cryptographic locks restrict changes</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Strict rules protect your savings until next month</td>
                         </tr>
                         <tr>
                             <td><strong>M-Pesa Integration</strong></td>
                             <td class="negative-cell"><i data-lucide="x-circle"></i> Manual tracking, transfers, & fees</td>
-                            <td class="positive-cell"><i data-lucide="check-circle"></i> Automated Daraja B2C daily direct push</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Double-Spend Safety</strong></td>
-                            <td class="negative-cell"><i data-lucide="x-circle"></i> None (risk of overdrawing card/account)</td>
-                            <td class="positive-cell"><i data-lucide="check-circle"></i> SQLite double-spend database verification</td>
+                            <td class="positive-cell"><i data-lucide="check-circle"></i> Automatic daily transfers straight to your M-Pesa</td>
                         </tr>
                     </tbody>
                 </table>
@@ -201,23 +194,23 @@
         <section class="landing-section lock-highlights-section" id="lock-features">
             <div class="lock-highlight-grid">
                 <div class="lock-highlight-text">
-                    <span class="section-eyebrow"><i data-lucide="shield-check"></i> Non-Negotiable Lock-In</span>
-                    <h2 class="section-title">Enforced by Code.<br>Protected Against Yourself.</h2>
-                    <p class="section-text">Bursar uses smart database constraints to physically restrict you from breaking your own promises. When you set up your wallet and configure daily payouts, your savings are safeguarded behind two locks:</p>
+                    <span class="section-eyebrow"><i data-lucide="shield-check"></i> Built-In Financial Discipline</span>
+                    <h2 class="section-title">Smart Rules.<br>Protected Against Impulse Spending.</h2>
+                    <p class="section-text">Bursar uses strict rules to help you stick to your budget. Once you set up your daily allowance, your funds are safely protected until scheduled payouts:</p>
                     
                     <div class="lock-details-list">
                         <div class="lock-detail-item">
                             <div class="lock-icon-container"><i data-lucide="lock" style="color: var(--color-accent-amber);"></i></div>
                             <div class="lock-detail-text">
                                 <h3>Deposit lock</h3>
-                                <p>Once deposited via Safaricom STK Push, funds are final and locked until the end of the month. They can only be spent via scheduled payouts.</p>
+                                <p>Once deposited, your funds are set aside to be paid out as steady daily allowances throughout the month.</p>
                             </div>
                         </div>
                         <div class="lock-detail-item">
                             <div class="lock-icon-container"><i data-lucide="lock" style="color: var(--color-accent-violet);"></i></div>
                             <div class="lock-detail-text">
                                 <h3>Budget lock</h3>
-                                <p>Your daily budget items cannot be modified, decreased, or added to during the month. No overrides, no emotional resets.</p>
+                                <p>Your daily allowances remain fixed throughout the month, keeping your spending predictable and stress-free.</p>
                             </div>
                         </div>
                     </div>
@@ -254,7 +247,7 @@
         <!-- FAQ Section -->
         <section class="landing-section faq-section" id="faq-section">
             <h2 class="section-title text-center">Frequently Asked Questions</h2>
-            <p class="section-subtitle text-center">Everything you need to know about the Bursar micro-allowance scheduler.</p>
+            <p class="section-subtitle text-center">Everything you need to know about how Bursar helps you manage your money.</p>
             
             <div class="faq-accordion-container" id="faq-accordion">
                 <div class="faq-item glass-panel" id="faq-1">
@@ -263,7 +256,7 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Yes. Bursar 2.0 is a self-hosted personal finance daemon. Your credentials and database are fully hosted on your own machine. Your passwords and PINs are cryptographically hashed using industry-standard PBKDF2-HMAC-SHA256 with 100,000 iterations to isolate account records completely.</p>
+                        <p>Yes. Your account is secured with industry-standard encryption, and your password PIN is cryptographically hashed so no one else can access your data.</p>
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-2">
@@ -272,25 +265,25 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>No. By design, once funds are deposited into a locked wallet, they cannot be manually decreased or withdrawn until the first calendar day of the next month. This cryptographic constraint is enforced directly by the database models to help you stay committed to your budget.</p>
+                        <p>No. Once deposited, your funds are set aside to be sent as daily allowances until the end of the month, helping you resist impulse spending and stick to your financial goals.</p>
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-3">
                     <button class="faq-question-btn" onclick="toggleFaq('faq-3')">
-                        <span>What happens if Safaricom's Daraja B2C API fails?</span>
+                        <span>What happens if an M-Pesa transfer fails?</span>
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>If a B2C callback reports a timeout or failure at Safaricom, the background scheduler daemon automatically detects this state, refunds the daily budget allocation amount back to your locked wallet balance, and writes a system error log. It will retry payouts safely on the next scheduled run.</p>
+                        <p>If a transfer fails or times out, Bursar automatically detects the issue and refunds the amount back to your wallet balance. It will safely retry the transfer on the next scheduled run.</p>
                     </div>
                 </div>
                 <div class="faq-item glass-panel" id="faq-4">
                     <button class="faq-question-btn" onclick="toggleFaq('faq-4')">
-                        <span>Do I need active M-Pesa API credentials to run this?</span>
+                        <span>Can I try Bursar before using real money?</span>
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Bursar 2.0 supports three modes: <strong>Simulation</strong> (fakes callbacks locally for testing and tracking balances offline), <strong>Sandbox</strong> (uses Safaricom developer accounts for verification), and <strong>Live</strong> (uses production Daraja API keys). You can configure your modes dynamically inside settings.</p>
+                        <p>Yes! Bursar includes a built-in Simulation mode so you can test how daily allowances work and track your budget risk-free before connecting real M-Pesa payouts.</p>
                     </div>
                 </div>
             </div>
