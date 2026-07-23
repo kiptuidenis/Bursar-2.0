@@ -9,7 +9,7 @@ test.describe('Bursar 2.0 Production Fintech Account Lockout & CSS Prohibition E
         status: 429,
         contentType: 'application/json',
         headers: { 'Retry-After': '900' },
-        body: JSON.stringify({ detail: 'Account locked due to 5 failed login attempts. Please try again in 15 minutes.' })
+        body: JSON.stringify({ detail: 'Account locked. Try again in 15 minutes.' })
       });
     });
 

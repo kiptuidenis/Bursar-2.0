@@ -62,7 +62,7 @@ def login_user(request: Request, payload: AuthPayload, response: Response, db: D
         from fastapi.responses import JSONResponse
         resp = JSONResponse(
             status_code=429,
-            content={"detail": f"Account locked due to 5 failed login attempts. Please try again in {remaining_mins} minutes."}
+            content={"detail": f"Account locked. Try again in {remaining_mins} minutes."}
         )
         resp.headers["Retry-After"] = str(remaining_secs)
         return resp
@@ -75,7 +75,7 @@ def login_user(request: Request, payload: AuthPayload, response: Response, db: D
             from fastapi.responses import JSONResponse
             resp = JSONResponse(
                 status_code=429,
-                content={"detail": "Account locked due to 5 failed login attempts. Please try again in 15 minutes."}
+                content={"detail": "Account locked. Try again in 15 minutes."}
             )
             resp.headers["Retry-After"] = "900"
             return resp
