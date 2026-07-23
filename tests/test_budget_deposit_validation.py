@@ -118,3 +118,26 @@ def test_atomic_deposit_status_updates():
     # Second update should fail because status is no longer PENDING
     success2 = db.update_deposit_status(checkout_id, "SUCCESS", "RECEIPT2")
     assert success2 is False
+
+
+def test_deposit_amount_invalid_decimals_or_bounds_rejected():
+    # 1. Signup & login
+    c = TestClient(app)
+    c.post("/api/auth/signup", json={"phone_number": "254700000099", "password": "pinpassword"})
+    c.post("/api/auth/login", json={"phone_number": "254700000099", "password": "pinpassword"})
+
+    # Test 1: Decimal amount (100.50) -> must fail with 400 'Invalid Amount.'
+    res_dec = c.post("/api/deposit/initiate", json={"amount": 100.50})
+    assert res_dec.status_code == 400
+    assert res_dec.json()["detail"] == "Invalid Amount."
+
+    # Test 2: Below minimum (5) -> must fail with 400 'Invalid Amount.'
+    res_low = c.post("/api/deposit/initiate", json={"amount": 5.0})
+    assert res_low.status_code == 400
+    assert res_low.json()["detail"] == "Invalid Amount."
+
+    # Test 3: Above maximum (300,000) -> must fail with 400 'Invalid Amount.'
+    res_high = c.post("/api/deposit/initiate", json={"amount": 300000.0})
+    assert res_high.status_code == 400
+    assert res_high.json()["detail"] == "Invalid Amount."
+

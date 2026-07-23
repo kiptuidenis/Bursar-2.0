@@ -524,7 +524,10 @@ function setupEventHandlers() {
     document.getElementById("deposit-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         const amount = parseFloat(document.getElementById("deposit-amount").value);
-        if (isNaN(amount) || amount <= 0) return;
+        if (isNaN(amount) || amount < 10 || amount > 250000 || !Number.isInteger(amount)) {
+            alert("Invalid Amount.");
+            return;
+        }
 
         try {
             const res = await fetch("/api/deposit/initiate", {

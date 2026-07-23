@@ -9,6 +9,10 @@ router = APIRouter(prefix="/api/deposit", tags=["Deposits"])
 
 @router.post("/initiate")
 async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    amount = payload.amount
+    if not amount.is_integer() or amount < 10 or amount > 250000:
+        raise HTTPException(status_code=400, detail="Invalid Amount.")
+
     settings = db.get_settings(user_id)
     phone = settings.get("phone_number", "")
     if not phone:
@@ -16,8 +20,9 @@ async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_c
         
     daily_budget = settings.get("daily_budget", 0.0)
     balance = settings.get("balance", 0.0)
-    if daily_budget > 0 and (balance + payload.amount) < daily_budget:
-        raise HTTPException(status_code=400, detail=f"Total balance after deposit (KES {balance + payload.amount:.2f}) cannot be less than your daily budget (KES {daily_budget:.2f}).")
+    if daily_budget > 0 and (balance + amount) < daily_budget:
+        raise HTTPException(status_code=400, detail=f"Total balance after deposit (KES {balance + amount:.2f}) cannot be less than your daily budget (KES {daily_budget:.2f}).")
+
 
     api_ref = f"DEP_{uuid.uuid4().hex[:12]}"
     
