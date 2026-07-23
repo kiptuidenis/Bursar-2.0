@@ -202,6 +202,54 @@ class DatabaseManager:
         self._commit()
         return db_user.id
 
+    def is_account_locked(self, phone_number: str) -> tuple[bool, int]:
+        """Check if an account is locked due to 5+ failed login attempts. Returns (is_locked, remaining_seconds)."""
+        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        if not user or not user.account_locked_until:
+            return False, 0
+            
+        try:
+            locked_until_dt = datetime.datetime.strptime(user.account_locked_until, "%Y-%m-%d %H:%M:%S")
+            now_dt = datetime.datetime.utcnow()
+            if now_dt < locked_until_dt:
+                remaining = int((locked_until_dt - now_dt).total_seconds())
+                return True, max(remaining, 1)
+            else:
+                user.account_locked_until = ""
+                user.failed_login_attempts = 0
+                self._commit()
+                return False, 0
+        except Exception:
+            return False, 0
+
+    def record_failed_login_attempt(self, phone_number: str) -> tuple[int, bool]:
+        """Increment failed login attempts counter. Locks account for 15 mins if 5 attempts reached. Returns (attempts, is_locked)."""
+        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        if not user:
+            return 0, False
+            
+        current = user.failed_login_attempts or 0
+        current += 1
+        user.failed_login_attempts = current
+        
+        is_locked = False
+        if current >= 5:
+            is_locked = True
+            lock_duration = datetime.timedelta(minutes=15)
+            user.account_locked_until = (datetime.datetime.utcnow() + lock_duration).strftime("%Y-%m-%d %H:%M:%S")
+            self.log_event(user.id, "WARNING", f"Account locked for 15 minutes due to {current} consecutive failed PIN attempts.")
+            
+        self._commit()
+        return current, is_locked
+
+    def reset_failed_login_attempts(self, phone_number: str) -> None:
+        """Reset failed login attempts counter and clear lockout state on successful authentication."""
+        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        if user and (user.failed_login_attempts > 0 or user.account_locked_until):
+            user.failed_login_attempts = 0
+            user.account_locked_until = ""
+            self._commit()
+
     def authenticate_user(self, phone_number: str, password_plaintext: str) -> Optional[int]:
         """Authenticate user credentials. Returns user_id if valid, None otherwise."""
         user = self.session.query(User).filter(User.phone_number == phone_number).first()

@@ -54,10 +54,34 @@ def login_user(request: Request, payload: AuthPayload, response: Response, db: D
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
     sanitized_phone = sanitize_phone_number(payload.phone_number)
+
+    # 1. Pre-check if account is locked due to 5+ failed attempts
+    is_locked, remaining_secs = db.is_account_locked(sanitized_phone)
+    if is_locked:
+        remaining_mins = max(1, int(remaining_secs / 60))
+        from fastapi.responses import JSONResponse
+        resp = JSONResponse(
+            status_code=429,
+            content={"detail": f"Account locked due to 5 failed login attempts. Please try again in {remaining_mins} minutes."}
+        )
+        resp.headers["Retry-After"] = str(remaining_secs)
+        return resp
+
     user_id = db.authenticate_user(sanitized_phone, payload.password)
     
     if not user_id:
+        attempts, just_locked = db.record_failed_login_attempt(sanitized_phone)
+        if just_locked:
+            from fastapi.responses import JSONResponse
+            resp = JSONResponse(
+                status_code=429,
+                content={"detail": "Account locked due to 5 failed login attempts. Please try again in 15 minutes."}
+            )
+            resp.headers["Retry-After"] = "900"
+            return resp
         raise HTTPException(status_code=401, detail="Invalid phone number or password PIN.")
+        
+    db.reset_failed_login_attempts(sanitized_phone)
         
     user_agent = request.headers.get("user-agent", "Unknown Device")
     ip_address = request.client.host if request.client else "Unknown IP"

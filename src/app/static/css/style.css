@@ -3450,3 +3450,18 @@ body:not(.landing-body) {
 .grecaptcha-badge {
     display: none !important;
 }
+
+/* Disabled Button & Prohibition Cursor Styling */
+button:disabled,
+.btn:disabled,
+input:disabled,
+button[disabled],
+.btn[disabled] {
+    cursor: not-allowed !important;
+    pointer-events: auto !important;
+    opacity: 0.55 !important;
+    filter: grayscale(0.5) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+

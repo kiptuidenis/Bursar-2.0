@@ -19,6 +19,8 @@ class User(Base):
     bio = Column(String(500), default="")
     theme = Column(String(50), default="")
     notifications_enabled = Column(Integer, default=1)
+    failed_login_attempts = Column(Integer, default=0)
+    account_locked_until = Column(String(50), default="")
     
     # Relationships
     settings = relationship("Settings", back_populates="user", uselist=False, cascade="all, delete-orphan")

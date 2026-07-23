@@ -50,7 +50,8 @@ def test_secure_cookie_defaults_false_in_test_mode(monkeypatch):
 def _make_mock_db():
     """Return a MagicMock that stands in for DatabaseManager, with log_event stubbed."""
     mock_db = MagicMock()
-    mock_db.authenticate_user.return_value = 1  # user_id = 1
+    mock_db.is_account_locked.return_value = (False, 0)
+    mock_db.authenticate_user.return_value = 1
     mock_db.log_event.return_value = None
     return mock_db
 

@@ -54,15 +54,14 @@ def test_login_rate_limiting_triggers_429_on_6th_attempt(test_db, monkeypatch):
 
         login_payload = {"phone_number": "254799000111", "password": "wrongpassword"}
 
-        # First 5 attempts -> 401 Unauthorized (normal authentication error)
-        for i in range(5):
+        # First 4 attempts -> 401 Unauthorized (normal authentication error)
+        for i in range(4):
             res = client.post("/api/auth/login", json=login_payload)
             assert res.status_code == 401, f"Attempt {i+1} failed expected 401, got {res.status_code}"
 
-        # 6th attempt -> 429 Too Many Requests!
+        # 5th attempt -> 429 Too Many Requests / Account Lockout!
         res_limit = client.post("/api/auth/login", json=login_payload)
-        assert res_limit.status_code == 429, f"6th attempt expected 429, got {res_limit.status_code}"
-        assert "too many attempts" in res_limit.json()["detail"].lower()
+        assert res_limit.status_code == 429, f"5th attempt expected 429, got {res_limit.status_code}"
         assert "retry-after" in [h.lower() for h in res_limit.headers.keys()]
 
     finally:

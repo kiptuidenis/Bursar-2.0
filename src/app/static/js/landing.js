@@ -271,6 +271,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ phone_number, password, recaptcha_token })
                 });
 
+                const data = await res.json();
+
                 if (res.status === 429) {
                     const submitBtn = document.getElementById("auth-submit-btn");
                     if (submitBtn) {
@@ -289,10 +291,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }, 1000);
                     }
-                    throw new Error("Too many attempts. Please wait 60 seconds before trying again.");
+                    throw new Error(data.detail || "Account locked due to multiple failed login attempts.");
                 }
-
-                const data = await res.json();
 
                 if (!res.ok) {
                     throw new Error(data.detail || "Authentication request failed.");
@@ -307,9 +307,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.location.replace("/dashboard");
                 }
             } catch (err) {
-                if (errorMsg) {
-                    errorMsg.innerText = err.message;
-                    errorMsg.style.display = "block";
+                const targetErrorElement = document.getElementById("auth-error-msg");
+                if (targetErrorElement) {
+                    targetErrorElement.innerText = err.message;
+                    targetErrorElement.style.display = "block";
                 }
             }
         });
