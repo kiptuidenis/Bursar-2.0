@@ -36,10 +36,13 @@ test.describe('Bursar 2.0 Production Fintech Account Lockout & CSS Prohibition E
     const submitBtn = page.locator('#auth-submit-btn');
     await expect(submitBtn).toBeDisabled();
 
-    // 6. CRITICAL CSS PROHIBITION CURSOR ASSERTION
-    // Verify computed CSS cursor is 'not-allowed'
+    // 6. CRITICAL CSS PROHIBITION CURSOR & DISABLED COLOR ASSERTIONS
+    // Verify computed CSS cursor is 'not-allowed' and background color is dark slate gray #334155 / rgb(51, 65, 85)
     const computedCursor = await submitBtn.evaluate(el => window.getComputedStyle(el).cursor);
     expect(computedCursor).toBe('not-allowed');
+
+    const computedBg = await submitBtn.evaluate(el => window.getComputedStyle(el).backgroundColor);
+    expect(computedBg).toBe('rgb(51, 65, 85)');
   });
 
 });

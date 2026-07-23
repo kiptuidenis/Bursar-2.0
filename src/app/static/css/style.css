@@ -3453,15 +3453,37 @@ body:not(.landing-body) {
 
 /* Disabled Button & Prohibition Cursor Styling */
 button:disabled,
-.btn:disabled,
-input:disabled,
 button[disabled],
-.btn[disabled] {
+.btn:disabled,
+.btn[disabled],
+.btn-primary:disabled,
+.btn-primary[disabled],
+#auth-submit-btn:disabled,
+#auth-submit-btn[disabled] {
+    background: #334155 !important;
+    background-image: none !important;
+    color: #94a3b8 !important;
+    border: 1px solid #475569 !important;
     cursor: not-allowed !important;
     pointer-events: auto !important;
-    opacity: 0.55 !important;
-    filter: grayscale(0.5) !important;
+    opacity: 0.65 !important;
+    filter: grayscale(0.8) !important;
     box-shadow: none !important;
     transform: none !important;
+}
+
+button:disabled:hover,
+button[disabled]:hover,
+.btn:disabled:hover,
+.btn[disabled]:hover,
+.btn-primary:disabled:hover,
+.btn-primary[disabled]:hover,
+#auth-submit-btn:disabled:hover,
+#auth-submit-btn[disabled]:hover {
+    background: #334155 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
