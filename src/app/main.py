@@ -107,7 +107,7 @@ from app.core.limiter import limiter
 async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
     response = JSONResponse(
         status_code=429,
-        content={"detail": f"Rate limit exceeded: {exc.detail}. Please try again later."}
+        content={"detail": "Too many attempts. Please try again later."}
     )
     response.headers["Retry-After"] = "60"
     return response

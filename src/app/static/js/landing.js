@@ -271,6 +271,27 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ phone_number, password, recaptcha_token })
                 });
 
+                if (res.status === 429) {
+                    const submitBtn = document.getElementById("auth-submit-btn");
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        let secondsLeft = parseInt(res.headers.get("Retry-After") || "60", 10);
+                        const originalText = submitBtn.innerText;
+                        submitBtn.innerText = `Try again in ${secondsLeft}s`;
+                        const countdownTimer = setInterval(() => {
+                            secondsLeft--;
+                            if (secondsLeft <= 0) {
+                                clearInterval(countdownTimer);
+                                submitBtn.disabled = false;
+                                submitBtn.innerText = originalText;
+                            } else {
+                                submitBtn.innerText = `Try again in ${secondsLeft}s`;
+                            }
+                        }, 1000);
+                    }
+                    throw new Error("Too many attempts. Please wait 60 seconds before trying again.");
+                }
+
                 const data = await res.json();
 
                 if (!res.ok) {

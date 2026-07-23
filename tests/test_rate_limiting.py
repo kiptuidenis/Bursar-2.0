@@ -62,7 +62,7 @@ def test_login_rate_limiting_triggers_429_on_6th_attempt(test_db, monkeypatch):
         # 6th attempt -> 429 Too Many Requests!
         res_limit = client.post("/api/auth/login", json=login_payload)
         assert res_limit.status_code == 429, f"6th attempt expected 429, got {res_limit.status_code}"
-        assert "rate limit" in res_limit.json()["detail"].lower() or "too many requests" in res_limit.json()["detail"].lower()
+        assert "too many attempts" in res_limit.json()["detail"].lower()
         assert "retry-after" in [h.lower() for h in res_limit.headers.keys()]
 
     finally:

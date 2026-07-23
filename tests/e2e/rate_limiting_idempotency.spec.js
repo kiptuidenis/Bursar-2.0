@@ -56,7 +56,7 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
         status: 429,
         contentType: 'application/json',
         headers: { 'Retry-After': '60' },
-        body: JSON.stringify({ detail: 'Rate limit exceeded: 5 per 1 minute. Please try again later.' })
+        body: JSON.stringify({ detail: 'Too many attempts. Please try again later.' })
       });
     });
 
@@ -69,9 +69,13 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     const errorMsgLocator = page.locator('#auth-error-msg');
     await expect(errorMsgLocator).toBeVisible();
 
-    // CRITICAL E2E RATE LIMIT ASSERTION
+    // CRITICAL E2E RATE LIMIT ASSERTIONS
     const errorText = await errorMsgLocator.innerText();
-    expect(errorText.toLowerCase()).toContain('rate limit');
+    expect(errorText.toLowerCase()).toContain('too many attempts');
+
+    // Button should be disabled with countdown text
+    const submitBtnLocator = page.locator('#auth-submit-btn');
+    await expect(submitBtnLocator).toBeDisabled();
   });
 
 });
