@@ -1,14 +1,87 @@
 import uuid
+import hmac
 from typing import Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id
 from app.services.payment_gateway import check_stk_status, check_payout_status
+from app.core import config
 
 router = APIRouter(prefix="/api", tags=["Callbacks"])
 
+
+def verify_callback_authenticity(request: Request, body: Dict[str, Any] = None) -> bool:
+    """
+    Validates callback secret token, query parameters, headers, or challenge payloads.
+    In production mode or when configured, missing or invalid secret tokens trigger 401 Unauthorized.
+    """
+    # 1. IP Whitelisting Check (if configured)
+    if config.ALLOWED_CALLBACK_IPS and request.client:
+        client_ip = request.client.host
+        if client_ip not in config.ALLOWED_CALLBACK_IPS:
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized callback request: IP address is not permitted."
+            )
+
+    # 2. Extract potential token sources
+    query_token = request.query_params.get("token", "").strip()
+    header_token = (
+        request.headers.get("X-Callback-Secret", "")
+        or request.headers.get("X-Webhook-Token", "")
+        or request.headers.get("X-IntaSend-Signature", "")
+    ).strip()
+    
+    body_dict = body if isinstance(body, dict) else {}
+    body_challenge = str(body_dict.get("challenge", "") or "").strip()
+
+    provided_tokens = [t for t in (query_token, header_token, body_challenge) if t]
+
+    expected_tokens = []
+    if config.CALLBACK_SECRET_TOKEN:
+        expected_tokens.append(config.CALLBACK_SECRET_TOKEN)
+    if config.INTASEND_WEBHOOK_CHALLENGE:
+        expected_tokens.append(config.INTASEND_WEBHOOK_CHALLENGE)
+    if config.IS_TEST_MODE:
+        expected_tokens.append("testnet")
+
+
+    token_valid = False
+    for provided in provided_tokens:
+        for expected in expected_tokens:
+            if hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
+                token_valid = True
+                break
+        if token_valid:
+            break
+
+    is_prod = not config.IS_DEV_MODE and not config.IS_TEST_MODE
+
+    # In production mode, secret token verification is strictly required
+    if is_prod and not token_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized callback request: Invalid or missing secret token."
+        )
+
+    # In dev/test mode, enforce if token was supplied or if non-default expected token exists
+    if provided_tokens and not token_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized callback request: Invalid secret token."
+        )
+
+    return True
+
+
 @router.post("/callbacks/stk-callback")
-def mpesa_stk_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
+async def mpesa_stk_callback(
+    request: Request,
+    body: Dict[str, Any] = Body(...),
+    db: DatabaseManager = Depends(get_db)
+):
+    verify_callback_authenticity(request, body)
+
     stk_callback = body.get("Body", {}).get("stkCallback", {})
     if not stk_callback:
         return {"status": "ignored"}
@@ -25,6 +98,19 @@ def mpesa_stk_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = D
     amount = deposit["amount"]
     
     if result_code == 0:
+        # Active Gateway Double-Check before crediting balance
+        settings = db.get_settings(user_id)
+        try:
+            gateway_res = await check_stk_status(checkout_request_id, dict(settings) if settings else {})
+            verified_status = gateway_res.get("status", "PENDING")
+            if verified_status != "SUCCESS" and not config.IS_TEST_MODE:
+                db.log_event(user_id, "WARNING", f"STK Push callback double-check unverified for deposit {checkout_request_id}. Status: {verified_status}")
+                return {"status": "unverified"}
+        except Exception as e:
+            if not config.IS_TEST_MODE:
+                db.log_event(user_id, "WARNING", f"STK Push callback verification failed for {checkout_request_id}: {str(e)}")
+                return {"status": "unverified"}
+
         # Get Mpesa Receipt Number
         receipt = ""
         meta_items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
@@ -51,9 +137,20 @@ def mpesa_stk_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = D
         
     return {"status": "acknowledged"}
 
+
 @router.post("/deposit/simulate-callback")
-def simulate_stk_callback(payload: Dict[str, Any] = Body(...), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    # Local endpoint to fake a Safaricom callback response for test environment simulation
+def simulate_stk_callback(
+    payload: Dict[str, Any] = Body(...),
+    user_id: int = Depends(get_current_user_id),
+    db: DatabaseManager = Depends(get_db)
+):
+    # Simulation route is disabled in production environment
+    if not config.IS_DEV_MODE and not config.IS_TEST_MODE:
+        raise HTTPException(
+            status_code=403,
+            detail="Simulated callbacks are disabled in production environment."
+        )
+
     checkout_request_id = payload.get("checkout_request_id", "")
     status = payload.get("status", "SUCCESS").upper()
     
@@ -72,10 +169,7 @@ def simulate_stk_callback(payload: Dict[str, Any] = Body(...), user_id: int = De
             db.adjust_balance(user_id, amount)
             db.log_event(user_id, "INFO", f"[SIMULATED] STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
             
-            # Auto-lock deposit
             db.lock_deposit(user_id)
-            
-            # Auto-lock budget
             items = db.get_budget_items(user_id)
             if items:
                 db.lock_budget(user_id)
@@ -86,8 +180,15 @@ def simulate_stk_callback(payload: Dict[str, Any] = Body(...), user_id: int = De
         
     return {"status": "success"}
 
+
 @router.post("/callbacks/b2c-result")
-def mpesa_b2c_result_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
+async def mpesa_b2c_result_callback(
+    request: Request,
+    body: Dict[str, Any] = Body(...),
+    db: DatabaseManager = Depends(get_db)
+):
+    verify_callback_authenticity(request, body)
+
     result = body.get("Result")
     if not result:
         return {"status": "ignored"}
@@ -97,9 +198,7 @@ def mpesa_b2c_result_callback(body: Dict[str, Any] = Body(...), db: DatabaseMana
     result_desc = result.get("ResultDesc", "")
     transaction_id = result.get("TransactionID", "")
     
-    # Locate matching pending payout record across all users
     matching_payout = db.get_payout_by_conversation_id(conversation_id)
-            
     if not matching_payout or matching_payout["status"] != "PENDING":
         return {"status": "ignored"}
         
@@ -127,13 +226,19 @@ def mpesa_b2c_result_callback(body: Dict[str, Any] = Body(...), db: DatabaseMana
         
     return {"status": "acknowledged"}
 
+
 @router.post("/callbacks/b2c-timeout")
-def mpesa_b2c_timeout_callback(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
+async def mpesa_b2c_timeout_callback(
+    request: Request,
+    body: Dict[str, Any] = Body(...),
+    db: DatabaseManager = Depends(get_db)
+):
+    verify_callback_authenticity(request, body)
+
     conversation_id = body.get("ConversationID", "")
     result_desc = body.get("ResultDesc", "Transaction timed out at Safaricom Queue.")
     
     matching_payout = db.get_payout_by_conversation_id(conversation_id)
-            
     if not matching_payout or matching_payout["status"] != "PENDING":
         return {"status": "ignored"}
         
@@ -152,15 +257,14 @@ def mpesa_b2c_timeout_callback(body: Dict[str, Any] = Body(...), db: DatabaseMan
     
     return {"status": "acknowledged"}
 
+
 @router.post("/callbacks/intasend-webhook")
-async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager = Depends(get_db)):
-    # Validate webhook challenge token if configured
-    import os
-    expected_challenge = os.environ.get("INTASEND_WEBHOOK_CHALLENGE")
-    if expected_challenge:
-        challenge = body.get("challenge")
-        if challenge != expected_challenge:
-            raise HTTPException(status_code=401, detail="Invalid webhook challenge token.")
+async def intasend_webhook(
+    request: Request,
+    body: Dict[str, Any] = Body(...),
+    db: DatabaseManager = Depends(get_db)
+):
+    verify_callback_authenticity(request, body)
 
     invoice_id = body.get("invoice_id")
     tracking_id = body.get("tracking_id")
@@ -218,7 +322,6 @@ async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager
                     error_message="",
                     completed_at=completed_ts
                 ):
-                    # Deduct balance now that IntaSend has confirmed the disbursement
                     db.adjust_balance(user_id, -payout_amount)
                     db.log_event(user_id, "INFO", f"IntaSend payout of KES {payout_amount:.2f} for date {payout_date} confirmed successfully at {completed_ts}. Tracking: {tracking_id}.")
             elif status == "FAILED":
@@ -230,7 +333,6 @@ async def intasend_webhook(body: Dict[str, Any] = Body(...), db: DatabaseManager
                     error_message="IntaSend disbursement failed",
                     failed_at=failed_ts
                 ):
-                    # Balance was never pre-deducted in the new flow — no refund needed
                     db.log_event(user_id, "ERROR", f"IntaSend payout failed (confirmed via webhook) for date {payout_date} at {failed_ts}. Tracking: {tracking_id}.")
         except Exception as e:
             db.log_event(user_id, "WARNING", f"Webhook double-check failed for payout tracking_id {tracking_id}: {str(e)}")

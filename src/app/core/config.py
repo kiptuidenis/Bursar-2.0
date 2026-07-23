@@ -236,11 +236,41 @@ PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "intasend").lower()
 INTASEND_MODE = os.environ.get("INTASEND_MODE", "simulation").lower()
 INTASEND_SECRET_KEY = os.environ.get("INTASEND_SECRET_KEY", "")
 INTASEND_PUBLISHABLE_KEY = os.environ.get("INTASEND_PUBLISHABLE_KEY", "")
+INTASEND_WEBHOOK_CHALLENGE = os.environ.get("INTASEND_WEBHOOK_CHALLENGE", "")
 
 # Google reCAPTCHA Configuration
 RECAPTCHA_ENABLED = os.environ.get("RECAPTCHA_ENABLED", "true").lower() in ("true", "1", "yes")
 RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "")
 RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "")
+
+
+def validate_callback_secret_token(is_test_mode: bool = False, is_dev_mode: bool = True) -> str:
+    """Validate environment CALLBACK_SECRET_TOKEN. In production mode, raises RuntimeError if missing or under 32 chars."""
+    raw_secret = os.environ.get("CALLBACK_SECRET_TOKEN", "").strip()
+
+    if not raw_secret:
+        if is_test_mode or is_dev_mode:
+            return "ci_test_callback_secret_token_32chars_minimum"
+        raise RuntimeError(
+            "CRITICAL SECURITY CONFIGURATION ERROR: CALLBACK_SECRET_TOKEN environment variable must be explicitly defined in production mode.\n"
+            "To fix this, set a strong CALLBACK_SECRET_TOKEN in your environment or .env file (minimum 32 characters).\n"
+        )
+
+    if len(raw_secret) < 32:
+        if is_test_mode or is_dev_mode:
+            return raw_secret
+        raise RuntimeError(
+            f"CRITICAL SECURITY CONFIGURATION ERROR: CALLBACK_SECRET_TOKEN must be at least 32 characters long in production mode (got {len(raw_secret)})."
+        )
+
+    return raw_secret
+
+
+CALLBACK_SECRET_TOKEN: str = validate_callback_secret_token(is_test_mode=IS_TEST_MODE, is_dev_mode=IS_DEV_MODE)
+
+_raw_allowed_ips = os.environ.get("ALLOWED_CALLBACK_IPS", "").strip()
+ALLOWED_CALLBACK_IPS: List[str] = [_ip.strip() for _ip in _raw_allowed_ips.split(",") if _ip.strip()] if _raw_allowed_ips else []
+
 try:
     RECAPTCHA_SCORE_THRESHOLD = float(os.environ.get("RECAPTCHA_SCORE_THRESHOLD", "0.5"))
 except ValueError:
