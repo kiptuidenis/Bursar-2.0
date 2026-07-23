@@ -1,5 +1,6 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from app.core.limiter import limiter
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id
 from app.api.schemas import DepositRequest
@@ -7,8 +8,18 @@ from app.services.payment_gateway import initiate_stk_push, check_stk_status
 
 router = APIRouter(prefix="/api/deposit", tags=["Deposits"])
 
+import json
+from fastapi.responses import JSONResponse
+
 @router.post("/initiate")
-async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("5/5minutes")
+async def initiate_deposit(request: Request, payload: DepositRequest, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    idempotency_key = request.headers.get("x-idempotency-key") or request.headers.get("idempotency-key")
+    if idempotency_key:
+        existing = db.get_idempotency_record(user_id, idempotency_key, "/api/deposit/initiate")
+        if existing:
+            return JSONResponse(status_code=existing["response_code"], content=json.loads(existing["response_body"]))
+
     amount = payload.amount
     if not amount.is_integer() or amount < 10 or amount > 250000:
         raise HTTPException(status_code=400, detail="Invalid Amount.")
@@ -39,7 +50,10 @@ async def initiate_deposit(payload: DepositRequest, user_id: int = Depends(get_c
             checkout_request_id = res.get("CheckoutRequestID", "")
             db.create_deposit(user_id, checkout_request_id, payload.amount)
             db.log_event(user_id, "INFO", f"STK Push deposit request of KES {payload.amount:.2f} initiated. CheckoutRequestID: {checkout_request_id}.")
-            return {"status": "success", "checkout_request_id": checkout_request_id}
+            resp_data = {"status": "success", "checkout_request_id": checkout_request_id}
+            if idempotency_key:
+                db.save_idempotency_record(user_id, idempotency_key, "/api/deposit/initiate", 200, json.dumps(resp_data))
+            return resp_data
         else:
             desc = res.get("ResponseDescription", "LNM API Error")
             raise Exception(desc)

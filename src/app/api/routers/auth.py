@@ -9,6 +9,8 @@ from app.api.schemas import AuthPayload
 from app.core.config import SESSION_COOKIE_SECURE
 from app.services.recaptcha import verify_recaptcha_token
 
+from app.core.limiter import limiter
+
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
@@ -30,7 +32,8 @@ def sanitize_phone_number(phone: str) -> str:
     return phone
 
 @router.post("/signup")
-def signup_user(payload: AuthPayload, request: Request, db: DatabaseManager = Depends(get_db)):
+@limiter.limit("5/minute")
+def signup_user(request: Request, payload: AuthPayload, db: DatabaseManager = Depends(get_db)):
     client_ip = request.client.host if request.client else None
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
@@ -44,7 +47,8 @@ def signup_user(payload: AuthPayload, request: Request, db: DatabaseManager = De
         raise HTTPException(status_code=400, detail="This phone number is already registered.")
 
 @router.post("/login")
-def login_user(payload: AuthPayload, response: Response, request: Request, db: DatabaseManager = Depends(get_db)):
+@limiter.limit("5/minute")
+def login_user(request: Request, payload: AuthPayload, response: Response, db: DatabaseManager = Depends(get_db)):
     client_ip = request.client.host if request.client else None
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")

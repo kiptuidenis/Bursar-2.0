@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
-from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session
+from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord
 
 
 
@@ -589,6 +589,27 @@ class DatabaseManager:
         }, synchronize_session=False)
         self._commit()
         return rows_updated > 0
+
+    def get_idempotency_record(self, user_id: int, key: str, endpoint: str) -> Optional[Dict[str, Any]]:
+        """Fetch an existing idempotency record by user, key, and endpoint."""
+        rec = self.session.query(IdempotencyRecord).filter(
+            IdempotencyRecord.user_id == user_id,
+            IdempotencyRecord.key == key,
+            IdempotencyRecord.endpoint == endpoint
+        ).first()
+        return _row_to_dict(rec) if rec else None
+
+    def save_idempotency_record(self, user_id: int, key: str, endpoint: str, response_code: int, response_body: str) -> None:
+        """Create and store a new idempotency response record."""
+        rec = IdempotencyRecord(
+            user_id=user_id,
+            key=key,
+            endpoint=endpoint,
+            response_code=response_code,
+            response_body=response_body
+        )
+        self.session.add(rec)
+        self._commit()
 
     def close(self) -> None:
         """Close the database connection and dispose of engine if in pytest mode."""

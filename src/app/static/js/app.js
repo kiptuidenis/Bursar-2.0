@@ -530,12 +530,20 @@ function setupEventHandlers() {
         }
 
         try {
+            const idempKey = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `idemp_${Date.now()}_${Math.random()}`;
             const res = await fetch("/api/deposit/initiate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Idempotency-Key": idempKey
+                },
                 body: JSON.stringify({ amount })
             });
             if (res.status === 401) return showAuthScreen();
+            if (res.status === 429) {
+                alert("Rate limit exceeded. Please wait a moment before trying again.");
+                return;
+            }
             
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || "Initiation failed.");

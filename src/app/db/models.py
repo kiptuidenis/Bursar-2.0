@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -109,6 +109,21 @@ class Deposit(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     user = relationship("User", back_populates="deposits")
+
+class IdempotencyRecord(Base):
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        UniqueConstraint("user_id", "key", "endpoint", name="uq_user_idemp_key"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(128), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    endpoint = Column(String(128), nullable=False)
+    response_code = Column(Integer, nullable=False)
+    response_body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 
 class Session(Base):
     __tablename__ = "sessions"
