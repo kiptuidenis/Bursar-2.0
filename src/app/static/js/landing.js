@@ -247,7 +247,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (authForm) {
         authForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            if (errorMsg) errorMsg.style.display = "none";
+            const submitBtn = document.getElementById("auth-submit-btn");
+            const targetErrorElement = document.getElementById("auth-error-msg");
+            if (targetErrorElement) targetErrorElement.style.display = "none";
+
+            const originalBtnText = submitBtn ? submitBtn.innerText : "Log In";
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Verifying...";
+            }
 
             const phone_number = document.getElementById("auth-phone").value.trim();
             const password = authPassword.value;
@@ -274,27 +282,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await res.json();
 
                 if (res.status === 429) {
-                    const submitBtn = document.getElementById("auth-submit-btn");
                     if (submitBtn) {
                         submitBtn.disabled = true;
                         let secondsLeft = parseInt(res.headers.get("Retry-After") || "60", 10);
-                        const originalText = submitBtn.innerText;
                         submitBtn.innerText = `Try again in ${secondsLeft}s`;
                         const countdownTimer = setInterval(() => {
                             secondsLeft--;
                             if (secondsLeft <= 0) {
                                 clearInterval(countdownTimer);
                                 submitBtn.disabled = false;
-                                submitBtn.innerText = originalText;
+                                submitBtn.innerText = originalBtnText;
                             } else {
                                 submitBtn.innerText = `Try again in ${secondsLeft}s`;
                             }
                         }, 1000);
                     }
-                    throw new Error(data.detail || "Account locked due to multiple failed login attempts.");
+                    throw new Error(data.detail || "Too many attempts. Please try again later.");
                 }
 
                 if (!res.ok) {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = originalBtnText;
+                    }
                     throw new Error(data.detail || "Authentication request failed.");
                 }
 
@@ -307,7 +317,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.location.replace("/dashboard");
                 }
             } catch (err) {
-                const targetErrorElement = document.getElementById("auth-error-msg");
+                if (submitBtn && submitBtn.innerText === "Verifying...") {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalBtnText;
+                }
                 if (targetErrorElement) {
                     targetErrorElement.innerText = err.message;
                     targetErrorElement.style.display = "block";
