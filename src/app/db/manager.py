@@ -363,11 +363,13 @@ class DatabaseManager:
         self._commit()
 
     def adjust_balance(self, user_id: int, amount: float) -> None:
-        """Add or subtract from the current wallet balance of a specific user."""
-        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        if settings:
-            settings.balance += amount
-            self._commit()
+        """Add or subtract from the current wallet balance of a specific user using atomic SQL arithmetic."""
+        self.session.query(Settings).filter(
+            Settings.user_id == user_id
+        ).update({
+            Settings.balance: Settings.balance + amount
+        }, synchronize_session=False)
+        self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if the user's budget allocations are locked for the current calendar month."""
@@ -441,20 +443,19 @@ class DatabaseManager:
     def update_payout_status(self, conversation_id: str, status: str,
                              transaction_id: str = "", error_message: str = "",
                              completed_at: str = "", failed_at: str = "") -> bool:
-        """Update payout record status by ConversationID only if it is PENDING."""
-        payout = self.session.query(Payout).filter(
+        """Atomically update payout record status by ConversationID ONLY if current status is PENDING."""
+        rows_updated = self.session.query(Payout).filter(
             Payout.conversation_id == conversation_id,
             Payout.status == 'PENDING'
-        ).first()
-        if payout:
-            payout.status = status
-            payout.transaction_id = transaction_id
-            payout.error_message = error_message
-            payout.completed_at = completed_at
-            payout.failed_at = failed_at
-            self._commit()
-            return True
-        return False
+        ).update({
+            Payout.status: status,
+            Payout.transaction_id: transaction_id,
+            Payout.error_message: error_message,
+            Payout.completed_at: completed_at,
+            Payout.failed_at: failed_at
+        }, synchronize_session=False)
+        self._commit()
+        return rows_updated > 0
 
     def get_payout_by_user_date(self, user_id: int, payout_date: str) -> Optional[Dict[str, Any]]:
         """Retrieve a specific payout record for a user on a given date (YYYY-MM-DD)."""
@@ -578,17 +579,16 @@ class DatabaseManager:
         return _row_to_dict(deposit) if deposit else None
 
     def update_deposit_status(self, checkout_request_id: str, status: str, mpesa_receipt: str = "") -> bool:
-        """Update the status and M-Pesa receipt of a deposit transaction only if it is PENDING."""
-        deposit = self.session.query(Deposit).filter(
+        """Atomically update the status and M-Pesa receipt of a deposit transaction ONLY if current status is PENDING."""
+        rows_updated = self.session.query(Deposit).filter(
             Deposit.checkout_request_id == checkout_request_id,
             Deposit.status == 'PENDING'
-        ).first()
-        if deposit:
-            deposit.status = status
-            deposit.mpesa_receipt = mpesa_receipt
-            self._commit()
-            return True
-        return False
+        ).update({
+            Deposit.status: status,
+            Deposit.mpesa_receipt: mpesa_receipt
+        }, synchronize_session=False)
+        self._commit()
+        return rows_updated > 0
 
     def close(self) -> None:
         """Close the database connection and dispose of engine if in pytest mode."""
