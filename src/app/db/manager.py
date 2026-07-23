@@ -153,8 +153,26 @@ class DatabaseManager:
             raise
 
     def initialize(self) -> None:
-        """Initialize database schema tables."""
+        """Initialize database schema tables and auto-migrate missing columns for existing tables."""
         Base.metadata.create_all(bind=self.engine)
+        self._auto_migrate_columns()
+
+    def _auto_migrate_columns(self) -> None:
+        """Auto-migrate missing columns for existing tables in production (MySQL & SQLite)."""
+        from sqlalchemy import inspect, text
+        try:
+            inspector = inspect(self.engine)
+            if not inspector.has_table("users"):
+                return
+
+            columns = [c["name"] for c in inspector.get_columns("users")]
+            with self.engine.begin() as conn:
+                if "failed_login_attempts" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
+                if "account_locked_until" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN account_locked_until VARCHAR(50) DEFAULT ''"))
+        except Exception:
+            pass
 
     # Cryptographic Hashing Helpers
     def _hash_password(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:
