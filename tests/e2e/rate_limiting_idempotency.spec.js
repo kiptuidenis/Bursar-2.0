@@ -229,4 +229,71 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     expect(responseStatus).toBe(429);
   });
 
+  test('Should enforce settings response credential masking and secret preservation in browser (H-01 & H-02)', async ({ page }) => {
+    // 1. Signup user
+    await page.goto('/');
+    await page.click('#nav-signup-btn');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254788${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // 2. POST settings with sensitive credentials from page context
+    const saveResponse = await page.evaluate(async () => {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mpesa_consumer_key: 'key_abc_123',
+          mpesa_consumer_secret: 'top_secret_credential_xyz'
+        })
+      });
+      return await res.json();
+    });
+
+    // CRITICAL E2E RESPONSE MASKING ASSERTION (Issue H-02)
+    expect(saveResponse.settings.mpesa_consumer_secret).toBe('********');
+
+    // 3. GET settings from page context and verify masked
+    const getResponse = await page.evaluate(async () => {
+      const res = await fetch('/api/settings');
+      return await res.json();
+    });
+    expect(getResponse.mpesa_consumer_secret).toBe('********');
+  });
+
+  test('Should enforce authentication on /api/diagnostics endpoint in browser (H-03)', async ({ page }) => {
+    // 1. Unauthenticated call without session cookie returns 401
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    const unauthStatus = await page.evaluate(async () => {
+      const res = await fetch('/api/diagnostics');
+      return res.status;
+    });
+    expect(unauthStatus).toBe(401);
+
+    // 2. Signup / Login user
+    await page.click('#nav-signup-btn');
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const testPhoneNumber = `254799${randomDigits}`;
+    await page.fill('#auth-phone', testPhoneNumber);
+    await page.fill('#auth-password', '123456');
+    await page.click('#auth-submit-btn');
+    await page.waitForURL('**/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // 3. Authenticated call returns 200 with sanitized metadata
+    const authData = await page.evaluate(async () => {
+      const res = await fetch('/api/diagnostics');
+      return { status: res.status, json: await res.json() };
+    });
+    expect(authData.status).toBe(200);
+    expect(authData.json.status).toBe('healthy');
+    expect(authData.json).toHaveProperty('version');
+    expect(authData.json).toHaveProperty('commit_hash');
+  });
+
 });
