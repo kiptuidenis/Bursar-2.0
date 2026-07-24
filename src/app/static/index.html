@@ -355,13 +355,23 @@
                 </div>
                 <div class="form-group">
                     <label for="auth-password" id="password-label">Password</label>
-                    <input type="password" id="auth-password"
-                        autocomplete="current-password" placeholder="Password (min 8 chars, A-z, 0-9, symbol)" minlength="8" required>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="auth-password"
+                            autocomplete="current-password" placeholder="Password (min 8 chars, A-z, 0-9, symbol)" minlength="8" required>
+                        <button type="button" class="btn-toggle-password" data-target="auth-password" aria-label="Toggle password visibility" tabindex="-1">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group" id="auth-confirm-password-group" style="display: none;">
                     <label for="auth-confirm-password">Confirm Password</label>
-                    <input type="password" id="auth-confirm-password"
-                        autocomplete="new-password" placeholder="Confirm password" minlength="8">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="auth-confirm-password"
+                            autocomplete="new-password" placeholder="Confirm password" minlength="8">
+                        <button type="button" class="btn-toggle-password" data-target="auth-confirm-password" aria-label="Toggle confirm password visibility" tabindex="-1">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="error-msg" id="auth-error-msg" style="display: none;"></div>
                 <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log In</button>

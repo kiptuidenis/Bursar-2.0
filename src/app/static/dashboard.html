@@ -386,16 +386,31 @@
                                 <form id="profile-password-form" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
                                     <div class="form-group">
                                         <label for="pwd-current">Current Password</label>
-                                        <input type="password" id="pwd-current" placeholder="Current password" required style="width:100%;">
+                                        <div class="password-input-wrapper">
+                                            <input type="password" id="pwd-current" placeholder="Current password" required style="width:100%;">
+                                            <button type="button" class="btn-toggle-password" data-target="pwd-current" aria-label="Toggle current password visibility" tabindex="-1">
+                                                <i data-lucide="eye"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                         <div class="form-group">
                                             <label for="pwd-new">New Password</label>
-                                            <input type="password" id="pwd-new" placeholder="New password (min 8 chars)" required style="width:100%;">
+                                            <div class="password-input-wrapper">
+                                                <input type="password" id="pwd-new" placeholder="New password (min 8 chars)" required style="width:100%;">
+                                                <button type="button" class="btn-toggle-password" data-target="pwd-new" aria-label="Toggle new password visibility" tabindex="-1">
+                                                    <i data-lucide="eye"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="form-group">
                                             <label for="pwd-confirm">Confirm New Password</label>
-                                            <input type="password" id="pwd-confirm" placeholder="Confirm new password" required style="width:100%;">
+                                            <div class="password-input-wrapper">
+                                                <input type="password" id="pwd-confirm" placeholder="Confirm new password" required style="width:100%;">
+                                                <button type="button" class="btn-toggle-password" data-target="pwd-confirm" aria-label="Toggle confirm new password visibility" tabindex="-1">
+                                                    <i data-lucide="eye"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <button type="submit" class="btn btn-primary" style="align-self: flex-start; padding: 0.6rem 1.25rem;">Update Password</button>
@@ -629,7 +644,12 @@
                 </div>
                 <div class="form-group">
                     <label for="deactivate-password">Password:</label>
-                    <input type="password" id="deactivate-password" placeholder="••••" required style="width: 100%;">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="deactivate-password" placeholder="••••" required style="width: 100%;">
+                        <button type="button" class="btn-toggle-password" data-target="deactivate-password" aria-label="Toggle password visibility" tabindex="-1">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-block" style="background: var(--color-accent-rose); color: white; font-weight: 600; border: none; padding: 0.75rem; margin-top: 0.5rem;">
                     Permanently Delete My Account

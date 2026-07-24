@@ -347,4 +347,27 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // 8. Global Password Visibility Toggle Event Delegation
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".btn-toggle-password");
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const targetId = btn.getAttribute("data-target");
+        const input = targetId ? document.getElementById(targetId) : btn.previousElementSibling;
+        if (!input) return;
+
+        if (input.type === "password") {
+            input.type = "text";
+            btn.innerHTML = `<i data-lucide="eye-off"></i>`;
+        } else {
+            input.type = "password";
+            btn.innerHTML = `<i data-lucide="eye"></i>`;
+        }
+        if (window.lucide && window.lucide.createIcons) {
+            window.lucide.createIcons();
+        }
+    });
 });
