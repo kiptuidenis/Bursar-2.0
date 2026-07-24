@@ -678,6 +678,9 @@ function setupEventHandlers() {
     const passwordLabel = document.getElementById("password-label");
     const authPassword = document.getElementById("auth-password");
 
+    const confirmGroup = document.getElementById("auth-confirm-password-group");
+    const confirmInput = document.getElementById("auth-confirm-password");
+
     if (tabLogin) {
         tabLogin.addEventListener("click", () => {
             currentAuthAction = "login";
@@ -685,8 +688,10 @@ function setupEventHandlers() {
             if (tabSignup) tabSignup.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Log In";
             if (authSubtitle) authSubtitle.innerText = "Log in to manage your daily allowances";
-            if (passwordLabel) passwordLabel.innerText = "Password PIN";
-            if (authPassword) authPassword.placeholder = "Enter password (min 4 chars)";
+            if (passwordLabel) passwordLabel.innerText = "Password";
+            if (authPassword) authPassword.placeholder = "Enter password (min 8 chars)";
+            if (confirmGroup) confirmGroup.style.display = "none";
+            if (confirmInput) confirmInput.required = false;
             if (errorMsg) errorMsg.style.display = "none";
         });
     }
@@ -698,8 +703,10 @@ function setupEventHandlers() {
             if (tabLogin) tabLogin.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Register";
             if (authSubtitle) authSubtitle.innerText = "Create an account with your Safaricom number";
-            if (passwordLabel) passwordLabel.innerText = "Create Password PIN";
-            if (authPassword) authPassword.placeholder = "Choose password (min 4 chars)";
+            if (passwordLabel) passwordLabel.innerText = "Create Strong Password";
+            if (authPassword) authPassword.placeholder = "Password (min 8 chars, A-Z, a-z, 0-9, symbol)";
+            if (confirmGroup) confirmGroup.style.display = "block";
+            if (confirmInput) confirmInput.required = true;
             if (errorMsg) errorMsg.style.display = "none";
         });
     }
@@ -711,6 +718,17 @@ function setupEventHandlers() {
 
             const phone_number = document.getElementById("auth-phone").value.trim();
             const password = authPassword ? authPassword.value : "";
+
+            if (currentAuthAction === "signup") {
+                const confirmPassword = confirmInput ? confirmInput.value : "";
+                if (password !== confirmPassword) {
+                    if (errorMsg) {
+                        errorMsg.innerText = "Passwords do not match.";
+                        errorMsg.style.display = "block";
+                    }
+                    return;
+                }
+            }
 
             const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
 
@@ -1582,11 +1600,11 @@ function setupProfileHandlers() {
             const confirm_password = document.getElementById("pwd-confirm").value;
             
             if (new_password !== confirm_password) {
-                alert("New password PIN and confirm PIN do not match.");
+                alert("New password and confirm password do not match.");
                 return;
             }
-            if (new_password.length < 4) {
-                alert("New password PIN must be at least 4 characters.");
+            if (new_password.length < 8) {
+                alert("New password must be at least 8 characters long.");
                 return;
             }
             
@@ -1598,11 +1616,11 @@ function setupProfileHandlers() {
                 });
                 if (res.status === 401) return showAuthScreen();
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Failed to change password.");
-                alert("Password PIN updated successfully!");
+                if (!res.ok) throw new Error(data.detail || "Failed to update password.");
+                alert("Password updated successfully!");
                 passwordForm.reset();
             } catch (err) {
-                alert(err.message || "Failed to change password.");
+                alert(err.message || "Failed to update password.");
             }
         });
     }

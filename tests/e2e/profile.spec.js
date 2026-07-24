@@ -29,6 +29,10 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
+    const confirmInput = page.locator('#auth-confirm-password');
+    if (await confirmInput.count() > 0) {
+      await confirmInput.fill('Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -69,7 +73,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await page.fill('#pwd-confirm', 'New!Str0ngP@ssw0rd');
     
     await page.click('#profile-password-form button[type="submit"]');
-    await expect.poll(() => dialogMessages).toContain('Password PIN updated successfully!');
+    await expect.poll(() => dialogMessages).toContain('Password updated successfully!');
 
     // Logout and verify we can log back in using the new password PIN
     await page.click('#logout-btn');
@@ -98,6 +102,10 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
+    const confirmInput = page.locator('#auth-confirm-password');
+    if (await confirmInput.count() > 0) {
+      await confirmInput.fill('Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -156,6 +164,10 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
+    const confirmInput = page.locator('#auth-confirm-password');
+    if (await confirmInput.count() > 0) {
+      await confirmInput.fill('Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');

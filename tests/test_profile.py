@@ -106,6 +106,11 @@ def test_password_pin_change():
     res_err2 = c.post("/api/profile/password", json={"current_password": "OldP@ssw0rd!", "new_password": "123"})
     assert res_err2.status_code == 400
 
+    # Change PIN to same as current password (should fail with 400)
+    res_err_reuse = c.post("/api/profile/password", json={"current_password": "OldP@ssw0rd!", "new_password": "OldP@ssw0rd!"})
+    assert res_err_reuse.status_code == 400
+    assert "cannot be the same" in res_err_reuse.json()["detail"].lower()
+
     # Successful PIN change
     res_ok = c.post("/api/profile/password", json={"current_password": "OldP@ssw0rd!", "new_password": "NewP@ssw0rd!"})
     assert res_ok.status_code == 200

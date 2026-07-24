@@ -282,7 +282,7 @@
                         <i data-lucide="chevron-down" class="faq-chevron"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Yes. Your account is secured with industry-standard encryption, and your password PIN is
+                        <p>Yes. Your account is secured with industry-standard encryption, and your password is
                             cryptographically hashed so no one else can access your data.</p>
                     </div>
                 </div>
@@ -357,6 +357,11 @@
                     <label for="auth-password" id="password-label">Password</label>
                     <input type="password" id="auth-password"
                         autocomplete="current-password" placeholder="Password (min 8 chars, A-z, 0-9, symbol)" minlength="8" required>
+                </div>
+                <div class="form-group" id="auth-confirm-password-group" style="display: none;">
+                    <label for="auth-confirm-password">Confirm Password</label>
+                    <input type="password" id="auth-confirm-password"
+                        autocomplete="new-password" placeholder="Confirm password" minlength="8">
                 </div>
                 <div class="error-msg" id="auth-error-msg" style="display: none;"></div>
                 <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log In</button>

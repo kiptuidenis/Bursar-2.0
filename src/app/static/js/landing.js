@@ -182,6 +182,9 @@ document.addEventListener("DOMContentLoaded", () => {
         authOverlay.classList.add("active");
         if (errorMsg) errorMsg.style.display = "none";
 
+        const confirmGroup = document.getElementById("auth-confirm-password-group");
+        const confirmInput = document.getElementById("auth-confirm-password");
+
         if (action === "login") {
             if (tabLogin) tabLogin.classList.add("active");
             if (tabSignup) tabSignup.classList.remove("active");
@@ -189,6 +192,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (authSubtitle) authSubtitle.innerText = "Log in to manage your daily allowances";
             if (passwordLabel) passwordLabel.innerText = "Password";
             if (authPassword) authPassword.placeholder = "Enter password (min 8 chars)";
+            if (confirmGroup) confirmGroup.style.display = "none";
+            if (confirmInput) confirmInput.required = false;
         } else {
             if (tabSignup) tabSignup.classList.add("active");
             if (tabLogin) tabLogin.classList.remove("active");
@@ -196,6 +201,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (authSubtitle) authSubtitle.innerText = "Create an account with your Safaricom number";
             if (passwordLabel) passwordLabel.innerText = "Create Strong Password";
             if (authPassword) authPassword.placeholder = "Password (min 8 chars, A-Z, a-z, 0-9, symbol)";
+            if (confirmGroup) confirmGroup.style.display = "block";
+            if (confirmInput) confirmInput.required = true;
         }
     }
 
@@ -251,14 +258,26 @@ document.addEventListener("DOMContentLoaded", () => {
             const targetErrorElement = document.getElementById("auth-error-msg");
             if (targetErrorElement) targetErrorElement.style.display = "none";
 
+            const phone_number = document.getElementById("auth-phone").value.trim();
+            const password = authPassword.value;
+
+            if (currentAuthAction === "signup") {
+                const confirmEl = document.getElementById("auth-confirm-password");
+                const confirmPassword = confirmEl ? confirmEl.value : "";
+                if (password !== confirmPassword) {
+                    if (targetErrorElement) {
+                        targetErrorElement.innerText = "Passwords do not match.";
+                        targetErrorElement.style.display = "block";
+                    }
+                    return;
+                }
+            }
+
             const originalBtnText = submitBtn ? submitBtn.innerText : "Log In";
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerText = "Verifying...";
             }
-
-            const phone_number = document.getElementById("auth-phone").value.trim();
-            const password = authPassword.value;
 
             let recaptcha_token = null;
             if (recaptchaConfig.enabled && window.grecaptcha && recaptchaConfig.siteKey) {

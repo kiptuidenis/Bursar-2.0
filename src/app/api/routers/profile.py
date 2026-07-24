@@ -64,15 +64,18 @@ def change_password(request: Request, payload: PasswordChange, user_id: int = De
         raise HTTPException(status_code=404, detail="User not found.")
         
     if not db.authenticate_user(profile["phone_number"], payload.current_password):
-        raise HTTPException(status_code=401, detail="Incorrect current password PIN.")
+        raise HTTPException(status_code=401, detail="Incorrect current password.")
         
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password cannot be the same as your current password.")
+
     from app.core.password import validate_password_strength
     pwd_error = validate_password_strength(payload.new_password, user_context=profile["phone_number"])
     if pwd_error:
         raise HTTPException(status_code=400, detail=pwd_error)
         
     db.update_password(user_id, payload.new_password)
-    db.log_event(user_id, "INFO", "Password PIN updated successfully.")
+    db.log_event(user_id, "INFO", "Password updated successfully.")
     
     return {"status": "success"}
 

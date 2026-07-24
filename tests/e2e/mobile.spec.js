@@ -23,6 +23,10 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
+    const confirmInput = page.locator('#auth-confirm-password');
+    if (await confirmInput.count() > 0) {
+      await confirmInput.fill('Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
@@ -100,6 +104,9 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     await phoneInput.fill(testPhoneNumber);
     await pwdInput.fill('Str0ng!P@ssw0rd');
+    if (await page.locator('#auth-confirm-password').isVisible()) {
+      await page.fill('#auth-confirm-password', 'Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
@@ -138,6 +145,10 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
+    const confirmInput = page.locator('#auth-confirm-password');
+    if (await confirmInput.count() > 0) {
+      await confirmInput.fill('Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
@@ -183,6 +194,10 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
+    const confirmInput = page.locator('#auth-confirm-password');
+    if (await confirmInput.count() > 0) {
+      await confirmInput.fill('Str0ng!P@ssw0rd');
+    }
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
