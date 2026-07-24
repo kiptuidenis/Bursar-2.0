@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.dependencies import db_manager, get_db
+from app.api.dependencies import db_manager, get_db, get_current_user_id
 from app.services.scheduler import BackgroundScheduler
 
 # Import sub-routers
@@ -137,16 +137,13 @@ app.include_router(payouts.router)
 app.include_router(callbacks.router)
 
 @app.get("/api/diagnostics")
-async def get_diagnostics():
-    import subprocess
-    try:
-        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
-    except Exception:
-        commit_hash = "unknown"
+@limiter.limit("10/minute")
+async def get_diagnostics(request: Request, user_id: int = Depends(get_current_user_id)):
     return {
-        "version": "1.2.0",
-        "commit_hash": commit_hash,
-        "timestamp": datetime.datetime.utcnow().isoformat()
+        "status": "healthy",
+        "version": config.APP_VERSION,
+        "commit_hash": config.COMMIT_HASH,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
 @app.get("/dashboard")

@@ -276,3 +276,6 @@ try:
 except ValueError:
     RECAPTCHA_SCORE_THRESHOLD = 0.5
 
+APP_VERSION: str = os.environ.get("APP_VERSION", "2.0.0")
+COMMIT_HASH: str = os.environ.get("COMMIT_HASH", "production")
+

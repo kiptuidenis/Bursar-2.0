@@ -138,3 +138,40 @@ async def test_raise_exception_when_balance_insufficient(db):
     assert "Insufficient wallet balance" in str(exc.value)
     assert "Available: KES 50.00" in str(exc.value)
     assert "Required: KES 100.00" in str(exc.value)
+
+
+def test_diagnostics_unauthenticated_returns_401():
+    """Verifies that calling /api/diagnostics without authentication returns 401 Unauthorized."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    res = client.get("/api/diagnostics")
+    assert res.status_code == 401, f"Expected 401 Unauthorized, got {res.status_code}"
+
+
+def test_diagnostics_authenticated_returns_sanitized_metadata(db):
+    """Verifies logged-in user can access diagnostics without subprocess execution errors."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.api.dependencies import get_db, get_current_user_id
+
+    user_id = db.create_user("254712345678", "pass")
+    
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    try:
+        client = TestClient(app)
+        res = client.get("/api/diagnostics")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert "version" in data
+        assert "commit_hash" in data
+        assert "timestamp" in data
+        assert data["status"] == "healthy"
+
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_current_user_id, None)
