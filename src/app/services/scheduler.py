@@ -16,7 +16,7 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     Evaluates whether a payout is due for today for a specific user.
     If yes, updates database, deducts balance, and triggers B2C payout.
     """
-    settings = db.get_settings(user_id)
+    settings = db.get_settings(user_id, decrypt_secrets=True)
     if not settings:
         if raise_exceptions:
             raise ValueError("User settings profile not found.")

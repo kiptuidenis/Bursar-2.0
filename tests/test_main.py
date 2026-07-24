@@ -15,12 +15,14 @@ def get_test_db():
         test_db_manager.initialize()
     return test_db_manager
 
-app.dependency_overrides[get_db] = get_test_db
-
 from app.db.models import User, Settings, Payout, Log, BudgetItem, Deposit, Session as DbSession
+
+client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    app.dependency_overrides[get_db] = get_test_db
+    client.cookies.clear()
     db = get_test_db()
     db.session.query(DbSession).delete()
     db.session.query(BudgetItem).delete()
@@ -31,8 +33,9 @@ def clean_db():
     db.session.query(User).delete()
     db._commit()
     yield
-
-client = TestClient(app)
+    client.cookies.clear()
+    app.dependency_overrides.pop(get_db, None)
+    db.close()
 
 def test_unauthenticated_requests():
     # Calling settings, deposits, payouts, etc. without auth must return 401

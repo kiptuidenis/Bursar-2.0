@@ -8,22 +8,23 @@ from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
-@router.get("")
-def get_settings(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    settings = db.get_settings(user_id)
-    if not settings:
-        return {}
-    
+def _mask_sensitive_fields(settings: dict) -> dict:
     masked = dict(settings)
     for field in ["mpesa_consumer_secret", "mpesa_initiator_password"]:
         if masked.get(field):
             masked[field] = "********"
         else:
             masked[field] = ""
-            
-    # Add derived lock flags
-    is_locked = db.is_budget_locked(user_id)
-    masked["is_budget_locked"] = is_locked
+    return masked
+
+@router.get("")
+def get_settings(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    settings = db.get_settings(user_id)
+    if not settings:
+        return {}
+    
+    masked = _mask_sensitive_fields(settings)
+    masked["is_budget_locked"] = db.is_budget_locked(user_id)
     masked["is_deposit_locked"] = db.is_deposit_locked(user_id)
     return masked
 
@@ -100,8 +101,8 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
     db.log_event(user_id, "INFO", "Wallet and API configuration updated.")
     
     res = db.get_settings(user_id)
-    # Expose derived lock flags in return payload
-    res_dict = dict(res) if res else {}
+    # Expose derived lock flags and masked sensitive fields in return payload
+    res_dict = _mask_sensitive_fields(res) if res else {}
     res_dict["is_budget_locked"] = db.is_budget_locked(user_id)
     res_dict["is_deposit_locked"] = db.is_deposit_locked(user_id)
     return {"status": "success", "settings": res_dict}

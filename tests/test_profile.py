@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from app.db.manager import DatabaseManager
 from app.main import app, get_db
 
-DB_FILE = "test_api_multitenant.db"
+DB_FILE = "test_api_profile.db"
 test_db_manager = None
 
 def get_test_db():
@@ -16,12 +16,11 @@ def get_test_db():
         test_db_manager.initialize()
     return test_db_manager
 
-app.dependency_overrides[get_db] = get_test_db
-
 from app.db.models import User, Settings, Payout, Log, BudgetItem, Deposit, Session as DbSession
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    app.dependency_overrides[get_db] = get_test_db
     db = get_test_db()
     db.session.query(DbSession).delete()
     db.session.query(BudgetItem).delete()
@@ -32,6 +31,8 @@ def clean_db():
     db.session.query(User).delete()
     db._commit()
     yield
+    app.dependency_overrides.pop(get_db, None)
+    db.close()
 
 def test_profile_endpoints():
     c = TestClient(app)

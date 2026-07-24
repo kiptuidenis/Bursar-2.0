@@ -407,13 +407,22 @@ class DatabaseManager:
         return [{"id": u.id, "phone_number": u.phone_number} for u in users]
 
     # Settings Operations (Isolated per user)
-    def get_settings(self, user_id: int) -> Dict[str, Any]:
+    def get_settings(self, user_id: int, decrypt_secrets: bool = True) -> Dict[str, Any]:
         """Retrieve the configuration settings for a specific user."""
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        return _row_to_dict(settings) if settings else {}
+        if not settings:
+            return {}
+        data = _row_to_dict(settings)
+        if decrypt_secrets:
+            from app.core.encryption import decrypt_credential
+            if data.get("mpesa_consumer_secret"):
+                data["mpesa_consumer_secret"] = decrypt_credential(data["mpesa_consumer_secret"])
+            if data.get("mpesa_initiator_password"):
+                data["mpesa_initiator_password"] = decrypt_credential(data["mpesa_initiator_password"])
+        return data
 
     def update_settings(self, user_id: int, **kwargs: Any) -> None:
-        """Dynamically update settings columns for a specific user."""
+        """Dynamically update settings columns for a specific user, encrypting sensitive fields at rest."""
         if not kwargs:
             return
         
@@ -421,9 +430,16 @@ class DatabaseManager:
         if not settings:
             return
             
+        from app.core.encryption import encrypt_credential
         for key, val in kwargs.items():
             if key == "user_id":
                 continue
+            if key in ("mpesa_consumer_secret", "mpesa_initiator_password"):
+                if val == "********":
+                    # Ignore masked placeholder sent by frontend; preserve existing encrypted secret
+                    continue
+                if isinstance(val, str) and val.strip():
+                    val = encrypt_credential(val)
             if hasattr(settings, key):
                 setattr(settings, key, val)
         self._commit()
