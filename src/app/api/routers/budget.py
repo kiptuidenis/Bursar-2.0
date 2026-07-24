@@ -1,10 +1,11 @@
 import re
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
 from app.db.manager import DatabaseManager
 from app.db.models import BudgetItem
 from app.api.dependencies import get_db, get_current_user_id
 from app.api.schemas import BudgetItemPayload, BudgetLockPayload
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api/budget", tags=["Budget"])
 
@@ -13,7 +14,8 @@ def list_budget_items(user_id: int = Depends(get_current_user_id), db: DatabaseM
     return db.get_budget_items(user_id)
 
 @router.post("/items")
-def add_or_update_budget_item(payload: BudgetItemPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("20/minute")
+def add_or_update_budget_item(request: Request, payload: BudgetItemPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if db.is_budget_locked(user_id):
         raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
         

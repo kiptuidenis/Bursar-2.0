@@ -258,3 +258,40 @@ def test_settings_update_rate_limiting_triggers_429(test_db, monkeypatch):
             app.dependency_overrides[get_current_user_id] = old_auth_override
         else:
             app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_budget_item_rate_limiting_triggers_429(test_db, monkeypatch):
+    """Firing 20 rapid budget item addition requests succeeds; 21st attempt triggers 429."""
+    monkeypatch.setattr(config, "IS_TEST_MODE", False)
+    if hasattr(app.state, "limiter"):
+        monkeypatch.setattr(app.state.limiter, "enabled", True)
+
+    old_db_override = app.dependency_overrides.get(get_db)
+    old_auth_override = app.dependency_overrides.get(get_current_user_id)
+
+    app.dependency_overrides[get_db] = _db_override(test_db)
+    user_id = test_db.create_user("254799000777", "pinpassword")
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    try:
+        client = TestClient(app)
+
+        for i in range(20):
+            item_payload = {"category": f"Cat_{i}", "amount": 100.0}
+            res = client.post("/api/budget/items", json=item_payload)
+            assert res.status_code == 200, f"Attempt {i+1} expected 200, got {res.status_code}"
+
+        # 21st attempt -> 429 Too Many Requests
+        res_limit = client.post("/api/budget/items", json={"category": "Cat_Limit", "amount": 100.0})
+        assert res_limit.status_code == 429, f"21st attempt expected 429, got {res_limit.status_code}"
+
+    finally:
+        if old_db_override is not None:
+            app.dependency_overrides[get_db] = old_db_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+
+        if old_auth_override is not None:
+            app.dependency_overrides[get_current_user_id] = old_auth_override
+        else:
+            app.dependency_overrides.pop(get_current_user_id, None)
