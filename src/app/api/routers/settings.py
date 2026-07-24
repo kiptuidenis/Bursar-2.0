@@ -1,10 +1,10 @@
 import re
 import datetime
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id
 from app.api.schemas import SettingsUpdate
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
@@ -28,7 +28,8 @@ def get_settings(user_id: int = Depends(get_current_user_id), db: DatabaseManage
     return masked
 
 @router.post("")
-def update_settings(payload: SettingsUpdate, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("10/minute")
+def update_settings(request: Request, payload: SettingsUpdate, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No settings provided to update")
