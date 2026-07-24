@@ -184,3 +184,40 @@ def test_payout_trigger_rate_limiting_triggers_429(test_db, monkeypatch):
             app.dependency_overrides[get_current_user_id] = old_auth_override
         else:
             app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_profile_update_rate_limiting_triggers_429(test_db, monkeypatch):
+    """Firing 10 rapid profile update requests succeeds; 11th attempt triggers 429."""
+    monkeypatch.setattr(config, "IS_TEST_MODE", False)
+    if hasattr(app.state, "limiter"):
+        monkeypatch.setattr(app.state.limiter, "enabled", True)
+
+    old_db_override = app.dependency_overrides.get(get_db)
+    old_auth_override = app.dependency_overrides.get(get_current_user_id)
+
+    app.dependency_overrides[get_db] = _db_override(test_db)
+    user_id = test_db.create_user("254799000555", "pinpassword")
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    try:
+        client = TestClient(app)
+        profile_payload = {"first_name": "Jane", "last_name": "Doe"}
+
+        for i in range(10):
+            res = client.post("/api/profile", json=profile_payload)
+            assert res.status_code == 200, f"Attempt {i+1} expected 200, got {res.status_code}"
+
+        # 11th attempt -> 429 Too Many Requests
+        res_limit = client.post("/api/profile", json=profile_payload)
+        assert res_limit.status_code == 429, f"11th attempt expected 429, got {res_limit.status_code}"
+
+    finally:
+        if old_db_override is not None:
+            app.dependency_overrides[get_db] = old_db_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+
+        if old_auth_override is not None:
+            app.dependency_overrides[get_current_user_id] = old_auth_override
+        else:
+            app.dependency_overrides.pop(get_current_user_id, None)

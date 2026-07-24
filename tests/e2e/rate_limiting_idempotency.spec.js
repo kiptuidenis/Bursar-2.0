@@ -136,4 +136,35 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     expect(responseStatus).toBe(429);
   });
 
+  test('Should handle HTTP 429 Rate Limit response cleanly on profile info update', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Intercept /api/profile and mock 429 response
+    await page.route('**/api/profile', async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 429,
+          contentType: 'application/json',
+          headers: { 'Retry-After': '60' },
+          body: JSON.stringify({ detail: 'Rate limit exceeded: 10 per 1 minute. Please try again later.' })
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    // Make fetch call from page context
+    const responseStatus = await page.evaluate(async () => {
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_name: 'Jane', last_name: 'Doe' })
+      });
+      return res.status;
+    });
+
+    expect(responseStatus).toBe(429);
+  });
+
 });

@@ -24,8 +24,11 @@ def get_profile(user_id: int = Depends(get_current_user_id), db: DatabaseManager
     profile_dict["notifications_enabled"] = bool(profile_dict["notifications_enabled"])
     return profile_dict
 
+from app.core.limiter import limiter
+
 @router.post("")
-def update_profile(payload: ProfileUpdate, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("10/minute")
+def update_profile(request: Request, payload: ProfileUpdate, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No profile fields provided to update.")
