@@ -187,15 +187,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabSignup) tabSignup.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Log In";
             if (authSubtitle) authSubtitle.innerText = "Log in to manage your daily allowances";
-            if (passwordLabel) passwordLabel.innerText = "Password PIN";
-            if (authPassword) authPassword.placeholder = "Enter password (min 4 chars)";
+            if (passwordLabel) passwordLabel.innerText = "Password";
+            if (authPassword) authPassword.placeholder = "Enter password (min 8 chars)";
         } else {
             if (tabSignup) tabSignup.classList.add("active");
             if (tabLogin) tabLogin.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Register";
             if (authSubtitle) authSubtitle.innerText = "Create an account with your Safaricom number";
-            if (passwordLabel) passwordLabel.innerText = "Create Password PIN";
-            if (authPassword) authPassword.placeholder = "Choose password (min 4 chars)";
+            if (passwordLabel) passwordLabel.innerText = "Create Strong Password";
+            if (authPassword) authPassword.placeholder = "Password (min 8 chars, A-Z, a-z, 0-9, symbol)";
         }
     }
 

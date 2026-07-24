@@ -11,7 +11,7 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     const testPhoneNumber = `254711${randomDigits}`;
 
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
 
     // Wait for redirect to dashboard
@@ -62,7 +62,7 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
 
     // 3. Fill and submit login form
     await page.fill('#auth-phone', '254700000000');
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
 
     // Wait for error message element to be visible
@@ -103,7 +103,7 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
       const res = await fetch('/api/profile/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current_password: '1234', new_password: '5678' })
+        body: JSON.stringify({ current_password: 'Str0ng!P@ssw0rd', new_password: 'New!Str0ngP@ssw0rd' })
       });
       return res.status;
     });
@@ -236,7 +236,7 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254788${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -280,7 +280,7 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254799${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');

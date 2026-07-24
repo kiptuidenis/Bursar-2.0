@@ -66,8 +66,10 @@ def change_password(request: Request, payload: PasswordChange, user_id: int = De
     if not db.authenticate_user(profile["phone_number"], payload.current_password):
         raise HTTPException(status_code=401, detail="Incorrect current password PIN.")
         
-    if len(payload.new_password) < 4:
-        raise HTTPException(status_code=400, detail="New password PIN must be at least 4 characters.")
+    from app.core.password import validate_password_strength
+    pwd_error = validate_password_strength(payload.new_password, user_context=profile["phone_number"])
+    if pwd_error:
+        raise HTTPException(status_code=400, detail=pwd_error)
         
     db.update_password(user_id, payload.new_password)
     db.log_event(user_id, "INFO", "Password PIN updated successfully.")

@@ -39,6 +39,12 @@ def signup_user(request: Request, payload: AuthPayload, db: DatabaseManager = De
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
     sanitized_phone = sanitize_phone_number(payload.phone_number)
+    
+    from app.core.password import validate_password_strength
+    pwd_error = validate_password_strength(payload.password, user_context=sanitized_phone)
+    if pwd_error:
+        raise HTTPException(status_code=400, detail=pwd_error)
+
     try:
         user_id = db.create_user(sanitized_phone, payload.password)
         db.log_event(user_id, "INFO", "User registration completed successfully.")

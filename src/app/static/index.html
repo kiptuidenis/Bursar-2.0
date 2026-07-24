@@ -354,9 +354,9 @@
                         placeholder="e.g. 0712345678 or 254712345678" required>
                 </div>
                 <div class="form-group">
-                    <label for="auth-password" id="password-label">Password PIN</label>
-                    <input type="password" id="auth-password" inputmode="numeric" pattern="[0-9]*"
-                        autocomplete="current-password" placeholder="Enter password (min 4 chars)" required>
+                    <label for="auth-password" id="password-label">Password</label>
+                    <input type="password" id="auth-password"
+                        autocomplete="current-password" placeholder="Password (min 8 chars, A-z, 0-9, symbol)" minlength="8" required>
                 </div>
                 <div class="error-msg" id="auth-error-msg" style="display: none;"></div>
                 <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log In</button>

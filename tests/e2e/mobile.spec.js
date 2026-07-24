@@ -22,7 +22,7 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const testPhoneNumber = `254700${randomDigits}`;
     
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
@@ -93,13 +93,13 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
 
     await expect(phoneInput).toHaveAttribute('type', 'tel');
     await expect(phoneInput).toHaveAttribute('inputmode', 'tel');
-    await expect(pwdInput).toHaveAttribute('inputmode', 'numeric');
+    await expect(pwdInput).toHaveAttribute('type', 'password');
 
     // 4. Log in
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await phoneInput.fill(testPhoneNumber);
-    await pwdInput.fill('123456');
+    await pwdInput.fill('Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
@@ -137,7 +137,7 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');
@@ -182,7 +182,7 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn', { force: true });
     
     await page.waitForURL('**/dashboard');

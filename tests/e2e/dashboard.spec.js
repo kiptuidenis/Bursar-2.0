@@ -23,7 +23,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     
     // 3. Fill registration details
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
 
     // 4. Click Register button (triggers submit, succeeds, auto-submits login, and redirects)
     await page.click('#auth-submit-btn');
@@ -95,7 +95,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -142,7 +142,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -194,7 +194,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -234,7 +234,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -337,7 +337,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -366,7 +366,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -409,7 +409,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');

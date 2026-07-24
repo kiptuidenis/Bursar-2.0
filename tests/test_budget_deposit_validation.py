@@ -15,12 +15,14 @@ def get_test_db():
         test_db_manager.initialize()
     return test_db_manager
 
-app.dependency_overrides[get_db] = get_test_db
-
 from app.db.models import User, Settings, Payout, Log, BudgetItem, Deposit, Session as DbSession
+
+client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    app.dependency_overrides[get_db] = get_test_db
+    client.cookies.clear()
     db = get_test_db()
     db.session.query(DbSession).delete()
     db.session.query(BudgetItem).delete()
@@ -31,14 +33,15 @@ def clean_db():
     db.session.query(User).delete()
     db._commit()
     yield
-
-client = TestClient(app)
+    client.cookies.clear()
+    app.dependency_overrides.pop(get_db, None)
+    db.close()
 
 def test_daily_budget_cannot_exceed_balance_on_settings_update():
     # 1. Signup & login
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000021", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000021", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000021", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000021", "password": "Str0ng!P@ssw0rd"})
 
     # Set balance to 500
     res_bal = c.post("/api/settings", json={"balance": 500.0})
@@ -56,8 +59,8 @@ def test_daily_budget_cannot_exceed_balance_on_settings_update():
 def test_deposit_amount_cannot_be_less_than_daily_budget():
     # 1. Signup & login
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000022", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000022", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000022", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000022", "password": "Str0ng!P@ssw0rd"})
 
     # Setup phone number in settings so deposit is allowed
     c.post("/api/settings", json={"phone_number": "254700000022"})
@@ -89,8 +92,8 @@ def test_deposit_amount_cannot_be_less_than_daily_budget():
 def test_add_budget_item_cannot_exceed_balance():
     # 1. Signup & login
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000023", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000023", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000023", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000023", "password": "Str0ng!P@ssw0rd"})
 
     # Set balance to 500.0
     c.post("/api/settings", json={"balance": 500.0})
@@ -107,7 +110,7 @@ def test_add_budget_item_cannot_exceed_balance():
 def test_atomic_deposit_status_updates():
     db = get_test_db()
     # Create a user and a pending deposit
-    user_id = db.create_user("254700000024", "pinpassword")
+    user_id = db.create_user("254700000024", "Str0ng!P@ssw0rd")
     checkout_id = f"test_checkout_{uuid.uuid4().hex[:6]}"
     db.create_deposit(user_id, checkout_id, 100.0)
 
@@ -123,8 +126,8 @@ def test_atomic_deposit_status_updates():
 def test_deposit_amount_invalid_decimals_or_bounds_rejected():
     # 1. Signup & login
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000099", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000099", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000099", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000099", "password": "Str0ng!P@ssw0rd"})
 
     # Test 1: Decimal amount (100.50) -> must fail with 400 'Invalid Amount.'
     res_dec = c.post("/api/deposit/initiate", json={"amount": 100.50})

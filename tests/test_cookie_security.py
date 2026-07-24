@@ -84,7 +84,7 @@ def test_login_endpoint_sets_secure_cookie_when_configured():
                 "/api/auth/login",
                 json={
                     "phone_number": "0712345678",
-                    "password": "1234",
+                    "password": "Str0ng!P@ssw0rd",
                     "recaptcha_token": "dummy"
                 }
             )
@@ -121,7 +121,7 @@ def test_login_endpoint_omits_secure_cookie_in_local_dev():
                 "/api/auth/login",
                 json={
                     "phone_number": "0712345678",
-                    "password": "1234",
+                    "password": "Str0ng!P@ssw0rd",
                     "recaptcha_token": "dummy"
                 }
             )

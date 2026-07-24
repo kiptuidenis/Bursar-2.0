@@ -127,7 +127,7 @@ def test_password_change_rate_limiting_triggers_429(test_db, monkeypatch):
 
     try:
         client = TestClient(app)
-        pw_payload = {"current_password": "pinpassword", "new_password": "newpassword123"}
+        pw_payload = {"current_password": "Str0ng!P@ssw0rd", "new_password": "New!Str0ngP@ssw0rd"}
 
         for i in range(5):
             res = client.post("/api/profile/password", json=pw_payload)

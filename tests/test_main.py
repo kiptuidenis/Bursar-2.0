@@ -53,7 +53,7 @@ def test_signup_and_login_flow():
     # 1. Sign up new user
     signup_payload = {
         "phone_number": "254712345678",
-        "password": "mypassword123"
+        "password": "Str0ng!P@ssw0rd"
     }
     res_signup = client.post("/api/auth/signup", json=signup_payload)
     assert res_signup.status_code == 200
@@ -66,7 +66,7 @@ def test_signup_and_login_flow():
     # 2. Login
     login_payload = {
         "phone_number": "254712345678",
-        "password": "mypassword123"
+        "password": "Str0ng!P@ssw0rd"
     }
     
     # We use a fresh client to isolate cookie state
@@ -96,12 +96,12 @@ def test_signup_and_login_flow():
 def test_user_data_isolation_via_api():
     # Create User A and User B
     client_a = TestClient(app)
-    client_a.post("/api/auth/signup", json={"phone_number": "254711111111", "password": "pass"})
-    client_a.post("/api/auth/login", json={"phone_number": "254711111111", "password": "pass"})
+    client_a.post("/api/auth/signup", json={"phone_number": "254711111111", "password": "Str0ng!P@ssw0rd"})
+    client_a.post("/api/auth/login", json={"phone_number": "254711111111", "password": "Str0ng!P@ssw0rd"})
     
     client_b = TestClient(app)
-    client_b.post("/api/auth/signup", json={"phone_number": "254722222222", "password": "pass"})
-    client_b.post("/api/auth/login", json={"phone_number": "254722222222", "password": "pass"})
+    client_b.post("/api/auth/signup", json={"phone_number": "254722222222", "password": "Str0ng!P@ssw0rd"})
+    client_b.post("/api/auth/login", json={"phone_number": "254722222222", "password": "Str0ng!P@ssw0rd"})
     
     # User A initiates deposit
     res_dep_a = client_a.post("/api/deposit/initiate", json={"amount": 1000.0})
@@ -127,9 +127,9 @@ def test_user_data_isolation_via_api():
 
 def test_settings_masked_updates_multi_tenant():
     c = TestClient(app)
-    res_signup = c.post("/api/auth/signup", json={"phone_number": "254712345678", "password": "pass"})
+    res_signup = c.post("/api/auth/signup", json={"phone_number": "254712345678", "password": "Str0ng!P@ssw0rd"})
     user_id = res_signup.json()["user_id"]
-    c.post("/api/auth/login", json={"phone_number": "254712345678", "password": "pass"})
+    c.post("/api/auth/login", json={"phone_number": "254712345678", "password": "Str0ng!P@ssw0rd"})
     
     payload = {
         "balance": 200.0,
@@ -153,9 +153,9 @@ def test_settings_masked_updates_multi_tenant():
 def test_b2c_callbacks_success_and_failure():
     # 1. Signup user
     c = TestClient(app)
-    res_signup = c.post("/api/auth/signup", json={"phone_number": "254712345678", "password": "pass"})
+    res_signup = c.post("/api/auth/signup", json={"phone_number": "254712345678", "password": "Str0ng!P@ssw0rd"})
     user_id = res_signup.json()["user_id"]
-    c.post("/api/auth/login", json={"phone_number": "254712345678", "password": "pass"})
+    c.post("/api/auth/login", json={"phone_number": "254712345678", "password": "Str0ng!P@ssw0rd"})
     
     # 2. Add pending payout in database manually for User
     db = get_test_db()
@@ -223,9 +223,9 @@ def test_b2c_callbacks_success_and_failure():
 
 def test_budget_items_api_flow():
     # Register and login a user to get session cookie
-    signup_res = client.post("/api/auth/signup", json={"phone_number": "0722334455", "password": "passwordpin"})
+    signup_res = client.post("/api/auth/signup", json={"phone_number": "0722334455", "password": "Str0ng!P@ssw0rd"})
     assert signup_res.status_code == 200
-    login_res = client.post("/api/auth/login", json={"phone_number": "0722334455", "password": "passwordpin"})
+    login_res = client.post("/api/auth/login", json={"phone_number": "0722334455", "password": "Str0ng!P@ssw0rd"})
     assert login_res.status_code == 200
     
     # 1. Fetch budget items (should be empty initially)
@@ -279,8 +279,8 @@ def test_budget_items_api_unauthorized():
 def test_locking_api_constraints():
     c = TestClient(app)
     # 1. Signup & login
-    c.post("/api/auth/signup", json={"phone_number": "254700000001", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000001", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000001", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000001", "password": "Str0ng!P@ssw0rd"})
     
     # Verify settings are initially unlocked
     settings_res = c.get("/api/settings").json()
@@ -321,8 +321,8 @@ def test_locking_api_constraints():
     # 4. Try manual budget lock endpoint
     # Create another client, signup and login
     c2 = TestClient(app)
-    c2.post("/api/auth/signup", json={"phone_number": "254700000002", "password": "pinpassword"})
-    c2.post("/api/auth/login", json={"phone_number": "254700000002", "password": "pinpassword"})
+    c2.post("/api/auth/signup", json={"phone_number": "254700000002", "password": "Str0ng!P@ssw0rd"})
+    c2.post("/api/auth/login", json={"phone_number": "254700000002", "password": "Str0ng!P@ssw0rd"})
     
     # Try locking empty budget (should fail)
     fail_lock = c2.post("/api/budget/lock")
@@ -339,8 +339,8 @@ def test_locking_api_constraints():
 
 def test_settings_disbursement_dates():
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000003", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000003", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000003", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000003", "password": "Str0ng!P@ssw0rd"})
     
     # 1. Invalid date formats
     res1 = c.post("/api/settings", json={"start_date": "20-06-2026"})
@@ -363,8 +363,8 @@ def test_settings_disbursement_dates():
 
 def test_lock_disbursement_dates():
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000004", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000004", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000004", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000004", "password": "Str0ng!P@ssw0rd"})
     
     # Add a budget item to make locking allowed
     c.post("/api/budget/items", json={"category": "Groceries", "amount": 400.0})
@@ -399,8 +399,8 @@ def test_lock_disbursement_dates():
 
 def test_settings_payout_time_validation():
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000006", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000006", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000006", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000006", "password": "Str0ng!P@ssw0rd"})
     
     # 1. Successful update with a future time (e.g. 15 minutes in the future)
     import datetime
@@ -437,8 +437,8 @@ def test_intasend_integration_flow(monkeypatch):
     monkeypatch.setenv("INTASEND_WEBHOOK_CHALLENGE", "testnet")
 
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000007", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000007", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000007", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000007", "password": "Str0ng!P@ssw0rd"})
 
     # 1. Initiate STK Push deposit using IntaSend
     res_init = c.post("/api/deposit/initiate", json={"amount": 3500.0})
@@ -493,8 +493,8 @@ def test_intasend_integration_flow(monkeypatch):
 def test_dashboard_endpoint_success():
     # 1. Register and login to get valid session cookies
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000888", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000888", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000888", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000888", "password": "Str0ng!P@ssw0rd"})
     
     res = c.get("/dashboard")
     assert res.status_code == 200
@@ -519,8 +519,8 @@ def test_dashboard_endpoint_missing(monkeypatch):
     monkeypatch.setattr(os.path, "exists", mock_exists)
     
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000889", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000889", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000889", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000889", "password": "Str0ng!P@ssw0rd"})
     
     res = c.get("/dashboard")
     assert res.status_code == 404
@@ -535,8 +535,8 @@ def test_root_endpoint_success():
 def test_manual_payout_trigger_endpoint():
     # 1. Setup client user, signup & login
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000008", "password": "pinpassword"})
-    c.post("/api/auth/login", json={"phone_number": "254700000008", "password": "pinpassword"})
+    c.post("/api/auth/signup", json={"phone_number": "254700000008", "password": "Str0ng!P@ssw0rd"})
+    c.post("/api/auth/login", json={"phone_number": "254700000008", "password": "Str0ng!P@ssw0rd"})
     
     # 2. Trigger payout (returns JSON triggered status)
     res = c.post("/api/payout/trigger")

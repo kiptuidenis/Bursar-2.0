@@ -20,7 +20,7 @@ test.describe('Bursar 2.0 Production Fintech Account Lockout & CSS Prohibition E
 
     // 3. Fill login credentials & click submit
     await page.fill('#auth-phone', '254755999888');
-    await page.fill('#auth-password', '000000');
+    await page.fill('#auth-password', 'WrongP@ssw0rd!');
     await page.click('#auth-submit-btn');
 
     await page.waitForTimeout(500);

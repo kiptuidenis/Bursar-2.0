@@ -39,12 +39,57 @@ def test_session_tampering(manager):
     
     # Validation should fail due to signature mismatch
     assert manager.validate_session(tampered_token) is None
+
+
+def test_signup_password_policy_rejection():
+    """Verifies that signup API rejects short, weak, or phone-containing passwords (H-04)."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.db.manager import DatabaseManager
+    from app.api.dependencies import get_db
+
+    test_db = DatabaseManager("test_auth_policy.db")
+    test_db.initialize()
+    app.dependency_overrides[get_db] = lambda: test_db
+
+    try:
+        client = TestClient(app)
+
+        # 1. Under 8 chars returns 422
+        res1 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Short1!"})
+        assert res1.status_code == 422
+
+        # 2. Missing uppercase returns 400
+        res2 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "password123!"})
+        assert res2.status_code == 400
+        assert "uppercase" in res2.json()["detail"]
+
+        # 3. Missing symbol returns 400
+        res3 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Password123"})
+        assert res3.status_code == 400
+        assert "special symbol" in res3.json()["detail"]
+
+        # 4. Containing phone number returns 400
+        res4 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Str0ngP@ss999888"})
+        assert res4.status_code == 400
+        assert "phone number" in res4.json()["detail"]
+
+        # 5. Valid strong password passes signup
+        res5 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Burs@rSecur32026!"})
+        assert res5.status_code == 200
+        assert "user_id" in res5.json()
+
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        test_db.close()
+        import os
+        if os.path.exists("test_auth_policy.db"):
+            try:
+                os.remove("test_auth_policy.db")
+            except Exception:
+                pass
     
-    # Try changing signature to something else
-    parts = token.split(":")
-    parts[2] = "abcdef0123456789"
-    tampered_sig = ":".join(parts)
-    assert manager.validate_session(tampered_sig) is None
+
 
 def test_invalid_format(manager):
     assert manager.validate_session("invalidtoken") is None

@@ -45,11 +45,11 @@ def test_account_lockout_after_5_failed_attempts(test_db):
 
     try:
         phone = "254755111222"
-        correct_pin = "654321"
+        correct_pin = "Str0ng!P@ssw0rd"
         user_id = test_db.create_user(phone, correct_pin)
 
         client = TestClient(app)
-        wrong_payload = {"phone_number": phone, "password": "wrongpassword"}
+        wrong_payload = {"phone_number": phone, "password": "WrongP@ssw0rd!"}
         correct_payload = {"phone_number": phone, "password": correct_pin}
 
         # 1. Attempts 1 through 4 -> 401 Unauthorized

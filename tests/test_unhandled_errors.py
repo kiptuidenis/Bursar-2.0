@@ -13,7 +13,7 @@ def test_unhandled_database_error_returns_json():
         
         login_payload = {
             "phone_number": "254712345678",
-            "password": "mypassword123"
+            "password": "Str0ng!P@ssw0rd"
         }
         
         response = client.post("/api/auth/login", json=login_payload)
@@ -37,7 +37,7 @@ def test_generic_unhandled_exception_returns_json():
         
         login_payload = {
             "phone_number": "254712345678",
-            "password": "mypassword123"
+            "password": "Str0ng!P@ssw0rd"
         }
         
         response = client.post("/api/auth/login", json=login_payload)

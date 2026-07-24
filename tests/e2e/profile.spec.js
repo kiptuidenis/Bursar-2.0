@@ -28,7 +28,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -64,9 +64,9 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
 
 
     // 5. Test Password PIN change
-    await page.fill('#pwd-current', '123456');
-    await page.fill('#pwd-new', '654321');
-    await page.fill('#pwd-confirm', '654321');
+    await page.fill('#pwd-current', 'Str0ng!P@ssw0rd');
+    await page.fill('#pwd-new', 'New!Str0ngP@ssw0rd');
+    await page.fill('#pwd-confirm', 'New!Str0ngP@ssw0rd');
     
     await page.click('#profile-password-form button[type="submit"]');
     await expect.poll(() => dialogMessages).toContain('Password PIN updated successfully!');
@@ -76,7 +76,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await page.waitForSelector('#nav-login-btn');
     await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '654321');
+    await page.fill('#auth-password', 'New!Str0ngP@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     
@@ -97,7 +97,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -108,7 +108,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await pageB.goto('/');
     await pageB.click('#nav-login-btn');
     await pageB.fill('#auth-phone', testPhoneNumber);
-    await pageB.fill('#auth-password', '123456');
+    await pageB.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await pageB.click('#auth-submit-btn');
     await pageB.waitForURL('**/dashboard');
     await pageB.waitForLoadState('networkidle');
@@ -155,7 +155,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
@@ -169,7 +169,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
 
     // 3. Attempt with wrong phrase or wrong PIN
     await page.fill('#deactivate-confirm-phrase', 'DELET');
-    await page.fill('#deactivate-password', '123456');
+    await page.fill('#deactivate-password', 'Str0ng!P@ssw0rd');
     await page.click('#deactivate-form button[type="submit"]');
     await expect.poll(() => dialogMessages).toContain('Please type the confirmation phrase exactly: DELETE');
     
@@ -178,7 +178,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
 
     // 4. Successful deactivation
     await page.fill('#deactivate-confirm-phrase', 'DELETE');
-    await page.fill('#deactivate-password', '123456');
+    await page.fill('#deactivate-password', 'Str0ng!P@ssw0rd');
     await page.click('#deactivate-form button[type="submit"]');
     await page.waitForSelector('#nav-login-btn');
     expect(page.url()).not.toContain('/dashboard');
@@ -186,7 +186,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     // Verify cannot log back in
     await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', '123456');
+    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
     await page.click('#auth-submit-btn');
     await expect(page.locator('#auth-error-msg')).toBeVisible();
   });
