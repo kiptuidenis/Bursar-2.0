@@ -24,10 +24,11 @@ def test_unhandled_database_error_returns_json():
         # Verify content type is application/json
         assert "application/json" in response.headers.get("content-type", "")
         
-        # Verify the structure of the JSON response
+        # Verify the structure of the JSON response (sanitized, no raw exception leakage)
         data = response.json()
         assert "detail" in data
-        assert "Internal Server Error: attempt to write a readonly database" in data["detail"]
+        assert data["detail"] == "An internal server error occurred. Please try again later."
+        assert "attempt to write a readonly database" not in data["detail"]
 
 def test_generic_unhandled_exception_returns_json():
     # Patch authenticate_user to raise a generic Exception
@@ -46,4 +47,5 @@ def test_generic_unhandled_exception_returns_json():
         assert "application/json" in response.headers.get("content-type", "")
         data = response.json()
         assert "detail" in data
-        assert "Internal Server Error: Something went terribly wrong" in data["detail"]
+        assert data["detail"] == "An internal server error occurred. Please try again later."
+        assert "Something went terribly wrong" not in data["detail"]
