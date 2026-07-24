@@ -60,7 +60,7 @@ async def initiate_deposit(request: Request, payload: DepositRequest, user_id: i
             
     except Exception as e:
         db.log_event(user_id, "ERROR", f"Failed to initiate STK Push: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to initiate deposit payment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to initiate deposit payment. Please try again later.")
 
 @router.get("/status/{checkout_request_id}")
 async def check_deposit_status(checkout_request_id: str, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):

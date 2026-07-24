@@ -92,9 +92,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         )
         
     logger.error(f"Unhandled Exception: {str(exc)}\n{traceback.format_exc()}")
+    # Never leak raw python/SQL exception strings to clients
+    detail_msg = "An internal server error occurred. Please try again later."
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal Server Error: {str(exc)}"}
+        content={"detail": detail_msg}
     )
 
 from slowapi import Limiter
