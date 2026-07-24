@@ -5,7 +5,7 @@ from app.db.models import User, Session as DbSession
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id, session_manager
-from app.api.schemas import AuthPayload
+from app.api.schemas import AuthPayload, AuthLoginPayload
 from app.core.config import SESSION_COOKIE_SECURE
 from app.services.recaptcha import verify_recaptcha_token
 
@@ -54,7 +54,7 @@ def signup_user(request: Request, payload: AuthPayload, db: DatabaseManager = De
 
 @router.post("/login")
 @limiter.limit("5/minute")
-def login_user(request: Request, payload: AuthPayload, response: Response, db: DatabaseManager = Depends(get_db)):
+def login_user(request: Request, payload: AuthLoginPayload, response: Response, db: DatabaseManager = Depends(get_db)):
     client_ip = request.client.host if request.client else None
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
@@ -100,8 +100,12 @@ def login_user(request: Request, payload: AuthPayload, response: Response, db: D
         samesite="lax",
         max_age=86400
     )
+    
+    from app.core.password import validate_password_strength
+    is_weak = validate_password_strength(payload.password, user_context=sanitized_phone) is not None
+
     db.log_event(user_id, "INFO", "User successfully authenticated.")
-    return {"status": "success", "user_id": user_id}
+    return {"status": "success", "user_id": user_id, "force_password_change": is_weak}
 
 
 @router.post("/logout")

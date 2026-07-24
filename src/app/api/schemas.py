@@ -7,6 +7,11 @@ class AuthPayload(BaseModel):
     password: str = Field(..., min_length=8, description="Strong password (minimum 8 characters with uppercase, lowercase, digit, and symbol)")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
 
+class AuthLoginPayload(BaseModel):
+    phone_number: str = Field(..., description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    password: str = Field(..., min_length=1, description="Password")
+    recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
+
 
 class SettingsUpdate(BaseModel):
     balance: Optional[float] = None

@@ -724,7 +724,17 @@ function setupEventHandlers() {
                 const data = await res.json();
 
                 if (!res.ok) {
-                    throw new Error(data.detail || "Authentication request failed.");
+                    let detailStr = "Authentication request failed.";
+                    if (data && data.detail) {
+                        if (typeof data.detail === "string") {
+                            detailStr = data.detail;
+                        } else if (Array.isArray(data.detail)) {
+                            detailStr = data.detail.map(e => e.msg || e.detail || JSON.stringify(e)).join("; ");
+                        } else if (typeof data.detail === "object") {
+                            detailStr = data.detail.msg || JSON.stringify(data.detail);
+                        }
+                    }
+                    throw new Error(detailStr);
                 }
 
                 if (currentAuthAction === "signup") {
@@ -739,6 +749,10 @@ function setupEventHandlers() {
                     const phoneEl = document.getElementById("auth-phone");
                     if (phoneEl) phoneEl.value = "";
                     if (authPassword) authPassword.value = "";
+                    
+                    if (data.force_password_change) {
+                        alert("Security Notice: Your account is using a legacy password. Please update your password in Profile Settings to meet the new security requirements (minimum 8 characters with uppercase, lowercase, digit, and symbol).");
+                    }
                     checkAuth();
                 }
             } catch (err) {
