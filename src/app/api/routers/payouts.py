@@ -18,8 +18,12 @@ def list_payouts(limit: int = 100, user_id: int = Depends(get_current_user_id), 
 def list_logs(limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     return db.get_logs(user_id, limit=limit)
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from app.core.limiter import limiter
+
 @router.post("/payout/trigger")
-async def trigger_payout_manually(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("5/5minutes")
+async def trigger_payout_manually(request: Request, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
     try:
         triggered = await check_and_trigger_payout(db, now, user_id=user_id, raise_exceptions=True)

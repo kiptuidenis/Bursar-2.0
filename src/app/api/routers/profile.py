@@ -50,8 +50,12 @@ def update_profile(payload: ProfileUpdate, user_id: int = Depends(get_current_us
         updated_dict["notifications_enabled"] = bool(updated_dict["notifications_enabled"])
     return {"status": "success", "profile": updated_dict}
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from app.core.limiter import limiter
+
 @router.post("/password")
-def change_password(payload: PasswordChange, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("5/15minutes")
+def change_password(request: Request, payload: PasswordChange, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     profile = db.get_profile(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail="User not found.")

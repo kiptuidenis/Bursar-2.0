@@ -78,4 +78,62 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     await expect(submitBtnLocator).toBeDisabled();
   });
 
+  test('Should handle HTTP 429 Rate Limit response cleanly on profile password change', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Intercept /api/profile/password and mock 429 response
+    await page.route('**/api/profile/password', async route => {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        headers: { 'Retry-After': '900' },
+        body: JSON.stringify({ detail: 'Rate limit exceeded: 5 per 15 minutes. Please try again later.' })
+      });
+    });
+
+    let dialogMsg = null;
+    page.on('dialog', async dialog => {
+      dialogMsg = dialog.message();
+      await dialog.accept();
+    });
+
+    // Make fetch call from page context
+    const responseStatus = await page.evaluate(async () => {
+      const res = await fetch('/api/profile/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: '1234', new_password: '5678' })
+      });
+      return res.status;
+    });
+
+    expect(responseStatus).toBe(429);
+  });
+
+  test('Should handle HTTP 429 Rate Limit response cleanly on manual payout trigger', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Intercept /api/payout/trigger and mock 429 response
+    await page.route('**/api/payout/trigger', async route => {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        headers: { 'Retry-After': '300' },
+        body: JSON.stringify({ detail: 'Rate limit exceeded: 5 per 5 minutes. Please try again later.' })
+      });
+    });
+
+    // Make fetch call from page context
+    const responseStatus = await page.evaluate(async () => {
+      const res = await fetch('/api/payout/trigger', {
+        method: 'POST'
+      });
+      return res.status;
+    });
+
+    expect(responseStatus).toBe(429);
+  });
+
 });

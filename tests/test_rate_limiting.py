@@ -110,3 +110,77 @@ def test_deposit_initiation_rate_limiting_triggers_429(test_db, monkeypatch):
             app.dependency_overrides[get_current_user_id] = old_auth_override
         else:
             app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_password_change_rate_limiting_triggers_429(test_db, monkeypatch):
+    """Firing 5 rapid password change requests succeeds/fails normally; 6th attempt triggers 429."""
+    monkeypatch.setattr(config, "IS_TEST_MODE", False)
+    if hasattr(app.state, "limiter"):
+        monkeypatch.setattr(app.state.limiter, "enabled", True)
+
+    old_db_override = app.dependency_overrides.get(get_db)
+    old_auth_override = app.dependency_overrides.get(get_current_user_id)
+
+    app.dependency_overrides[get_db] = _db_override(test_db)
+    user_id = test_db.create_user("254799000333", "pinpassword")
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    try:
+        client = TestClient(app)
+        pw_payload = {"current_password": "pinpassword", "new_password": "newpassword123"}
+
+        for i in range(5):
+            res = client.post("/api/profile/password", json=pw_payload)
+            # 1st succeeds (200), subsequent fails wrong current password (401), but all execute normally
+            assert res.status_code in (200, 401), f"Attempt {i+1} got {res.status_code}"
+
+        # 6th attempt -> 429 Too Many Requests
+        res_limit = client.post("/api/profile/password", json=pw_payload)
+        assert res_limit.status_code == 429, f"6th attempt expected 429, got {res_limit.status_code}"
+
+    finally:
+        if old_db_override is not None:
+            app.dependency_overrides[get_db] = old_db_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+
+        if old_auth_override is not None:
+            app.dependency_overrides[get_current_user_id] = old_auth_override
+        else:
+            app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_payout_trigger_rate_limiting_triggers_429(test_db, monkeypatch):
+    """Firing 5 rapid manual payout trigger requests succeeds/fails normally; 6th attempt triggers 429."""
+    monkeypatch.setattr(config, "IS_TEST_MODE", False)
+    if hasattr(app.state, "limiter"):
+        monkeypatch.setattr(app.state.limiter, "enabled", True)
+
+    old_db_override = app.dependency_overrides.get(get_db)
+    old_auth_override = app.dependency_overrides.get(get_current_user_id)
+
+    app.dependency_overrides[get_db] = _db_override(test_db)
+    user_id = test_db.create_user("254799000444", "pinpassword")
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    try:
+        client = TestClient(app)
+
+        for i in range(5):
+            res = client.post("/api/payout/trigger")
+            assert res.status_code == 200, f"Attempt {i+1} expected 200, got {res.status_code}"
+
+        # 6th attempt -> 429 Too Many Requests
+        res_limit = client.post("/api/payout/trigger")
+        assert res_limit.status_code == 429, f"6th attempt expected 429, got {res_limit.status_code}"
+
+    finally:
+        if old_db_override is not None:
+            app.dependency_overrides[get_db] = old_db_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+
+        if old_auth_override is not None:
+            app.dependency_overrides[get_current_user_id] = old_auth_override
+        else:
+            app.dependency_overrides.pop(get_current_user_id, None)
