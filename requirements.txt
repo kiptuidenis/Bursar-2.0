@@ -9,5 +9,6 @@ python-multipart>=0.0.5
 pymysql>=1.1.0
 sqlalchemy>=2.0.0
 slowapi>=0.1.9
+Pillow>=10.0.0
 
 
