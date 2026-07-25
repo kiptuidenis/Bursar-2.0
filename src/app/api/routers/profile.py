@@ -58,7 +58,7 @@ from app.core.limiter import limiter
 
 @router.post("/password")
 @limiter.limit("5/15minutes")
-def change_password(request: Request, payload: PasswordChange, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+def change_password(request: Request, payload: PasswordChange, response: Response, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     profile = db.get_profile(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -77,6 +77,18 @@ def change_password(request: Request, payload: PasswordChange, user_id: int = De
     db.update_password(user_id, payload.new_password)
     db.log_event(user_id, "INFO", "Password updated successfully.")
     
+    from app.core.csrf import generate_csrf_token
+    from app.core.config import SESSION_COOKIE_SECURE
+    new_csrf = generate_csrf_token()
+    response.set_cookie(
+        key="csrf_token",
+        value=new_csrf,
+        httponly=False,
+        secure=SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/"
+    )
+
     return {"status": "success"}
 
 @router.get("/sessions")

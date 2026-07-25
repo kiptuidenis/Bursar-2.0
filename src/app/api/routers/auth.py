@@ -33,7 +33,7 @@ def sanitize_phone_number(phone: str) -> str:
 
 @router.post("/signup")
 @limiter.limit("5/minute")
-def signup_user(request: Request, payload: AuthPayload, db: DatabaseManager = Depends(get_db)):
+def signup_user(request: Request, payload: AuthPayload, response: Response, db: DatabaseManager = Depends(get_db)):
     client_ip = request.client.host if request.client else None
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
@@ -48,6 +48,17 @@ def signup_user(request: Request, payload: AuthPayload, db: DatabaseManager = De
     try:
         user_id = db.create_user(sanitized_phone, payload.password)
         db.log_event(user_id, "INFO", "User registration completed successfully.")
+        
+        from app.core.csrf import generate_csrf_token
+        new_csrf = generate_csrf_token()
+        response.set_cookie(
+            key="csrf_token",
+            value=new_csrf,
+            httponly=False,
+            secure=SESSION_COOKIE_SECURE,
+            samesite="lax",
+            path="/"
+        )
         return {"status": "success", "user_id": user_id}
     except sqlalchemy.exc.IntegrityError:
         raise HTTPException(status_code=400, detail="This phone number is already registered.")
@@ -101,6 +112,17 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
         max_age=86400
     )
     
+    from app.core.csrf import generate_csrf_token
+    new_csrf = generate_csrf_token()
+    response.set_cookie(
+        key="csrf_token",
+        value=new_csrf,
+        httponly=False,
+        secure=SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/"
+    )
+
     from app.core.password import validate_password_strength
     is_weak = validate_password_strength(payload.password, user_context=sanitized_phone) is not None
 
@@ -111,6 +133,7 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
 @router.post("/logout")
 def logout_user(response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
     response.delete_cookie(key="session_token", secure=SESSION_COOKIE_SECURE)
+    response.delete_cookie(key="csrf_token", path="/")
     if session_token:
         db.session.query(DbSession).filter(DbSession.session_token == session_token).delete(synchronize_session=False)
         db._commit()

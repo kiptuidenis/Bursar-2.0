@@ -400,10 +400,17 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // 2. Inject a FAILED payout record for today directly via the API
-    //    First we need to get a session cookie to make authenticated calls
+    const cookies = await page.context().cookies();
+    const csrfCookie = cookies.find(c => c.name === 'csrf_token');
+    const requestHeaders = {};
+    if (csrfCookie) {
+      requestHeaders['X-CSRF-Token'] = csrfCookie.value;
+    }
+
     const localDate = new Date();
     const todayStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
     const injectRes = await page.request.post('/api/payout/inject-failed', {
+      headers: requestHeaders,
       data: { payout_date: todayStr }
     });
     // If the inject endpoint doesn't exist yet, skip gracefully

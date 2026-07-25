@@ -76,8 +76,10 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await expect.poll(() => dialogMessages).toContain('Password updated successfully!');
 
     // Logout and verify we can log back in using the new password PIN
-    await page.click('#logout-btn');
-    await page.waitForSelector('#nav-login-btn');
+    const logoutBtn = page.locator('#sidebar-logout-btn, #logout-btn');
+    await logoutBtn.first().click({ force: true });
+    await page.waitForURL('**/');
+    await page.waitForLoadState('networkidle');
     await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'New!Str0ngP@ssw0rd');

@@ -1,4 +1,27 @@
-// Bursar 2.0 Client App Logic (Multi-Tenant Auth Edition)
+// CSRF Protection Interceptor
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
+}
+
+const originalFetch = window.fetch;
+window.fetch = function (url, options = {}) {
+    const method = (options.method || "GET").toUpperCase();
+    if (["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
+        options.headers = options.headers || {};
+        const csrfToken = getCsrfToken();
+        if (csrfToken) {
+            if (options.headers instanceof Headers) {
+                options.headers.set("X-CSRF-Token", csrfToken);
+            } else if (Array.isArray(options.headers)) {
+                options.headers.push(["X-CSRF-Token", csrfToken]);
+            } else {
+                options.headers["X-CSRF-Token"] = csrfToken;
+            }
+        }
+    }
+    return originalFetch.call(this, url, options);
+};
 
 // Global State
 let currentSettings = {};

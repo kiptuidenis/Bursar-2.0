@@ -126,6 +126,9 @@ app.add_middleware(
     max_age=config.CORS_MAX_AGE,
 )
 
+from app.core.csrf import CSRFProtectionMiddleware
+app.add_middleware(CSRFProtectionMiddleware)
+
 
 # Register routers
 app.include_router(auth.router)

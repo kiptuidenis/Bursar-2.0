@@ -289,12 +289,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
+            const csrfToken = (function getCsrfToken() {
+                const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
+                return match ? decodeURIComponent(match[1]) : "";
+            })();
+
             const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
 
             try {
+                const headers = { "Content-Type": "application/json" };
+                if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+
                 const res = await fetch(url, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: headers,
                     body: JSON.stringify({ phone_number, password, recaptcha_token })
                 });
 
