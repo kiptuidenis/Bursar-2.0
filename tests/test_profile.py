@@ -214,18 +214,20 @@ def test_avatar_upload():
     res_err2 = c.post("/api/profile/avatar", files={"file": ("avatar.png", huge_file, "image/png")})
     assert res_err2.status_code == 400
 
-    # Successful image upload
-    png_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..." # Mock minimal PNG
+    # Successful image upload with valid PNG bytes
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color="blue").save(buf, format="PNG")
+    png_data = buf.getvalue()
     img_file = io.BytesIO(png_data)
     res_ok = c.post("/api/profile/avatar", files={"file": ("avatar.png", img_file, "image/png")})
     assert res_ok.status_code == 200
     assert "avatar_url" in res_ok.json()
-    assert res_ok.json()["avatar_url"].startswith("/uploads/avatars/")
+    avatar_url = res_ok.json()["avatar_url"]
+    assert avatar_url.startswith("/uploads/avatars/")
 
     # Clean up uploaded test file
-    db = get_test_db()
-    users = db.get_all_users()
-    user_id = next(u["id"] for u in users if u["phone_number"] == "254722334455")
-    filepath = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "app", "static", "uploads", "avatars", f"{user_id}_avatar.png")
+    rel_path = avatar_url.lstrip("/")
+    filepath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", rel_path)
     if os.path.exists(filepath):
         os.remove(filepath)

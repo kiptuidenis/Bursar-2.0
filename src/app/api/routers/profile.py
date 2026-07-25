@@ -1,6 +1,7 @@
 import re
 import os
 import time
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, UploadFile, File, Request
 
@@ -159,30 +160,40 @@ def revoke_session(session_id: int, session_token: Optional[str] = Cookie(None),
 @router.post("/avatar")
 def upload_avatar(file: UploadFile = File(...), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     contents = file.file.read()
-    if len(contents) > 2 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Avatar file size exceeds the 2MB limit.")
-        
-    ext = "png"
-    if file.filename:
-        parts = file.filename.split(".")
-        if len(parts) > 1:
-            ext = parts[-1].lower()
-            
-    if ext not in ["png", "jpg", "jpeg", "webp"]:
-        raise HTTPException(status_code=400, detail="Only PNG, JPG, JPEG, and WEBP image files are allowed.")
-        
+    
+    from app.core.image_validator import process_and_sanitize_avatar
+    try:
+        sanitized_bytes, ext = process_and_sanitize_avatar(contents)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
     static_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "uploads", "avatars")
     os.makedirs(static_uploads_dir, exist_ok=True)
     
-    filename = f"{user_id}_avatar.{ext}"
+    # Path safety guard: delete previous custom avatar file if present
+    profile = db.get_profile(user_id)
+    if profile and profile.get("avatar_url"):
+        old_url = profile["avatar_url"]
+        if old_url and old_url.startswith("/uploads/avatars/"):
+            old_filename = os.path.basename(old_url)
+            old_filepath = os.path.realpath(os.path.join(static_uploads_dir, old_filename))
+            base_dir = os.path.realpath(static_uploads_dir)
+            if old_filepath.startswith(base_dir) and os.path.isfile(old_filepath):
+                try:
+                    os.remove(old_filepath)
+                except Exception as clean_err:
+                    logger.warning(f"Failed to clean up previous avatar {old_filepath}: {clean_err}")
+
+    # Full 32-character UUID filename
+    filename = f"{user_id}_{uuid.uuid4().hex}.{ext}"
     filepath = os.path.join(static_uploads_dir, filename)
     
     with open(filepath, "wb") as f:
-        f.write(contents)
+        f.write(sanitized_bytes)
         
     url = f"/uploads/avatars/{filename}"
     db.update_profile(user_id, avatar_url=url)
-    db.log_event(user_id, "INFO", "User avatar uploaded successfully.")
+    db.log_event(user_id, "INFO", "User avatar uploaded and sanitized successfully.")
     
     return {"status": "success", "avatar_url": url}
 
