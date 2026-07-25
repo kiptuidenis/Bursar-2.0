@@ -304,17 +304,20 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await expect(page.locator('#designer-category-list')).toContainText('TestCategory');
 
     // 7. Delete TestCategory inside the modal
-    const responsePromise = page.waitForResponse(res => res.url().includes('/api/budget/items') && res.request().method() === 'DELETE');
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+    });
 
     await page.evaluate(() => {
       window.__SKIP_CONFIRM__ = true;
-      setTimeout(() => {
-        const btn = document.querySelector('#designer-category-list .cancel-btn');
-        if (btn) btn.click();
-      }, 50);
     });
 
-    const deleteRes = await responsePromise;
+    const cancelBtn = page.locator('#designer-category-list .cancel-btn').first();
+    await expect(cancelBtn).toBeVisible();
+
+    const deletePromise = page.waitForResponse(res => res.url().includes('/api/budget/items') && res.request().method() === 'DELETE');
+    await cancelBtn.click({ force: true });
+    const deleteRes = await deletePromise;
     expect(deleteRes.status()).toBe(200);
 
     // Verify it is gone from the modal list
