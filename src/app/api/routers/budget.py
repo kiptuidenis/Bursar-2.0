@@ -19,6 +19,9 @@ def add_or_update_budget_item(request: Request, payload: BudgetItemPayload, user
     if db.is_budget_locked(user_id):
         raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
         
+    if not float(payload.amount).is_integer():
+        raise HTTPException(status_code=400, detail="Budget allocation amount must be a whole positive integer (no decimal places).")
+        
     category = payload.category.strip()
     if not category:
         raise HTTPException(status_code=400, detail="Category name cannot be empty")
@@ -56,10 +59,12 @@ def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_i
         
         db.session.query(BudgetItem).filter(BudgetItem.user_id == user_id).delete(synchronize_session=False)
         for item in payload.items:
+            if not float(item.amount).is_integer():
+                raise HTTPException(status_code=400, detail="Budget allocation amount must be a whole positive integer (no decimal places).")
             category = item.category.strip()
             if not category:
                 raise HTTPException(status_code=400, detail="Category name cannot be empty")
-            db_item = BudgetItem(user_id=user_id, category=category, amount=item.amount)
+            db_item = BudgetItem(user_id=user_id, category=category, amount=float(int(item.amount)))
             db.session.add(db_item)
         db._commit()
         db.recalculate_daily_budget(user_id)

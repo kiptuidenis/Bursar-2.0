@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 
 # Pydantic input models
@@ -36,9 +36,23 @@ class BudgetItemPayload(BaseModel):
     category: str = Field(..., min_length=1, max_length=100, description="Budget category name")
     amount: float = Field(..., gt=0, description="Amount allocated to category must be greater than zero")
 
+    @field_validator("amount")
+    @classmethod
+    def validate_integer_amount(cls, v: float) -> float:
+        if not float(v).is_integer():
+            raise ValueError("Budget allocation amount must be a whole positive integer (no decimal places).")
+        return float(int(v))
+
 class DraftBudgetItem(BaseModel):
     category: str = Field(..., min_length=1, max_length=100, description="Category name")
     amount: float = Field(..., gt=0, description="Allocation amount")
+
+    @field_validator("amount")
+    @classmethod
+    def validate_integer_amount(cls, v: float) -> float:
+        if not float(v).is_integer():
+            raise ValueError("Budget allocation amount must be a whole positive integer (no decimal places).")
+        return float(int(v))
 
 class BudgetLockPayload(BaseModel):
     start_date: Optional[str] = None

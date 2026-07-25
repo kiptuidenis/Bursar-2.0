@@ -911,6 +911,10 @@ function setupEventHandlers() {
         const category = document.getElementById("new-category-name").value.trim();
         const amount = parseFloat(document.getElementById("new-category-amount").value);
         if (!category || isNaN(amount) || amount <= 0) return;
+        if (!Number.isInteger(amount)) {
+            alert("Budget allocation amount must be a whole positive integer (no decimal places).");
+            return;
+        }
         
         try {
             const res = await fetch("/api/budget/items", {
