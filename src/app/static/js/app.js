@@ -464,6 +464,20 @@ function setupEventHandlers() {
         });
     });
 
+    // Delete budget category event delegation (CSP compliant)
+    const designerList = document.getElementById("designer-category-list");
+    if (designerList) {
+        designerList.addEventListener("click", (e) => {
+            const btn = e.target.closest('[data-action="delete-category"]');
+            if (btn) {
+                const itemId = parseInt(btn.getAttribute("data-id"), 10);
+                if (!isNaN(itemId)) {
+                    deleteCategory(itemId);
+                }
+            }
+        });
+    }
+
     // "View All" link on recent payouts card
     const viewAllBtn = document.getElementById("view-all-payouts-btn");
     if (viewAllBtn) {
@@ -1432,8 +1446,8 @@ function renderBudgetBreakdown() {
                         <span class="designer-category-val">Daily allocation: <span>KES ${item.amount.toFixed(2)}</span></span>
                     </div>
                     ${isLocked ? '' : `
-                    <button class="icon-link-btn cancel-btn" onclick="deleteCategory(${item.id})" title="Delete allocation category">
-                        <i data-lucide="trash-2" style="width: 1.1rem; height: 1.1rem;"></i>
+                    <button class="icon-link-btn cancel-btn" data-action="delete-category" data-id="${item.id}" title="Delete allocation category">
+                        <i data-lucide="trash-2" style="width: 1.1rem; height: 1.1rem; pointer-events: none;"></i>
                     </button>
                     `}
                 </div>
