@@ -1511,14 +1511,14 @@ async function deleteCategory(itemId) {
         return;
     }
     
-    if (!confirm("Are you sure you want to delete this category?")) return;
+    if (!window.__SKIP_CONFIRM__ && !confirm("Are you sure you want to delete this category?")) return;
     
     try {
         const res = await fetch(`/api/budget/items/${itemId}`, { method: "DELETE" });
         if (res.status === 401) return showAuthScreen();
         if (!res.ok) throw new Error("Deletion failed");
         
-        pollDashboardData();
+        await pollDashboardData();
     } catch (err) {
         console.error(err);
         alert("Failed to delete category.");

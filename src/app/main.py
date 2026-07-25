@@ -129,6 +129,9 @@ app.add_middleware(
 from app.core.csrf import CSRFProtectionMiddleware
 app.add_middleware(CSRFProtectionMiddleware)
 
+from app.core.security_headers import SecurityHeadersMiddleware
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 # Register routers
 app.include_router(auth.router)
