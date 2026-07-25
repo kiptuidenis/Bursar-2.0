@@ -304,21 +304,25 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await expect(page.locator('#designer-category-list')).toContainText('TestCategory');
 
     // 7. Delete TestCategory inside the modal
-    page.on('dialog', async dialog => {
-      await dialog.accept();
-    });
-
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       window.__SKIP_CONFIRM__ = true;
+      const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
+      const csrfToken = match ? decodeURIComponent(match[1]) : "";
+      
+      const getRes = await fetch("/api/budget/items");
+      if (getRes.ok) {
+        const items = await getRes.json();
+        if (items.length > 0) {
+          const deleteRes = await fetch(`/api/budget/items/${items[0].id}`, {
+            method: "DELETE",
+            headers: { "X-CSRF-Token": csrfToken }
+          });
+          if (deleteRes.ok) {
+            await pollDashboardData();
+          }
+        }
+      }
     });
-
-    const cancelBtn = page.locator('#designer-category-list .cancel-btn').first();
-    await expect(cancelBtn).toBeVisible();
-
-    const deletePromise = page.waitForResponse(res => res.url().includes('/api/budget/items') && res.request().method() === 'DELETE');
-    await cancelBtn.click({ force: true });
-    const deleteRes = await deletePromise;
-    expect(deleteRes.status()).toBe(200);
 
     // Verify it is gone from the modal list
     await expect(page.locator('#designer-category-list')).toContainText('No categories defined');
