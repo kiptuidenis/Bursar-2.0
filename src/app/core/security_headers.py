@@ -22,7 +22,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # 1. Content Security Policy (CSP)
         csp_directives = [
             "default-src 'self'",
-            "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/",
+            "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https://www.google.com/recaptcha/ https://www.gstatic.com/",
@@ -58,3 +58,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "0"
         
         return response
+
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.google.com/recaptcha/ https://www.gstatic.com/; connect-src 'self' https://www.google.com/recaptcha/ https://api.intasend.com; frame-src 'self' https://www.google.com/recaptcha/ https://recaptcha.google.com/; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "X-XSS-Protection": "0"
+}
