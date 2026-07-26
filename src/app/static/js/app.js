@@ -1348,35 +1348,41 @@ function startCountdownTimer() {
         const day = String(now.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
 
-        const dailyBudget = parseFloat(currentSettings.daily_budget || 0);
-        const balance = parseFloat(currentSettings.balance || 0);
-
-        // State 1: No Active Budget (unset or unlocked)
-        if (dailyBudget <= 0 || !currentSettings.is_budget_locked) {
-            timerLabel.innerText = "No Budget Set";
-            return;
-        }
-
-        // State 2: Schedule Ended
-        if (currentSettings.end_date && todayStr > currentSettings.end_date) {
-            timerLabel.innerText = "Schedule Ended";
-            return;
-        }
-
-        // State 3: Low Balance (wallet balance < daily budget when budget is locked)
-        if (balance < dailyBudget) {
-            timerLabel.innerText = "Top-up Required";
-            return;
-        }
-
-        // State 4: 3rd-Party API Failure (a payout attempt actually failed today)
+        // 1. A failed payout takes priority over all other timer states (preserves dashboard.spec.js E2E test)
         const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
         if (failedToday) {
             timerLabel.innerText = "Payout Failed — Use Run Payout";
             return;
         }
 
-        // State 5: Live Payout Countdown (valid schedule with sufficient balance)
+        const dailyBudget = parseFloat(currentSettings.daily_budget || 0);
+        const balance = parseFloat(currentSettings.balance || 0);
+
+        // 2. No Budget Set
+        if (dailyBudget <= 0) {
+            timerLabel.innerText = "No Budget Set";
+            return;
+        }
+
+        // 3. Unlocked Budget
+        if (!currentSettings.is_budget_locked) {
+            timerLabel.innerText = "Lock Budget to Activate";
+            return;
+        }
+
+        // 4. Schedule Ended
+        if (currentSettings.end_date && todayStr > currentSettings.end_date) {
+            timerLabel.innerText = "Schedule Ended";
+            return;
+        }
+
+        // 5. Low Balance (wallet balance < daily budget when budget is locked)
+        if (balance < dailyBudget) {
+            timerLabel.innerText = "Top-up Required";
+            return;
+        }
+
+        // 6. Live Payout Countdown or Payout is Due (when balance >= daily budget)
         const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
         const [hour, minute] = currentSettings.payout_time.split(":").map(Number);
         
@@ -1386,9 +1392,11 @@ function startCountdownTimer() {
         if (currentSettings.start_date && todayStr < currentSettings.start_date) {
             const [sYear, sMonth, sDay] = currentSettings.start_date.split("-").map(Number);
             target = new Date(sYear, sMonth - 1, sDay, hour, minute, 0, 0);
-        } else if (payoutToday || now >= target) {
-            // Today's payout is completed OR today's time passed without API failure -> roll over to tomorrow
+        } else if (payoutToday) {
             target.setDate(target.getDate() + 1);
+        } else if (now >= target) {
+            timerLabel.innerText = "Payout is due";
+            return;
         }
 
         const diffMs = target - now;
