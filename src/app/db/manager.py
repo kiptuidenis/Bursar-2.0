@@ -454,17 +454,25 @@ class DatabaseManager:
         self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
-        """Check if the user's budget allocations are locked for the current calendar month."""
+        """Check if the user's budget allocations are locked for the current calendar month or active schedule."""
         settings = self.get_settings(user_id)
         if not settings:
             return False
+            
+        import datetime
+        ref_date = today or datetime.date.today()
+        ref_str = ref_date.strftime("%Y-%m-%d")
+        
+        # If an explicit payout schedule end_date exists and ref_str > end_date, budget schedule has ended & budget is unlocked
+        end_date = settings.get("end_date", "")
+        if end_date and ref_str > end_date:
+            return False
+
         locked_until = settings.get("budget_locked_until", "")
         if not locked_until:
             return False
-        import datetime
         try:
             lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            ref_date = today or datetime.date.today()
             return ref_date < lock_date
         except ValueError:
             return False
