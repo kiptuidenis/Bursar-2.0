@@ -1342,45 +1342,60 @@ function startCountdownTimer() {
             return;
         }
 
-        // Compute today's string first so payout status can override any other state
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
 
-        const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
-        const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
+        const dailyBudget = parseFloat(currentSettings.daily_budget || 0);
+        const balance = parseFloat(currentSettings.balance || 0);
 
-        // A failed payout takes priority over all other timer states
+        // State 1: No Active Budget (unset or unlocked)
+        if (dailyBudget <= 0 || !currentSettings.is_budget_locked) {
+            timerLabel.innerText = "No Budget Set";
+            return;
+        }
+
+        // State 2: Schedule Ended
+        if (currentSettings.end_date && todayStr > currentSettings.end_date) {
+            timerLabel.innerText = "Schedule Ended";
+            return;
+        }
+
+        // State 3: Low Balance (wallet balance < daily budget when budget is locked)
+        if (balance < dailyBudget) {
+            timerLabel.innerText = "Top-up Required";
+            return;
+        }
+
+        // State 4: 3rd-Party API Failure (a payout attempt actually failed today)
+        const failedToday = currentPayouts.some(p => p.payout_date === todayStr && p.status === 'FAILED');
         if (failedToday) {
             timerLabel.innerText = "Payout Failed — Use Run Payout";
             return;
         }
 
-        if (parseFloat(currentSettings.daily_budget || 0) <= 0) {
-            timerLabel.innerText = "No Budget Set";
-            return;
-        }
-
-        if (!currentSettings.is_budget_locked) {
-            timerLabel.innerText = "Lock Budget to Activate";
-            return;
-        }
-
+        // State 5: Live Payout Countdown (valid schedule with sufficient balance)
+        const payoutToday = currentPayouts.some(p => p.payout_date === todayStr && (p.status === 'SUCCESS' || p.status === 'PENDING'));
         const [hour, minute] = currentSettings.payout_time.split(":").map(Number);
         
         let target = new Date();
         target.setHours(hour, minute, 0, 0);
 
-        if (payoutToday) {
+        if (currentSettings.start_date && todayStr < currentSettings.start_date) {
+            const [sYear, sMonth, sDay] = currentSettings.start_date.split("-").map(Number);
+            target = new Date(sYear, sMonth - 1, sDay, hour, minute, 0, 0);
+        } else if (payoutToday || now >= target) {
+            // Today's payout is completed OR today's time passed without API failure -> roll over to tomorrow
             target.setDate(target.getDate() + 1);
-        } else if (now >= target) {
-            timerLabel.innerText = "Payout is due";
-            return;
         }
 
         const diffMs = target - now;
+        if (diffMs <= 0) {
+            timerLabel.innerText = "00h 00m 00s";
+            return;
+        }
         
         const hours = Math.floor(diffMs / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
