@@ -11,7 +11,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
     });
   });
 
-  test('Should allow adding new budget items after schedule end date has passed', async ({ page }) => {
+  test('Should allow locking budget during active schedule and unlock when schedule ends', async ({ page }) => {
     await page.goto('/');
     await page.click('#nav-signup-btn');
 
@@ -29,7 +29,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // Add budget item & lock budget with future dates first
+    // Add budget item & lock budget with future dates
     await page.click('#open-budget-designer-btn');
     await page.waitForTimeout(300);
     await page.fill('#new-category-name', 'Food');
@@ -43,16 +43,17 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
       if (scheduleBody) scheduleBody.style.display = 'block';
     });
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    // Use +3 and +10 days to be 100% timezone resilient (UTC vs EAT)
+    const future3 = new Date();
+    future3.setDate(future3.getDate() + 3);
+    const future3Str = future3.toISOString().split('T')[0];
 
-    const farFuture = new Date();
-    farFuture.setDate(farFuture.getDate() + 5);
-    const farFutureStr = farFuture.toISOString().split('T')[0];
+    const future10 = new Date();
+    future10.setDate(future10.getDate() + 10);
+    const future10Str = future10.toISOString().split('T')[0];
 
-    await page.fill('#lock-start-date', tomorrowStr);
-    await page.fill('#lock-end-date', farFutureStr);
+    await page.fill('#lock-start-date', future3Str);
+    await page.fill('#lock-end-date', future10Str);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'confirm') await dialog.accept();
@@ -62,7 +63,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
     await page.click('#lock-budget-btn');
     await page.waitForTimeout(1000);
 
-    // Verify lock notice appears while active
+    // Verify lock notice appears while active schedule is locked
     const lockNotice = page.locator('#budget-creator-lock-notice');
     await expect(lockNotice).toBeVisible();
 
