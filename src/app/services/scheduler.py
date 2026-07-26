@@ -28,19 +28,7 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     phone_number = settings.get("phone_number", "")
     mode = settings.get("mode", "simulation")
     
-    # Check if budget is locked (payouts can only run if budget is finalized and locked)
-    if not db.is_budget_locked(user_id, today=current_time.date()):
-        if raise_exceptions:
-            raise ValueError("Your daily budget must be locked before triggering a payout.")
-        return False
-
-    # 1. Check if daily budget is positive
-    if daily_budget <= 0:
-        if raise_exceptions:
-            raise ValueError("Daily budget must be greater than zero to trigger a payout.")
-        return False
-        
-    # Check start and end date bounds
+    # 1. Check start and end date bounds
     start_date_str = settings.get("start_date", "")
     end_date_str = settings.get("end_date", "")
     today_date_str = current_time.strftime("%Y-%m-%d")
@@ -53,6 +41,18 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     if end_date_str and today_date_str > end_date_str:
         if raise_exceptions:
             raise ValueError(f"Payout schedule has already ended (End Date: {end_date_str}).")
+        return False
+
+    # 2. Check if budget is locked (payouts can only run if budget is finalized and locked)
+    if not db.is_budget_locked(user_id, today=current_time.date()):
+        if raise_exceptions:
+            raise ValueError("Your daily budget must be locked before triggering a payout.")
+        return False
+
+    # 3. Check if daily budget is positive
+    if daily_budget <= 0:
+        if raise_exceptions:
+            raise ValueError("Daily budget must be greater than zero to trigger a payout.")
         return False
         
     # 2. Check current time vs payout_time
