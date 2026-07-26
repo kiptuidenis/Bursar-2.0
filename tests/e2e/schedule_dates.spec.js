@@ -58,15 +58,11 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     });
     await page.waitForTimeout(300);
 
-    // 3. Test Today / Past Start Date validation (start_date must be > today, i.e., tomorrow onwards)
+    // 3. Test Today / Past Start Date validation (start_date must be > today)
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
     const farFuture = new Date();
-    farFuture.setDate(farFuture.getDate() + 5);
+    farFuture.setDate(farFuture.getDate() + 10);
     const farFutureStr = farFuture.toISOString().split('T')[0];
 
     // Try today's date as start date -> should be rejected because start_date must be strictly > today
@@ -79,8 +75,13 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     expect(dialogMessages.some(m => m.toLowerCase().includes('future') || m.toLowerCase().includes('past'))).toBe(true);
 
     // 4. Test Matching Start and End Date validation
-    await page.fill('#lock-start-date', tomorrowStr);
-    await page.fill('#lock-end-date', tomorrowStr);
+    // Use a date 5 days in future so it passes start_date > today check in all timezones (UTC vs EAT)
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 5);
+    const futureDateStr = futureDate.toISOString().split('T')[0];
+
+    await page.fill('#lock-start-date', futureDateStr);
+    await page.fill('#lock-end-date', futureDateStr);
     await page.click('#lock-budget-btn');
     await page.waitForTimeout(1000);
 
