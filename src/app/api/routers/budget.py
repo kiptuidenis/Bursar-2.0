@@ -1,4 +1,5 @@
 import re
+import datetime
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Body, Request
 from app.db.manager import DatabaseManager
@@ -76,14 +77,18 @@ def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_i
     start_date = payload.start_date.strip() if payload.start_date else ""
     end_date = payload.end_date.strip() if payload.end_date else ""
     
+    today_str = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).strftime("%Y-%m-%d")
+    
     if start_date:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", start_date):
             raise HTTPException(status_code=400, detail="Invalid start date format. Must be YYYY-MM-DD.")
+        if start_date < today_str:
+            raise HTTPException(status_code=400, detail="Start date cannot be in the past. It must be today or a future date.")
     if end_date:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", end_date):
             raise HTTPException(status_code=400, detail="Invalid end date format. Must be YYYY-MM-DD.")
-    if start_date and end_date and end_date < start_date:
-        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+    if start_date and end_date and end_date <= start_date:
+        raise HTTPException(status_code=400, detail="End date must be strictly after start date (cannot be the same day or earlier).")
         
     settings = db.get_settings(user_id)
     daily_budget = settings.get("daily_budget", 0.0)

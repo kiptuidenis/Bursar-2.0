@@ -338,9 +338,15 @@ def test_locking_api_constraints():
     assert c2.get("/api/settings").json()["is_budget_locked"] is True
 
 def test_settings_disbursement_dates():
+    import datetime
     c = TestClient(app)
     c.post("/api/auth/signup", json={"phone_number": "254700000003", "password": "Str0ng!P@ssw0rd"})
     c.post("/api/auth/login", json={"phone_number": "254700000003", "password": "Str0ng!P@ssw0rd"})
+    
+    today_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    today_str = today_dt.strftime("%Y-%m-%d")
+    future_str = (today_dt + datetime.timedelta(days=5)).strftime("%Y-%m-%d")
+    far_future_str = (today_dt + datetime.timedelta(days=10)).strftime("%Y-%m-%d")
     
     # 1. Invalid date formats
     res1 = c.post("/api/settings", json={"start_date": "20-06-2026"})
@@ -350,21 +356,27 @@ def test_settings_disbursement_dates():
     assert res2.status_code == 400
     
     # 2. End date earlier than start date
-    res3 = c.post("/api/settings", json={"start_date": "2026-06-25", "end_date": "2026-06-20"})
+    res3 = c.post("/api/settings", json={"start_date": far_future_str, "end_date": future_str})
     assert res3.status_code == 400
     
     # 3. Successful update
-    res4 = c.post("/api/settings", json={"start_date": "2026-06-20", "end_date": "2026-06-25"})
+    res4 = c.post("/api/settings", json={"start_date": today_str, "end_date": future_str})
     assert res4.status_code == 200
     settings = c.get("/api/settings").json()
-    assert settings["start_date"] == "2026-06-20"
-    assert settings["end_date"] == "2026-06-25"
+    assert settings["start_date"] == today_str
+    assert settings["end_date"] == future_str
 
 
 def test_lock_disbursement_dates():
+    import datetime
     c = TestClient(app)
     c.post("/api/auth/signup", json={"phone_number": "254700000004", "password": "Str0ng!P@ssw0rd"})
     c.post("/api/auth/login", json={"phone_number": "254700000004", "password": "Str0ng!P@ssw0rd"})
+    
+    today_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    today_str = today_dt.strftime("%Y-%m-%d")
+    future_str = (today_dt + datetime.timedelta(days=5)).strftime("%Y-%m-%d")
+    far_future_str = (today_dt + datetime.timedelta(days=10)).strftime("%Y-%m-%d")
     
     # Add a budget item to make locking allowed
     c.post("/api/budget/items", json={"category": "Groceries", "amount": 400.0})
@@ -378,20 +390,20 @@ def test_lock_disbursement_dates():
     assert res2.status_code == 400
     
     # 3. Test end date earlier than start date
-    res3 = c.post("/api/budget/lock", json={"start_date": "2026-06-25", "end_date": "2026-06-20"})
+    res3 = c.post("/api/budget/lock", json={"start_date": far_future_str, "end_date": future_str})
     assert res3.status_code == 400
     
     # 4. Successful lock with dates
-    res4 = c.post("/api/budget/lock", json={"start_date": "2026-06-20", "end_date": "2026-06-25"})
+    res4 = c.post("/api/budget/lock", json={"start_date": today_str, "end_date": future_str})
     assert res4.status_code == 200
-    assert res4.json()["start_date"] == "2026-06-20"
-    assert res4.json()["end_date"] == "2026-06-25"
+    assert res4.json()["start_date"] == today_str
+    assert res4.json()["end_date"] == future_str
     
     # Verify budget locked and dates stored in settings
     settings = c.get("/api/settings").json()
     assert settings["is_budget_locked"] is True
-    assert settings["start_date"] == "2026-06-20"
-    assert settings["end_date"] == "2026-06-25"
+    assert settings["start_date"] == today_str
+    assert settings["end_date"] == future_str
 
 
 

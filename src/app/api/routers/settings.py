@@ -37,18 +37,23 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
         
     current = db.get_settings(user_id)
     
+    today_str = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).strftime("%Y-%m-%d")
+    
     # Validate start_date and end_date formats and ranges
     if "start_date" in updates and updates["start_date"]:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", updates["start_date"]):
             raise HTTPException(status_code=400, detail="Invalid start date format. Must be YYYY-MM-DD.")
+        if updates["start_date"] < today_str:
+            raise HTTPException(status_code=400, detail="Start date cannot be in the past. It must be today or a future date.")
+            
     if "end_date" in updates and updates["end_date"]:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", updates["end_date"]):
             raise HTTPException(status_code=400, detail="Invalid end date format. Must be YYYY-MM-DD.")
             
     start = updates.get("start_date") if "start_date" in updates else (current.get("start_date") if current else "")
     end = updates.get("end_date") if "end_date" in updates else (current.get("end_date") if current else "")
-    if start and end and end < start:
-        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+    if start and end and end <= start:
+        raise HTTPException(status_code=400, detail="End date must be strictly after start date (cannot be the same day or earlier).")
     
     # 1. Enforce budget lock on daily_budget updates
     if "daily_budget" in updates:
