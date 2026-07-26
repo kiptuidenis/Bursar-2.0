@@ -43,8 +43,8 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
     if "start_date" in updates and updates["start_date"]:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", updates["start_date"]):
             raise HTTPException(status_code=400, detail="Invalid start date format. Must be YYYY-MM-DD.")
-        if updates["start_date"] < today_str:
-            raise HTTPException(status_code=400, detail="Start date cannot be in the past. It must be today or a future date.")
+        if updates["start_date"] <= today_str:
+            raise HTTPException(status_code=400, detail="Start date must be in the future (tomorrow or later).")
             
     if "end_date" in updates and updates["end_date"]:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", updates["end_date"]):

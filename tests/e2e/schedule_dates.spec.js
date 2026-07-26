@@ -11,7 +11,7 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     });
   });
 
-  test('Should reject entering a past start date and matching start/end dates in budget lock modal', async ({ page }) => {
+  test('Should reject entering today or past start date and matching start/end dates in budget lock modal', async ({ page }) => {
     const dialogMessages = [];
     page.on('dialog', async dialog => {
       dialogMessages.push(dialog.message());
@@ -58,30 +58,29 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     });
     await page.waitForTimeout(300);
 
-    // 3. Test Past Start Date validation
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const pastDateStr = yesterday.toISOString().split('T')[0];
+    // 3. Test Today / Past Start Date validation (start_date must be > today, i.e., tomorrow onwards)
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const futureDateStr = tomorrow.toISOString().split('T')[0];
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    await page.fill('#lock-start-date', pastDateStr);
-    await page.fill('#lock-end-date', futureDateStr);
+    const farFuture = new Date();
+    farFuture.setDate(farFuture.getDate() + 5);
+    const farFutureStr = farFuture.toISOString().split('T')[0];
+
+    // Try today's date as start date -> should be rejected because start_date must be strictly > today
+    await page.fill('#lock-start-date', todayStr);
+    await page.fill('#lock-end-date', farFutureStr);
     await page.click('#lock-budget-btn');
     await page.waitForTimeout(1000);
 
-    console.log('Dialog messages captured:', dialogMessages);
-
-    // Verify alert message for past date was captured
-    expect(dialogMessages.some(m => m.toLowerCase().includes('past'))).toBe(true);
+    // Verify alert message for non-future date was captured
+    expect(dialogMessages.some(m => m.toLowerCase().includes('future') || m.toLowerCase().includes('past'))).toBe(true);
 
     // 4. Test Matching Start and End Date validation
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    await page.fill('#lock-start-date', todayStr);
-    await page.fill('#lock-end-date', todayStr);
+    await page.fill('#lock-start-date', tomorrowStr);
+    await page.fill('#lock-end-date', tomorrowStr);
     await page.click('#lock-budget-btn');
     await page.waitForTimeout(1000);
 

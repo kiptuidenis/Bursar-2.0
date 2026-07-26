@@ -82,8 +82,8 @@ def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_i
     if start_date:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", start_date):
             raise HTTPException(status_code=400, detail="Invalid start date format. Must be YYYY-MM-DD.")
-        if start_date < today_str:
-            raise HTTPException(status_code=400, detail="Start date cannot be in the past. It must be today or a future date.")
+        if start_date <= today_str:
+            raise HTTPException(status_code=400, detail="Start date must be in the future (tomorrow or later).")
     if end_date:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", end_date):
             raise HTTPException(status_code=400, detail="Invalid end date format. Must be YYYY-MM-DD.")
