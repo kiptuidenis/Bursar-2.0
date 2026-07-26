@@ -1358,15 +1358,9 @@ function startCountdownTimer() {
         const dailyBudget = parseFloat(currentSettings.daily_budget || 0);
         const balance = parseFloat(currentSettings.balance || 0);
 
-        // 2. No Budget Set
-        if (dailyBudget <= 0) {
+        // 2. No Budget Set (unset, zero budget, or unlocked budget)
+        if (dailyBudget <= 0 || !currentSettings.is_budget_locked) {
             timerLabel.innerText = "No Budget Set";
-            return;
-        }
-
-        // 3. Unlocked Budget
-        if (!currentSettings.is_budget_locked) {
-            timerLabel.innerText = "Lock Budget to Activate";
             return;
         }
 
