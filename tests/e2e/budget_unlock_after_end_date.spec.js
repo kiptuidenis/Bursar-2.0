@@ -12,6 +12,12 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
   });
 
   test('Should allow locking budget during active schedule and unlock when schedule ends', async ({ page }) => {
+    // 1. Register dialog handler first
+    page.on('dialog', async dialog => {
+      if (dialog.type() === 'confirm') await dialog.accept();
+      else await dialog.dismiss();
+    });
+
     await page.goto('/');
     await page.click('#nav-signup-btn');
 
@@ -29,7 +35,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // Add budget item & lock budget with future dates
+    // 2. Add budget item & lock budget with future dates
     await page.click('#open-budget-designer-btn');
     await page.waitForTimeout(300);
     await page.fill('#new-category-name', 'Food');
@@ -55,15 +61,17 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
     await page.fill('#lock-start-date', future3Str);
     await page.fill('#lock-end-date', future10Str);
 
-    page.on('dialog', async dialog => {
-      if (dialog.type() === 'confirm') await dialog.accept();
-      else await dialog.dismiss();
-    });
-
     await page.click('#lock-budget-btn');
     await page.waitForTimeout(1000);
 
-    // Verify lock notice appears while active schedule is locked
+    // 3. Verify budget lock badge is visible on the dashboard card
+    const lockBadge = page.locator('#budget-lock-badge');
+    await expect(lockBadge).toBeVisible();
+
+    // 4. Re-open budget modal and verify lock notice is visible inside modal
+    await page.click('#open-budget-designer-btn');
+    await page.waitForTimeout(300);
+
     const lockNotice = page.locator('#budget-creator-lock-notice');
     await expect(lockNotice).toBeVisible();
 
