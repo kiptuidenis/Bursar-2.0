@@ -90,6 +90,18 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
     # 5. Verify balance (must have enough BEFORE initiating — we check first, deduct only after success)
     if balance < daily_budget:
         db.log_event(user_id, "ERROR", f"Payout for {today_date} skipped: Insufficient balance (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
+        
+        # Auto-create in-app notification if an unread warning doesn't exist
+        notifications, _ = db.get_notifications(user_id)
+        has_unread_warning = any(not n["is_read"] and n["type"] == "WARNING" for n in notifications)
+        if not has_unread_warning:
+            db.create_notification(
+                user_id=user_id,
+                title="Payout Skipped — Low Balance",
+                message=f"Your daily payout of KES {daily_budget:.2f} was skipped because your wallet balance (KES {balance:.2f}) is insufficient. Please deposit funds to resume automated payouts.",
+                notif_type="WARNING"
+            )
+
         if raise_exceptions:
             raise ValueError(f"Insufficient wallet balance. (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
         return False

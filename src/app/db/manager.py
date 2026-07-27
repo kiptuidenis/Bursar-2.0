@@ -452,6 +452,30 @@ class DatabaseManager:
             Settings.balance: Settings.balance + amount
         }, synchronize_session=False)
         self._commit()
+        if amount > 0:
+            self.resolve_low_balance_warnings(user_id)
+
+    def resolve_low_balance_warnings(self, user_id: int) -> None:
+        """Mark low balance warning notifications as read if updated balance meets daily budget allocation."""
+        settings = self.get_settings(user_id)
+        if not settings:
+            return
+        balance = settings.get("balance", 0.0)
+        daily_budget = settings.get("daily_budget", 0.0)
+        if balance >= daily_budget and daily_budget > 0:
+            notifications = (
+                self.session.query(Notification)
+                .filter(
+                    Notification.user_id == user_id,
+                    Notification.type == "WARNING",
+                    Notification.is_read == False
+                )
+                .all()
+            )
+            for notif in notifications:
+                if "Payout Skipped" in notif.title or "Low Balance" in notif.title:
+                    notif.is_read = True
+            self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if the user's budget allocations are locked for the current calendar month or active schedule."""
