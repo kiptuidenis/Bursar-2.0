@@ -35,3 +35,6 @@ blob-report/
 # User Uploads
 src/app/static/uploads/
 
+# Resources
+artifacts/
+

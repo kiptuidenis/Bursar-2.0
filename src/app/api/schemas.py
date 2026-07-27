@@ -3,12 +3,15 @@ from typing import Optional, List
 
 # Pydantic input models
 class AuthPayload(BaseModel):
-    phone_number: str = Field(..., description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    email: Optional[str] = Field(None, description="Email address for signup")
+    phone_number: Optional[str] = Field(None, description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
     password: str = Field(..., min_length=8, description="Strong password (minimum 8 characters with uppercase, lowercase, digit, and symbol)")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
 
 class AuthLoginPayload(BaseModel):
-    phone_number: str = Field(..., description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    email: Optional[str] = Field(None, description="Email address")
+    phone_number: Optional[str] = Field(None, description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    identifier: Optional[str] = Field(None, description="Email address or phone number")
     password: str = Field(..., min_length=1, description="Password")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
 

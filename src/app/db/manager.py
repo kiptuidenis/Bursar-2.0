@@ -168,9 +168,38 @@ class DatabaseManager:
             columns = [c["name"] for c in inspector.get_columns("users")]
             with self.engine.begin() as conn:
                 if "failed_login_attempts" not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
+                    try:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
+                    except Exception:
+                        pass
                 if "account_locked_until" not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN account_locked_until VARCHAR(50) DEFAULT ''"))
+                    try:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN account_locked_until VARCHAR(50) DEFAULT ''"))
+                    except Exception:
+                        pass
+                if "email" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
+                    except Exception:
+                        pass
+                if "is_email_verified" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # Direct SQLite PRAGMA DDL fallback to guarantee column existence across legacy DB files
+        try:
+            with self.engine.connect() as conn:
+                res = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+                existing_cols = [row[1] for row in res]
+                if "email" not in existing_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
+                if "is_email_verified" not in existing_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"))
+                conn.commit()
         except Exception:
             pass
 
@@ -199,30 +228,69 @@ class DatabaseManager:
         return hash_bytes.hex() == password_hash_hex
 
     # User Auth Operations
-    def create_user(self, phone_number: str, password_plaintext: str) -> int:
-        """Register a new user, hashes password, and creates default settings row."""
+    def _get_user_by_identifier(self, identifier: str) -> Optional[User]:
+        """Helper to resolve User object by email or phone number."""
+        if not identifier:
+            return None
+        clean_id = identifier.strip()
+        if "@" in clean_id:
+            return self.session.query(User).filter(User.email == clean_id.lower()).first()
+        return self.session.query(User).filter(User.phone_number == clean_id).first()
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Fetch user by email address."""
+        if not email:
+            return None
+        user = self.session.query(User).filter(User.email == email.strip().lower()).first()
+        return _row_to_dict(user) if user else None
+
+    def get_user_by_phone(self, phone_number: str) -> Optional[Dict[str, Any]]:
+        """Fetch user by phone number."""
+        if not phone_number:
+            return None
+        user = self.session.query(User).filter(User.phone_number == phone_number.strip()).first()
+        return _row_to_dict(user) if user else None
+
+    def create_user(self, identifier: str, password_plaintext: str, is_email: Optional[bool] = None) -> int:
+        """Register a new user (via email or phone), hashes password, and creates default settings row."""
+        clean_id = identifier.strip()
+        if is_email is None:
+            is_email = "@" in clean_id
+            
         password_hash, salt = self._hash_password(password_plaintext)
         
-        db_user = User(
-            phone_number=phone_number,
-            password_hash=password_hash,
-            salt=salt
-        )
+        if is_email:
+            clean_email = clean_id.lower()
+            db_user = User(
+                email=clean_email,
+                phone_number=None,
+                password_hash=password_hash,
+                salt=salt,
+                is_email_verified=False
+            )
+        else:
+            db_user = User(
+                phone_number=clean_id,
+                email=None,
+                password_hash=password_hash,
+                salt=salt,
+                is_email_verified=False
+            )
         self.session.add(db_user)
         self._commit()
         
-        # Create user's settings profile automatically (defaulting settings phone number to registration phone number)
+        # Create user's settings profile automatically (defaulting settings phone number if phone registered)
         db_settings = Settings(
             user_id=db_user.id,
-            phone_number=phone_number
+            phone_number=clean_id if not is_email else ""
         )
         self.session.add(db_settings)
         self._commit()
         return db_user.id
 
-    def is_account_locked(self, phone_number: str) -> tuple[bool, int]:
+    def is_account_locked(self, identifier: str) -> tuple[bool, int]:
         """Check if an account is locked due to 5+ failed login attempts. Returns (is_locked, remaining_seconds)."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        user = self._get_user_by_identifier(identifier)
         if not user or not user.account_locked_until:
             return False, 0
             
@@ -240,9 +308,9 @@ class DatabaseManager:
         except Exception:
             return False, 0
 
-    def record_failed_login_attempt(self, phone_number: str) -> tuple[int, bool]:
+    def record_failed_login_attempt(self, identifier: str) -> tuple[int, bool]:
         """Increment failed login attempts counter. Locks account for 15 mins if 5 attempts reached. Returns (attempts, is_locked)."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        user = self._get_user_by_identifier(identifier)
         if not user:
             return 0, False
             
@@ -255,22 +323,22 @@ class DatabaseManager:
             is_locked = True
             lock_duration = datetime.timedelta(minutes=15)
             user.account_locked_until = (datetime.datetime.utcnow() + lock_duration).strftime("%Y-%m-%d %H:%M:%S")
-            self.log_event(user.id, "WARNING", f"Account locked for 15 minutes due to {current} consecutive failed PIN attempts.")
+            self.log_event(user.id, "WARNING", f"Account locked for 15 minutes due to {current} consecutive failed login attempts.")
             
         self._commit()
         return current, is_locked
 
-    def reset_failed_login_attempts(self, phone_number: str) -> None:
+    def reset_failed_login_attempts(self, identifier: str) -> None:
         """Reset failed login attempts counter and clear lockout state on successful authentication."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        user = self._get_user_by_identifier(identifier)
         if user and (user.failed_login_attempts > 0 or user.account_locked_until):
             user.failed_login_attempts = 0
             user.account_locked_until = ""
             self._commit()
 
-    def authenticate_user(self, phone_number: str, password_plaintext: str) -> Optional[int]:
-        """Authenticate user credentials. Returns user_id if valid, None otherwise."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+    def authenticate_user(self, identifier: str, password_plaintext: str) -> Optional[int]:
+        """Authenticate user credentials by email or phone. Returns user_id if valid, None otherwise."""
+        user = self._get_user_by_identifier(identifier)
         if not user:
             return None
             
@@ -281,7 +349,14 @@ class DatabaseManager:
     def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Fetch user profile details."""
         user = self.session.query(User).filter(User.id == user_id).first()
-        return _row_to_dict(user) if user else None
+        if not user:
+            return None
+        data = _row_to_dict(user)
+        if data.get("email") is None:
+            data["email"] = ""
+        if data.get("phone_number") is None:
+            data["phone_number"] = ""
+        return data
 
     def update_profile(self, user_id: int, **kwargs: Any) -> None:
         """Update user profile fields."""

@@ -8,13 +8,14 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    phone_number = Column(String(50), unique=True, nullable=False)
+    phone_number = Column(String(50), unique=True, nullable=True)
+    email = Column(String(100), unique=True, index=True, nullable=True)
+    is_email_verified = Column(Boolean, default=False, nullable=False)
     password_hash = Column(String(255), nullable=False)
     salt = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     first_name = Column(String(100), default="")
     last_name = Column(String(100), default="")
-    email = Column(String(100), default="")
     avatar_url = Column(String(255), default="")
     bio = Column(String(500), default="")
     theme = Column(String(50), default="")
