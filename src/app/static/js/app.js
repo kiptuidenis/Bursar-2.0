@@ -1056,20 +1056,29 @@ function setupEventHandlers() {
     // Notification Drawer Toggle Listeners
     const navNotifBtn = document.getElementById("nav-notifications-btn");
     const closeNotifBtn = document.getElementById("close-notifications-btn");
-    const notifBackdrop = document.getElementById("notifications-drawer-backdrop");
     const notifDrawer = document.getElementById("notifications-drawer");
     const markAllReadBtn = document.getElementById("mark-all-read-btn");
     const bannerQuickDepositBtn = document.getElementById("banner-quick-deposit-btn");
 
-    function toggleNotificationDrawer(open) {
-        if (notifDrawer) notifDrawer.style.display = open ? "flex" : "none";
-        if (notifBackdrop) notifBackdrop.style.display = open ? "block" : "none";
-        if (open) fetchNotifications();
+    if (navNotifBtn && notifDrawer) {
+        navNotifBtn.addEventListener("click", () => {
+            notifDrawer.classList.add("active");
+            fetchNotifications();
+        });
     }
 
-    if (navNotifBtn) navNotifBtn.addEventListener("click", () => toggleNotificationDrawer(true));
-    if (closeNotifBtn) closeNotifBtn.addEventListener("click", () => toggleNotificationDrawer(false));
-    if (notifBackdrop) notifBackdrop.addEventListener("click", () => toggleNotificationDrawer(false));
+    if (closeNotifBtn && notifDrawer) {
+        closeNotifBtn.addEventListener("click", () => {
+            notifDrawer.classList.remove("active");
+        });
+    }
+
+    if (notifDrawer) {
+        notifDrawer.addEventListener("click", (e) => {
+            if (e.target === notifDrawer) notifDrawer.classList.remove("active");
+        });
+    }
+
     if (markAllReadBtn) markAllReadBtn.addEventListener("click", markAllNotificationsAsRead);
 
     if (bannerQuickDepositBtn) {

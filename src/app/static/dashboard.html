@@ -673,27 +673,27 @@
         </div>
     </div>
 
-    <!-- Notifications Slide-Over Drawer -->
-    <div class="notifications-drawer-backdrop" id="notifications-drawer-backdrop" style="display: none;"></div>
-    <aside class="notifications-drawer" id="notifications-drawer" aria-label="In-App Notifications" style="display: none;">
-        <div class="notifications-drawer-header">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i data-lucide="bell" style="width: 1.2rem; height: 1.2rem; color: var(--color-accent-violet);"></i>
-                <h3 style="margin: 0; font-size: 1.1rem;">Notifications</h3>
+    <!-- Notifications Overlay Drawer -->
+    <div class="drawer-overlay" id="notifications-drawer">
+        <div class="drawer-content glass-panel" id="notifications-drawer-content">
+            <div class="drawer-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.1rem; color: var(--text-primary);">
+                    <i data-lucide="bell" style="color: var(--color-accent-violet);"></i> Notifications
+                </h3>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button class="btn btn-ghost btn-sm" id="mark-all-read-btn" style="font-size: 0.8rem; background: transparent; border: none; color: var(--color-accent-violet); cursor: pointer;">Mark all as read</button>
+                    <button class="close-btn" id="close-notifications-btn" aria-label="Close Notifications">&times;</button>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <button class="btn btn-ghost btn-sm" id="mark-all-read-btn" style="font-size: 0.8rem; background: transparent; border: none; color: var(--color-accent-violet); cursor: pointer;">Mark all as read</button>
-                <button class="modal-close-btn" id="close-notifications-btn" aria-label="Close Notifications" style="background: transparent; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+            <div class="drawer-body" id="notifications-drawer-body" style="padding-top: 0.5rem; overflow-y: auto; max-height: calc(100vh - 120px);">
+                <div class="notifications-empty-state" id="notifications-empty-state" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <i data-lucide="bell-off" style="width: 2.5rem; height: 2.5rem; opacity: 0.4; margin-bottom: 0.5rem;"></i>
+                    <p>No notifications yet</p>
+                </div>
+                <div class="notifications-list" id="notifications-list"></div>
             </div>
         </div>
-        <div class="notifications-drawer-body" id="notifications-drawer-body">
-            <div class="notifications-empty-state" id="notifications-empty-state" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                <i data-lucide="bell-off" style="width: 2.5rem; height: 2.5rem; opacity: 0.4; margin-bottom: 0.5rem;"></i>
-                <p>No notifications yet</p>
-            </div>
-            <div class="notifications-list" id="notifications-list"></div>
-        </div>
-    </aside>
+    </div>
 
     <!-- Session Expiry Modal -->
     <div class="modal-overlay" id="session-expiry-modal" style="z-index: 120;">
