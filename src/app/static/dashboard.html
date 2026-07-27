@@ -95,6 +95,10 @@
                             <i data-lucide="user" id="user-icon"></i>
                             <span id="user-phone-number"></span>
                         </div>
+                        <button class="icon-btn" id="nav-notifications-btn" title="Notifications" style="position: relative;">
+                            <i data-lucide="bell"></i>
+                            <span class="notification-badge" id="nav-notifications-badge" style="display: none;">0</span>
+                        </button>
                         <button class="icon-btn" id="toggle-settings-btn" title="Toggle Settings">
                             <i data-lucide="settings"></i>
                         </button>
@@ -106,6 +110,18 @@
 
                 <!-- VIEW: Dashboard -->
                 <div id="view-dashboard" class="tab-view active">
+                    <!-- Insufficient Balance Warning Alert Banner -->
+                    <div class="alert-banner alert-banner-warning" id="insufficient-balance-alert-banner" style="display: none; margin-bottom: 1.5rem;">
+                        <div class="alert-banner-icon"><i data-lucide="alert-triangle"></i></div>
+                        <div class="alert-banner-content">
+                            <h4 id="alert-banner-title">Low Balance Warning</h4>
+                            <p id="alert-banner-msg">Your wallet balance is below your daily budget allocation. Automatic payouts are paused until topped up.</p>
+                        </div>
+                        <button class="btn btn-warning btn-sm" id="banner-quick-deposit-btn" style="white-space: nowrap; width: auto; background: var(--color-accent-amber); color: #000; font-weight: 600; border: none; padding: 0.5rem 1rem;">
+                            <i data-lucide="arrow-down-left"></i> Deposit Funds
+                        </button>
+                    </div>
+
                     <!-- Dashboard Layout Grid -->
                     <div class="dashboard-layout-grid">
                         <!-- Left Column: Debit Card, Wallet Balance, Actions & Countdown -->
@@ -656,6 +672,28 @@
             </form>
         </div>
     </div>
+
+    <!-- Notifications Slide-Over Drawer -->
+    <div class="notifications-drawer-backdrop" id="notifications-drawer-backdrop" style="display: none;"></div>
+    <aside class="notifications-drawer" id="notifications-drawer" aria-label="In-App Notifications" style="display: none;">
+        <div class="notifications-drawer-header">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="bell" style="width: 1.2rem; height: 1.2rem; color: var(--color-accent-violet);"></i>
+                <h3 style="margin: 0; font-size: 1.1rem;">Notifications</h3>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button class="btn btn-ghost btn-sm" id="mark-all-read-btn" style="font-size: 0.8rem; background: transparent; border: none; color: var(--color-accent-violet); cursor: pointer;">Mark all as read</button>
+                <button class="modal-close-btn" id="close-notifications-btn" aria-label="Close Notifications" style="background: transparent; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+            </div>
+        </div>
+        <div class="notifications-drawer-body" id="notifications-drawer-body">
+            <div class="notifications-empty-state" id="notifications-empty-state" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <i data-lucide="bell-off" style="width: 2.5rem; height: 2.5rem; opacity: 0.4; margin-bottom: 0.5rem;"></i>
+                <p>No notifications yet</p>
+            </div>
+            <div class="notifications-list" id="notifications-list"></div>
+        </div>
+    </aside>
 
     <!-- Session Expiry Modal -->
     <div class="modal-overlay" id="session-expiry-modal" style="z-index: 120;">

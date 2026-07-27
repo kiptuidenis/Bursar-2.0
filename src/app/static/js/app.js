@@ -1053,7 +1053,121 @@ function setupEventHandlers() {
             }
         });
     }
+    // Notification Drawer Toggle Listeners
+    const navNotifBtn = document.getElementById("nav-notifications-btn");
+    const closeNotifBtn = document.getElementById("close-notifications-btn");
+    const notifBackdrop = document.getElementById("notifications-drawer-backdrop");
+    const notifDrawer = document.getElementById("notifications-drawer");
+    const markAllReadBtn = document.getElementById("mark-all-read-btn");
+    const bannerQuickDepositBtn = document.getElementById("banner-quick-deposit-btn");
+
+    function toggleNotificationDrawer(open) {
+        if (notifDrawer) notifDrawer.style.display = open ? "flex" : "none";
+        if (notifBackdrop) notifBackdrop.style.display = open ? "block" : "none";
+        if (open) fetchNotifications();
+    }
+
+    if (navNotifBtn) navNotifBtn.addEventListener("click", () => toggleNotificationDrawer(true));
+    if (closeNotifBtn) closeNotifBtn.addEventListener("click", () => toggleNotificationDrawer(false));
+    if (notifBackdrop) notifBackdrop.addEventListener("click", () => toggleNotificationDrawer(false));
+    if (markAllReadBtn) markAllReadBtn.addEventListener("click", markAllNotificationsAsRead);
+
+    if (bannerQuickDepositBtn) {
+        bannerQuickDepositBtn.addEventListener("click", () => {
+            const depositModal = document.getElementById("deposit-modal");
+            if (depositModal) depositModal.classList.add("active");
+        });
+    }
+
     setupProfileHandlers();
+}
+
+// Notifications API Controllers
+async function fetchNotifications() {
+    if (!isAuthenticated) return;
+    try {
+        const res = await fetch("/api/notifications", { headers: { "X-Background-Poll": "true" } });
+        if (res.status === 401) return;
+        const data = await res.json();
+        if (data.status === "success") {
+            updateNotificationUI(data.notifications, data.unread_count);
+        }
+    } catch (err) {
+        console.error("Error fetching notifications:", err);
+    }
+}
+
+function updateNotificationUI(notifications, unreadCount) {
+    const badge = document.getElementById("nav-notifications-badge");
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.innerText = unreadCount > 99 ? "99+" : unreadCount;
+            badge.style.display = "inline-flex";
+        } else {
+            badge.style.display = "none";
+        }
+    }
+
+    const listEl = document.getElementById("notifications-list");
+    const emptyState = document.getElementById("notifications-empty-state");
+    if (listEl) {
+        if (!notifications || notifications.length === 0) {
+            listEl.innerHTML = "";
+            if (emptyState) emptyState.style.display = "block";
+        } else {
+            if (emptyState) emptyState.style.display = "none";
+            listEl.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.is_read ? '' : 'unread'}" data-id="${n.id}">
+                    <div class="notification-item-header">
+                        <span class="notification-item-title">${escapeHTML(n.title)}</span>
+                        <span class="notification-item-time">${n.created_at || ''}</span>
+                    </div>
+                    <p class="notification-item-message">${escapeHTML(n.message)}</p>
+                    ${!n.is_read ? `<button class="btn btn-ghost btn-sm mark-single-read-btn" data-id="${n.id}" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; margin-top: 0.4rem; color: var(--color-accent-violet); background: transparent; border: 1px solid rgba(139,92,246,0.3); border-radius: 0.35rem; cursor: pointer;">Mark as read</button>` : ''}
+                </div>
+            `).join("");
+
+            listEl.querySelectorAll(".mark-single-read-btn").forEach(btn => {
+                btn.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+                    const notifId = btn.getAttribute("data-id");
+                    await markNotificationAsRead(notifId);
+                });
+            });
+        }
+    }
+
+    const banner = document.getElementById("insufficient-balance-alert-banner");
+    if (banner) {
+        const unreadWarning = notifications.find(n => !n.is_read && n.type === "WARNING");
+        if (unreadWarning) {
+            const titleEl = document.getElementById("alert-banner-title");
+            const msgEl = document.getElementById("alert-banner-msg");
+            if (titleEl) titleEl.innerText = unreadWarning.title;
+            if (msgEl) msgEl.innerText = unreadWarning.message;
+            banner.style.display = "flex";
+        } else {
+            banner.style.display = "none";
+        }
+    }
+}
+
+async function markNotificationAsRead(id) {
+    try {
+        const res = await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+        if (res.ok) fetchNotifications();
+    } catch (err) {
+        console.error("Error marking notification as read:", err);
+    }
+}
+
+async function markAllNotificationsAsRead() {
+    try {
+        const res = await fetch("/api/notifications/read-all", { method: "POST" });
+        if (res.ok) fetchNotifications();
+    } catch (err) {
+        console.error("Error marking all notifications as read:", err);
+    }
 }
 
 
@@ -1415,6 +1529,7 @@ function pollDashboardData() {
     fetchSettings();
     fetchPayouts();
     fetchBudgetItems();
+    fetchNotifications();
 }
 
 // Fetch user's custom budget categories

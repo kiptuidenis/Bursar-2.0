@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
-from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord
+from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification
 
 
 
@@ -699,6 +699,51 @@ class DatabaseManager:
             response_body=response_body
         )
         self.session.add(rec)
+        self._commit()
+
+    def create_notification(self, user_id: int, title: str, message: str, notif_type: str = "INFO") -> int:
+        """Create a new in-app user notification."""
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            type=notif_type,
+            is_read=False
+        )
+        self.session.add(notif)
+        self._commit()
+        return notif.id
+
+    def get_notifications(self, user_id: int) -> tuple[list[dict], int]:
+        """Retrieve all notifications for a user in reverse chronological order along with unread_count."""
+        records = (
+            self.session.query(Notification)
+            .filter(Notification.user_id == user_id)
+            .order_by(Notification.created_at.desc())
+            .all()
+        )
+        notifications = [_row_to_dict(n) for n in records]
+        unread_count = sum(1 for n in notifications if not n.get("is_read"))
+        return notifications, unread_count
+
+    def mark_notification_as_read(self, user_id: int, notification_id: int) -> bool:
+        """Mark a specific notification as read for a given user."""
+        notif = (
+            self.session.query(Notification)
+            .filter(Notification.id == notification_id, Notification.user_id == user_id)
+            .first()
+        )
+        if not notif:
+            return False
+        notif.is_read = True
+        self._commit()
+        return True
+
+    def mark_all_notifications_as_read(self, user_id: int) -> None:
+        """Mark all notifications as read for a given user."""
+        self.session.query(Notification).filter(Notification.user_id == user_id, Notification.is_read == False).update(
+            {Notification.is_read: True}, synchronize_session=False
+        )
         self._commit()
 
     def close(self) -> None:

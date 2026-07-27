@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint, Text, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -29,6 +29,7 @@ class User(Base):
     budget_items = relationship("BudgetItem", back_populates="user", cascade="all, delete-orphan")
     deposits = relationship("Deposit", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 class Settings(Base):
     __tablename__ = "settings"
@@ -140,3 +141,17 @@ class Session(Base):
     last_activity = Column(Integer)
     
     user = relationship("User", back_populates="sessions")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    type = Column(String(50), default="INFO", nullable=False)  # "INFO", "WARNING", "SUCCESS", "DANGER"
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="notifications")

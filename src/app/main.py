@@ -15,7 +15,7 @@ from app.api.dependencies import db_manager, get_db, get_current_user_id
 from app.services.scheduler import BackgroundScheduler
 
 # Import sub-routers
-from app.api.routers import auth, settings, budget, deposits, payouts, callbacks, profile
+from app.api.routers import auth, settings, budget, deposits, payouts, callbacks, profile, notifications
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
@@ -141,6 +141,7 @@ app.include_router(budget.router)
 app.include_router(deposits.router)
 app.include_router(payouts.router)
 app.include_router(callbacks.router)
+app.include_router(notifications.router)
 
 @app.get("/api/diagnostics")
 @limiter.limit("10/minute")
