@@ -11,7 +11,7 @@ test.describe('Phase 4: In-App User Notification System E2E Tests', () => {
     });
   });
 
-  test('Should render notification bell icon with unread badge counter and toggle notification drawer', async ({ page }) => {
+  test('Should support topbar drawer toggle and sidebar flat tab navigation for notifications', async ({ page }) => {
     await page.goto('/');
     await page.click('#nav-signup-btn');
 
@@ -29,21 +29,31 @@ test.describe('Phase 4: In-App User Notification System E2E Tests', () => {
     await page.waitForURL('**/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // 1. Verify notification bell button is visible in dashboard topbar header
+    // 1. Verify topbar notification bell button opens slide-over drawer
     const bellBtn = page.locator('#nav-notifications-btn');
     await expect(bellBtn).toBeVisible();
 
-    // 2. Click notification bell button to toggle slide-over drawer
     await bellBtn.click();
     await page.waitForTimeout(300);
 
     const drawer = page.locator('#notifications-drawer');
     await expect(drawer).toBeVisible();
 
-    // Close notification drawer
+    // Close notification drawer via close button
     await page.click('#close-notifications-btn');
     await page.waitForTimeout(300);
     await expect(drawer).not.toBeVisible();
+
+    // 2. Verify left sidebar notifications button acts like standard sidebar buttons (switches main view to flat tab)
+    const sidebarNotifBtn = page.locator('#sidebar-notifications-btn');
+    await expect(sidebarNotifBtn).toBeVisible();
+
+    await sidebarNotifBtn.click();
+    await page.waitForTimeout(300);
+
+    const viewNotif = page.locator('#view-notifications');
+    await expect(viewNotif).toBeVisible();
+    await expect(sidebarNotifBtn).toHaveClass(/active/);
 
     expect(pageErrors).toHaveLength(0);
   });

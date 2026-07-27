@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Listen for hash changes (browser back/forward navigation)
     window.addEventListener("hashchange", () => {
-        const validTabs = ["dashboard", "transactions", "profile", "deposit", "budget", "settings"];
+        const validTabs = ["dashboard", "transactions", "profile", "deposit", "budget", "settings", "notifications"];
         const currentTab = window.location.hash.replace("#", "") || "dashboard";
         if (validTabs.includes(currentTab)) {
             const activeView = document.querySelector(".tab-view.active");
@@ -369,8 +369,28 @@ function switchTab(tabId) {
         }
     }
 
+    // Handle DOM re-parenting for Notifications
+    const notificationsDrawer = document.getElementById("notifications-drawer");
+    const notificationsContent = document.getElementById("notifications-drawer-content");
+    const viewNotifications = document.getElementById("view-notifications");
+
+    if (tabId === "notifications") {
+        if (notificationsContent && viewNotifications) {
+            viewNotifications.appendChild(notificationsContent);
+        }
+        if (notificationsDrawer) {
+            notificationsDrawer.classList.remove("active");
+        }
+        fetchNotifications();
+    } else {
+        // Return to drawer overlay if not on notifications tab
+        if (notificationsContent && notificationsDrawer && notificationsContent.parentNode !== notificationsDrawer) {
+            notificationsDrawer.appendChild(notificationsContent);
+        }
+    }
+
     // Toggle view containers
-    const allViews = ["dashboard", "transactions", "profile", "deposit", "budget", "settings"];
+    const allViews = ["dashboard", "transactions", "profile", "deposit", "budget", "settings", "notifications"];
     allViews.forEach(v => {
         const view = document.getElementById(`view-${v}`);
         if (view) {
@@ -458,7 +478,7 @@ function setupEventHandlers() {
     document.querySelectorAll(".sidebar-link").forEach(btn => {
         btn.addEventListener("click", (e) => {
             const tab = btn.getAttribute("data-tab");
-            if (tab === "dashboard" || tab === "transactions" || tab === "profile" || tab === "deposit" || tab === "budget" || tab === "settings") {
+            if (tab === "dashboard" || tab === "transactions" || tab === "profile" || tab === "deposit" || tab === "budget" || tab === "settings" || tab === "notifications") {
                 switchTab(tab);
             }
         });
@@ -1060,16 +1080,25 @@ function setupEventHandlers() {
     const markAllReadBtn = document.getElementById("mark-all-read-btn");
     const bannerQuickDepositBtn = document.getElementById("banner-quick-deposit-btn");
 
-    if (navNotifBtn && notifDrawer) {
+    if (navNotifBtn) {
         navNotifBtn.addEventListener("click", () => {
-            notifDrawer.classList.add("active");
+            const notifContent = document.getElementById("notifications-drawer-content");
+            if (notifContent && notifContent.parentNode === notifDrawer) {
+                notifDrawer.classList.add("active");
+            }
             fetchNotifications();
         });
     }
 
-    if (closeNotifBtn && notifDrawer) {
+    if (closeNotifBtn) {
         closeNotifBtn.addEventListener("click", () => {
-            notifDrawer.classList.remove("active");
+            const viewNotifications = document.getElementById("view-notifications");
+            const inFlatTabMode = viewNotifications && !viewNotifications.classList.contains("hidden") && viewNotifications.classList.contains("active");
+            if (inFlatTabMode) {
+                switchTab("dashboard");
+            } else if (notifDrawer) {
+                notifDrawer.classList.remove("active");
+            }
         });
     }
 
@@ -1107,15 +1136,20 @@ async function fetchNotifications() {
 }
 
 function updateNotificationUI(notifications, unreadCount) {
-    const badge = document.getElementById("nav-notifications-badge");
-    if (badge) {
-        if (unreadCount > 0) {
-            badge.innerText = unreadCount > 99 ? "99+" : unreadCount;
-            badge.style.display = "inline-flex";
-        } else {
-            badge.style.display = "none";
+    const navBadge = document.getElementById("nav-notifications-badge");
+    const sidebarBadge = document.getElementById("sidebar-notifications-badge");
+    const badgeText = unreadCount > 99 ? "99+" : String(unreadCount);
+
+    [navBadge, sidebarBadge].forEach(badge => {
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.innerText = badgeText;
+                badge.style.display = "inline-flex";
+            } else {
+                badge.style.display = "none";
+            }
         }
-    }
+    });
 
     const listEl = document.getElementById("notifications-list");
     const emptyState = document.getElementById("notifications-empty-state");

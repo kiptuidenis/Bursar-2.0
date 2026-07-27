@@ -41,6 +41,11 @@
                     <i data-lucide="history"></i>
                     <span>Transactions</span>
                 </button>
+                <button class="sidebar-link" data-tab="notifications" id="sidebar-notifications-btn" style="position: relative;">
+                    <i data-lucide="bell"></i>
+                    <span>Notifications</span>
+                    <span class="notification-badge" id="sidebar-notifications-badge" style="display: none; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);">0</span>
+                </button>
                 <button class="sidebar-link" data-tab="budget">
                     <i data-lucide="sliders"></i>
                     <span>Budget Designer</span>
@@ -481,6 +486,11 @@
 
                 <!-- VIEW: Configuration Settings (Flat Tab) -->
                 <div id="view-settings" class="tab-view hidden">
+                    <!-- Dynamic content re-parented by JS -->
+                </div>
+
+                <!-- VIEW: Notifications (Flat Tab) -->
+                <div id="view-notifications" class="tab-view hidden">
                     <!-- Dynamic content re-parented by JS -->
                 </div>
 
