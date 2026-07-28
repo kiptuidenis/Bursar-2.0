@@ -116,3 +116,31 @@ def test_invalid_email_format_rejected(test_db):
         assert "Invalid email address format" in res.json()["detail"]
     finally:
         app.dependency_overrides.clear()
+
+def test_legacy_sqlite_not_null_migration(tmp_path):
+    import sqlite3
+    db_file = str(tmp_path / "legacy_not_null.db")
+    # Manually create a legacy SQLite users table with phone_number NOT NULL
+    conn = sqlite3.connect(db_file)
+    conn.execute("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone_number VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            salt VARCHAR(255) NOT NULL,
+            created_at DATETIME
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+    # Now initialize DatabaseManager on this legacy file
+    db = DatabaseManager(db_file)
+    db.initialize()
+
+    # Creating user via email should now work cleanly without NOT NULL constraint failure
+    user_id = db.create_user("legacy_migrated@bursar.test", "ComplexP@ssw0rd99!", is_email=True)
+    assert user_id > 0
+    u = db.get_user_by_email("legacy_migrated@bursar.test")
+    assert u is not None
+    db.close()

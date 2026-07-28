@@ -64,6 +64,14 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
     if pwd_error:
         raise HTTPException(status_code=400, detail=pwd_error)
 
+    # Check if user already exists BEFORE trying to create
+    if is_email:
+        if db.get_user_by_email(sanitized_id):
+            raise HTTPException(status_code=400, detail="This email address is already registered.")
+    else:
+        if db.get_user_by_phone(sanitized_id):
+            raise HTTPException(status_code=400, detail="This phone number is already registered.")
+
     try:
         user_id = db.create_user(sanitized_id, payload.password, is_email=is_email)
         db.log_event(user_id, "INFO", f"User registration completed successfully with {'email' if is_email else 'phone'}.")
@@ -79,7 +87,8 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             path="/"
         )
         return {"status": "success", "user_id": user_id}
-    except sqlalchemy.exc.IntegrityError:
+    except sqlalchemy.exc.IntegrityError as ie:
+        logger.error(f"IntegrityError during signup for {sanitized_id}: {ie}")
         detail_msg = "This email address is already registered." if is_email else "This phone number is already registered."
         raise HTTPException(status_code=400, detail=detail_msg)
 

@@ -3,7 +3,10 @@ import secrets
 import time
 import os
 import datetime
+import logging
 from typing import Dict, List, Any, Optional
+
+logger = logging.getLogger("bursar.db.manager")
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
@@ -182,17 +185,42 @@ class DatabaseManager:
         except Exception:
             pass
 
-        # PRAGMA check fallback for SQLite
-        try:
-            with self.engine.begin() as conn:
-                res = conn.execute(text("PRAGMA table_info(users)")).fetchall()
-                existing_cols = [row[1] for row in res]
-                if "email" not in existing_cols:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
-                if "is_email_verified" not in existing_cols:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"))
-        except Exception:
-            pass
+        # PRAGMA check fallback & NOT NULL migration for SQLite
+        if self.engine.dialect.name == "sqlite":
+            try:
+                with self.engine.begin() as conn:
+                    table_info = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+                    existing_cols = [row[1] for row in table_info]
+                    if "email" not in existing_cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
+                    if "is_email_verified" not in existing_cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"))
+                    
+                    # Check if phone_number is NOT NULL (notnull == 1) in legacy SQLite tables
+                    phone_col = next((row for row in table_info if row[1] == "phone_number"), None)
+                    if phone_col and phone_col[3] == 1:
+                        conn.execute(text("PRAGMA foreign_keys=OFF"))
+                        conn.execute(text("CREATE TABLE IF NOT EXISTS users_migration_tmp AS SELECT * FROM users;"))
+                        
+                        # Re-create clean users table using ORM schema definitions
+                        Base.metadata.tables["users"].drop(conn, checkfirst=True)
+                        Base.metadata.tables["users"].create(conn)
+
+                        # Migrate existing data back cleanly
+                        user_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(users_migration_tmp)")).fetchall()]
+                        select_phone = "phone_number" if "phone_number" in user_cols else "NULL"
+                        select_email = "email" if "email" in user_cols else "NULL"
+                        select_verified = "is_email_verified" if "is_email_verified" in user_cols else "0"
+                        
+                        conn.execute(text(f"""
+                            INSERT INTO users (id, phone_number, email, is_email_verified, password_hash, salt, created_at)
+                            SELECT id, {select_phone}, {select_email}, {select_verified}, password_hash, salt, created_at
+                            FROM users_migration_tmp;
+                        """))
+                        conn.execute(text("DROP TABLE users_migration_tmp;"))
+                        conn.execute(text("PRAGMA foreign_keys=ON;"))
+            except Exception as e:
+                logger.warning(f"SQLite auto-migration warning: {e}")
 
     # Cryptographic Hashing Helpers
     def _hash_password(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:
