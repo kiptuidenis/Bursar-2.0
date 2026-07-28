@@ -38,43 +38,16 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
-    email_val = (payload.email or "").strip()
-    phone_val = (payload.phone_number or "").strip()
-
-    if email_val:
-        sanitized_id = email_val.lower()
-        is_email = True
-        import re
-        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", sanitized_id):
-            raise HTTPException(status_code=400, detail="Invalid email address format.")
-    elif phone_val:
-        is_email = "@" in phone_val
-        if is_email:
-            sanitized_id = phone_val.lower()
-            import re
-            if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", sanitized_id):
-                raise HTTPException(status_code=400, detail="Invalid email address format.")
-        else:
-            sanitized_id = sanitize_phone_number(phone_val)
-    else:
-        raise HTTPException(status_code=400, detail="Email address or phone number is required.")
+    sanitized_phone = sanitize_phone_number(payload.phone_number)
     
     from app.core.password import validate_password_strength
-    pwd_error = validate_password_strength(payload.password, user_context=sanitized_id)
+    pwd_error = validate_password_strength(payload.password, user_context=sanitized_phone)
     if pwd_error:
         raise HTTPException(status_code=400, detail=pwd_error)
 
-    # Check if user already exists BEFORE trying to create
-    if is_email:
-        if db.get_user_by_email(sanitized_id):
-            raise HTTPException(status_code=400, detail="This email address is already registered.")
-    else:
-        if db.get_user_by_phone(sanitized_id):
-            raise HTTPException(status_code=400, detail="This phone number is already registered.")
-
     try:
-        user_id = db.create_user(sanitized_id, payload.password, is_email=is_email)
-        db.log_event(user_id, "INFO", f"User registration completed successfully with {'email' if is_email else 'phone'}.")
+        user_id = db.create_user(sanitized_phone, payload.password)
+        db.log_event(user_id, "INFO", "User registration completed successfully.")
         
         from app.core.csrf import generate_csrf_token
         new_csrf = generate_csrf_token()
@@ -87,10 +60,8 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             path="/"
         )
         return {"status": "success", "user_id": user_id}
-    except sqlalchemy.exc.IntegrityError as ie:
-        logger.error(f"IntegrityError during signup for {sanitized_id}: {ie}")
-        detail_msg = "This email address is already registered." if is_email else "This phone number is already registered."
-        raise HTTPException(status_code=400, detail=detail_msg)
+    except sqlalchemy.exc.IntegrityError:
+        raise HTTPException(status_code=400, detail="This phone number is already registered.")
 
 @router.post("/login")
 @limiter.limit("5/minute")
@@ -99,17 +70,10 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
-    raw_id = (payload.identifier or payload.email or payload.phone_number or "").strip()
-    if not raw_id:
-        raise HTTPException(status_code=400, detail="Email address or phone number is required.")
-
-    if payload.email or "@" in raw_id:
-        sanitized_id = raw_id.lower()
-    else:
-        sanitized_id = sanitize_phone_number(raw_id)
+    sanitized_phone = sanitize_phone_number(payload.phone_number)
 
     # 1. Pre-check if account is locked due to 5+ failed attempts
-    is_locked, remaining_secs = db.is_account_locked(sanitized_id)
+    is_locked, remaining_secs = db.is_account_locked(sanitized_phone)
     if is_locked:
         remaining_mins = max(1, int(remaining_secs / 60))
         from fastapi.responses import JSONResponse
@@ -120,10 +84,10 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
         resp.headers["Retry-After"] = str(remaining_secs)
         return resp
 
-    user_id = db.authenticate_user(sanitized_id, payload.password)
+    user_id = db.authenticate_user(sanitized_phone, payload.password)
     
     if not user_id:
-        attempts, just_locked = db.record_failed_login_attempt(sanitized_id)
+        attempts, just_locked = db.record_failed_login_attempt(sanitized_phone)
         if just_locked:
             from fastapi.responses import JSONResponse
             resp = JSONResponse(
@@ -132,9 +96,9 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
             )
             resp.headers["Retry-After"] = "900"
             return resp
-        raise HTTPException(status_code=401, detail="Invalid email/phone number or password PIN.")
+        raise HTTPException(status_code=401, detail="Invalid phone number or password PIN.")
         
-    db.reset_failed_login_attempts(sanitized_id)
+    db.reset_failed_login_attempts(sanitized_phone)
         
     user_agent = request.headers.get("user-agent", "Unknown Device")
     ip_address = request.client.host if request.client else "Unknown IP"
@@ -160,7 +124,7 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
     )
 
     from app.core.password import validate_password_strength
-    is_weak = validate_password_strength(payload.password, user_context=sanitized_id) is not None
+    is_weak = validate_password_strength(payload.password, user_context=sanitized_phone) is not None
 
     db.log_event(user_id, "INFO", "User successfully authenticated.")
     return {"status": "success", "user_id": user_id, "force_password_change": is_weak}
@@ -183,9 +147,7 @@ def get_me(user_id: int = Depends(get_current_user_id), db: DatabaseManager = De
         raise HTTPException(status_code=404, detail="User not found.")
     return {
         "id": user.id,
-        "phone_number": user.phone_number or "",
-        "email": user.email or "",
-        "is_email_verified": getattr(user, "is_email_verified", False),
+        "phone_number": user.phone_number,
         "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(user.created_at, datetime.datetime) else user.created_at
     }
 

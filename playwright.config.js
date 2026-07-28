@@ -35,7 +35,7 @@ module.exports = defineConfig({
   ],
   webServer: {
     command: `${pythonCmd} -m uvicorn app.main:app --port 8000 --app-dir src`,
-    url: 'http://localhost:8000/api/auth/config',
+    url: 'http://localhost:8000/api/diagnostics',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
     env: {
