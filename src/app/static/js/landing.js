@@ -198,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabSignup) tabSignup.classList.add("active");
             if (tabLogin) tabLogin.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Register";
-            if (authSubtitle) authSubtitle.innerText = "Create an account with your Safaricom number";
+            if (authSubtitle) authSubtitle.innerText = "Create an account with your email or Safaricom number";
             if (passwordLabel) passwordLabel.innerText = "Create Strong Password";
             if (authPassword) authPassword.placeholder = "Password (min 8 chars, A-Z, a-z, 0-9, symbol)";
             if (confirmGroup) confirmGroup.style.display = "block";
@@ -258,7 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const targetErrorElement = document.getElementById("auth-error-msg");
             if (targetErrorElement) targetErrorElement.style.display = "none";
 
-            const phone_number = document.getElementById("auth-phone").value.trim();
+            const rawIdentifier = document.getElementById("auth-phone").value.trim();
             const password = authPassword.value;
 
             if (currentAuthAction === "signup") {
@@ -295,6 +295,10 @@ document.addEventListener("DOMContentLoaded", () => {
             })();
 
             const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
+            const isEmail = rawIdentifier.includes("@");
+            const payloadData = isEmail
+                ? { email: rawIdentifier, password, recaptcha_token }
+                : { phone_number: rawIdentifier, identifier: rawIdentifier, password, recaptcha_token };
 
             try {
                 const headers = { "Content-Type": "application/json" };
@@ -303,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(url, {
                     method: "POST",
                     headers: headers,
-                    body: JSON.stringify({ phone_number, password, recaptcha_token })
+                    body: JSON.stringify(payloadData)
                 });
 
                 const data = await res.json();
