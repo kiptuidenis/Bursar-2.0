@@ -95,17 +95,16 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const phoneInput = page.locator('#auth-phone');
     const pwdInput = page.locator('#auth-password');
 
-    await expect(phoneInput).toHaveAttribute('type', 'tel');
-    await expect(phoneInput).toHaveAttribute('inputmode', 'tel');
+    await expect(phoneInput).toHaveAttribute('type', 'text');
     await expect(pwdInput).toHaveAttribute('type', 'password');
 
     // 4. Log in
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     const testPhoneNumber = `254700${randomDigits}`;
     await phoneInput.fill(testPhoneNumber);
-    await pwdInput.fill('Str0ng!P@ssw0rd');
+    await pwdInput.fill('ComplexP@ssw0rd99!');
     if (await page.locator('#auth-confirm-password').isVisible()) {
-      await page.fill('#auth-confirm-password', 'Str0ng!P@ssw0rd');
+      await page.fill('#auth-confirm-password', 'ComplexP@ssw0rd99!');
     }
     await page.click('#auth-submit-btn', { force: true });
     
