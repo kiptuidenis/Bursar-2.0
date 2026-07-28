@@ -4,7 +4,7 @@ test.describe('Phase 1: Email-First & Dual Identifier Authentication E2E Specs',
 
   test('Should register user with email and login successfully', async ({ request, page }) => {
     const testEmail = `e2e_user_${Date.now()}@bursar.test`;
-    const testPassword = 'StrongPassword123!';
+    const testPassword = 'ComplexP@ssw0rd99!';
 
     // 1. Direct API Registration Test
     const signupRes = await request.post('/api/auth/signup', {
@@ -13,8 +13,9 @@ test.describe('Phase 1: Email-First & Dual Identifier Authentication E2E Specs',
         password: testPassword
       }
     });
-    expect(signupRes.ok()).toBeTruthy();
-    const signupData = await signupRes.json();
+    const signupText = await signupRes.text();
+    expect(signupRes.ok(), `Signup failed with status ${signupRes.status()}: ${signupText}`).toBeTruthy();
+    const signupData = JSON.parse(signupText);
     expect(signupData.status).toBe('success');
 
     // 2. Direct API Login with Email Test
@@ -24,7 +25,7 @@ test.describe('Phase 1: Email-First & Dual Identifier Authentication E2E Specs',
         password: testPassword
       }
     });
-    expect(loginRes.ok()).toBeTruthy();
+    expect(loginRes.ok(), `Login failed with status ${loginRes.status()}: ${await loginRes.text()}`).toBeTruthy();
 
     // 3. Verify /me endpoint returns email and is_email_verified state
     const meRes = await request.get('/api/auth/me');
@@ -36,7 +37,7 @@ test.describe('Phase 1: Email-First & Dual Identifier Authentication E2E Specs',
 
   test('Should allow legacy phone number user registration and login', async ({ request }) => {
     const randomPhone = `2547${Math.floor(10000000 + Math.random() * 90000000)}`;
-    const testPassword = 'StrongPassword123!';
+    const testPassword = 'ComplexP@ssw0rd99!';
 
     // 1. Register with phone number
     const signupRes = await request.post('/api/auth/signup', {
@@ -45,7 +46,7 @@ test.describe('Phase 1: Email-First & Dual Identifier Authentication E2E Specs',
         password: testPassword
       }
     });
-    expect(signupRes.ok()).toBeTruthy();
+    expect(signupRes.ok(), `Phone signup failed with status ${signupRes.status()}: ${await signupRes.text()}`).toBeTruthy();
 
     // 2. Login with phone number
     const loginRes = await request.post('/api/auth/login', {

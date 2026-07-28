@@ -166,40 +166,31 @@ class DatabaseManager:
                 return
 
             columns = [c["name"] for c in inspector.get_columns("users")]
-            with self.engine.begin() as conn:
-                if "failed_login_attempts" not in columns:
+            
+            for col_name, col_ddl in [
+                ("failed_login_attempts", "ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"),
+                ("account_locked_until", "ALTER TABLE users ADD COLUMN account_locked_until VARCHAR(50) DEFAULT ''"),
+                ("email", "ALTER TABLE users ADD COLUMN email VARCHAR(100)"),
+                ("is_email_verified", "ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"),
+            ]:
+                if col_name not in columns:
                     try:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
-                    except Exception:
-                        pass
-                if "account_locked_until" not in columns:
-                    try:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN account_locked_until VARCHAR(50) DEFAULT ''"))
-                    except Exception:
-                        pass
-                if "email" not in columns:
-                    try:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
-                    except Exception:
-                        pass
-                if "is_email_verified" not in columns:
-                    try:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"))
+                        with self.engine.begin() as conn:
+                            conn.execute(text(col_ddl))
                     except Exception:
                         pass
         except Exception:
             pass
 
-        # Direct SQLite PRAGMA DDL fallback to guarantee column existence across legacy DB files
+        # PRAGMA check fallback for SQLite
         try:
-            with self.engine.connect() as conn:
+            with self.engine.begin() as conn:
                 res = conn.execute(text("PRAGMA table_info(users)")).fetchall()
                 existing_cols = [row[1] for row in res]
                 if "email" not in existing_cols:
                     conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
                 if "is_email_verified" not in existing_cols:
                     conn.execute(text("ALTER TABLE users ADD COLUMN is_email_verified BOOLEAN DEFAULT 0"))
-                conn.commit()
         except Exception:
             pass
 
