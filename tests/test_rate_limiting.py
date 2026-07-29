@@ -34,6 +34,20 @@ def _db_override(manager):
         yield manager
     return override
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    if hasattr(app.state, "limiter"):
+        try:
+            app.state.limiter.reset()
+        except Exception:
+            pass
+    yield
+    if hasattr(app.state, "limiter"):
+        try:
+            app.state.limiter.reset()
+        except Exception:
+            pass
+
 
 def test_login_rate_limiting_triggers_429_on_6th_attempt(test_db, monkeypatch):
     """

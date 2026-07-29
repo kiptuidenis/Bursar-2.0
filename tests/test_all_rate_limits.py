@@ -48,10 +48,20 @@ def clean_db():
 def enable_limiter(monkeypatch):
     """Fixture to enable slowapi rate limiter explicitly for rate limit tests."""
     monkeypatch.setattr(config, "IS_TEST_MODE", False)
-    monkeypatch.setattr(app.state.limiter, "enabled", True)
+    if hasattr(app.state, "limiter"):
+        monkeypatch.setattr(app.state.limiter, "enabled", True)
+        try:
+            app.state.limiter.reset()
+        except Exception:
+            pass
     yield
     monkeypatch.setattr(config, "IS_TEST_MODE", True)
-    monkeypatch.setattr(app.state.limiter, "enabled", False)
+    if hasattr(app.state, "limiter"):
+        monkeypatch.setattr(app.state.limiter, "enabled", False)
+        try:
+            app.state.limiter.reset()
+        except Exception:
+            pass
 
 
 def test_profile_rate_limits_trigger_429(enable_limiter):
