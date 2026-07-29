@@ -29,15 +29,15 @@ def add_or_update_budget_item(request: Request, payload: BudgetItemPayload, user
         
     # Check if this new daily budget would exceed balance (only if balance > 0)
     settings = db.get_settings(user_id)
-    balance = settings.get("balance", 0.0)
+    balance = int(settings.get("balance", 0))
     items = db.get_budget_items(user_id)
-    other_sum = sum(item["amount"] for item in items if item["category"] != category)
-    new_budget = other_sum + payload.amount
+    other_sum = sum(int(item["amount"]) for item in items if item["category"] != category)
+    new_budget = other_sum + int(payload.amount)
     if new_budget > balance and balance > 0:
-        raise HTTPException(status_code=400, detail=f"Total daily budget (KES {new_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+        raise HTTPException(status_code=400, detail=f"Total daily budget (KES {new_budget}) cannot be more than your deposit balance (KES {balance}).")
         
-    item_id = db.add_or_update_budget_item(user_id, category, payload.amount)
-    return {"status": "success", "item_id": item_id, "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
+    item_id = db.add_or_update_budget_item(user_id, category, int(payload.amount))
+    return {"status": "success", "item_id": item_id, "daily_budget": int(db.get_settings(user_id).get("daily_budget", 0))}
 
 @router.delete("/items/{item_id}")
 def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
@@ -47,7 +47,7 @@ def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id)
     deleted = db.delete_budget_item(user_id, item_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Budget item not found")
-    return {"status": "success", "daily_budget": db.get_settings(user_id).get("daily_budget", 0.0)}
+    return {"status": "success", "daily_budget": int(db.get_settings(user_id).get("daily_budget", 0))}
 
 @router.post("/lock")
 def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):

@@ -57,14 +57,14 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
     
     # 1. Enforce budget lock on daily_budget updates
     if "daily_budget" in updates:
-        new_val = updates["daily_budget"]
-        old_val = current.get("daily_budget", 0.0) if current else 0.0
+        new_val = int(updates["daily_budget"])
+        old_val = int(current.get("daily_budget", 0)) if current else 0
         if new_val != old_val and db.is_budget_locked(user_id):
             raise HTTPException(status_code=400, detail="Daily budget is locked until the end of the month.")
             
-        balance = current.get("balance", 0.0) if current else 0.0
+        balance = int(current.get("balance", 0)) if current else 0
         if new_val > balance and balance > 0:
-            raise HTTPException(status_code=400, detail=f"Daily budget (KES {new_val:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+            raise HTTPException(status_code=400, detail=f"Daily budget (KES {new_val}) cannot be more than your deposit balance (KES {balance}).")
             
     for field in ["mpesa_consumer_key", "mpesa_consumer_secret", "mpesa_initiator_password"]:
         if updates.get(field) == "********":

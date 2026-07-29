@@ -136,8 +136,8 @@ async def test_raise_exception_when_balance_insufficient(db):
     with pytest.raises(ValueError) as exc:
         await check_and_trigger_payout(db, current_time, user_id=user_id, raise_exceptions=True)
     assert "Insufficient wallet balance" in str(exc.value)
-    assert "Available: KES 50.00" in str(exc.value)
-    assert "Required: KES 100.00" in str(exc.value)
+    assert "Available: KES 50" in str(exc.value)
+    assert "Required: KES 100" in str(exc.value)
 
 
 def test_diagnostics_unauthenticated_returns_401():

@@ -14,7 +14,7 @@ class AuthLoginPayload(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
-    daily_budget: Optional[float] = None
+    daily_budget: Optional[int] = None
     phone_number: Optional[str] = None
     payout_time: Optional[str] = None
     mode: Optional[str] = None
@@ -28,30 +28,46 @@ class SettingsUpdate(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
+    @field_validator("daily_budget")
+    @classmethod
+    def validate_integer_daily_budget(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None:
+            if not float(v).is_integer():
+                raise ValueError("Daily budget must be a whole integer KES amount (no decimal places).")
+            return int(v)
+        return v
+
 class DepositRequest(BaseModel):
-    amount: float = Field(..., gt=0, description="Amount to deposit must be greater than zero")
+    amount: int = Field(..., gt=0, description="Amount to deposit must be a positive whole integer KES amount")
+
+    @field_validator("amount")
+    @classmethod
+    def validate_integer_amount(cls, v: int) -> int:
+        if not float(v).is_integer():
+            raise ValueError("Deposit amount must be a whole positive integer KES amount (no decimal places).")
+        return int(v)
 
 class BudgetItemPayload(BaseModel):
     category: str = Field(..., min_length=1, max_length=100, description="Budget category name")
-    amount: float = Field(..., gt=0, description="Amount allocated to category must be greater than zero")
+    amount: int = Field(..., gt=0, description="Amount allocated to category must be greater than zero")
 
     @field_validator("amount")
     @classmethod
-    def validate_integer_amount(cls, v: float) -> float:
+    def validate_integer_amount(cls, v: int) -> int:
         if not float(v).is_integer():
-            raise ValueError("Budget allocation amount must be a whole positive integer (no decimal places).")
-        return float(int(v))
+            raise ValueError("Budget allocation amount must be a whole positive integer KES amount (no decimal places).")
+        return int(v)
 
 class DraftBudgetItem(BaseModel):
     category: str = Field(..., min_length=1, max_length=100, description="Category name")
-    amount: float = Field(..., gt=0, description="Allocation amount")
+    amount: int = Field(..., gt=0, description="Allocation amount")
 
     @field_validator("amount")
     @classmethod
-    def validate_integer_amount(cls, v: float) -> float:
+    def validate_integer_amount(cls, v: int) -> int:
         if not float(v).is_integer():
-            raise ValueError("Budget allocation amount must be a whole positive integer (no decimal places).")
-        return float(int(v))
+            raise ValueError("Budget allocation amount must be a whole positive integer KES amount (no decimal places).")
+        return int(v)
 
 class BudgetLockPayload(BaseModel):
     start_date: Optional[str] = None

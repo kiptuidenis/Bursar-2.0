@@ -22,8 +22,8 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
             raise ValueError("User settings profile not found.")
         return False
         
-    balance = settings.get("balance", 0.0)
-    daily_budget = settings.get("daily_budget", 0.0)
+    balance = int(settings.get("balance", 0))
+    daily_budget = int(settings.get("daily_budget", 0))
     payout_time_str = settings.get("payout_time", "08:00")
     phone_number = settings.get("phone_number", "")
     mode = settings.get("mode", "simulation")
@@ -89,7 +89,7 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
         
     # 5. Verify balance (must have enough BEFORE initiating — we check first, deduct only after success)
     if balance < daily_budget:
-        db.log_event(user_id, "ERROR", f"Payout for {today_date} skipped: Insufficient balance (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
+        db.log_event(user_id, "ERROR", f"Payout for {today_date} skipped: Insufficient balance (Available: KES {balance}, Required: KES {daily_budget}).")
         
         # Auto-create in-app notification if an unread warning doesn't exist
         notifications, _ = db.get_notifications(user_id)
@@ -98,12 +98,12 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
             db.create_notification(
                 user_id=user_id,
                 title="Payout Skipped — Low Balance",
-                message=f"Your daily payout of KES {daily_budget:.2f} was skipped because your wallet balance (KES {balance:.2f}) is insufficient. Please deposit funds to resume automated payouts.",
+                message=f"Your daily payout of KES {daily_budget} was skipped because your wallet balance (KES {balance}) is insufficient. Please deposit funds to resume automated payouts.",
                 notif_type="WARNING"
             )
 
         if raise_exceptions:
-            raise ValueError(f"Insufficient wallet balance. (Available: KES {balance:.2f}, Required: KES {daily_budget:.2f}).")
+            raise ValueError(f"Insufficient wallet balance. (Available: KES {balance}, Required: KES {daily_budget}).")
         return False
 
     # 6. Find or prepare the payout record

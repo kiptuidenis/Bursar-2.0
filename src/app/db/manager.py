@@ -444,15 +444,16 @@ class DatabaseManager:
                 setattr(settings, key, val)
         self._commit()
 
-    def adjust_balance(self, user_id: int, amount: float) -> None:
+    def adjust_balance(self, user_id: int, amount: int | float) -> None:
         """Add or subtract from the current wallet balance of a specific user using atomic SQL arithmetic."""
+        int_amount = int(amount)
         self.session.query(Settings).filter(
             Settings.user_id == user_id
         ).update({
-            Settings.balance: Settings.balance + amount
+            Settings.balance: Settings.balance + int_amount
         }, synchronize_session=False)
         self._commit()
-        if amount > 0:
+        if int_amount > 0:
             self.resolve_low_balance_warnings(user_id)
 
     def resolve_low_balance_warnings(self, user_id: int) -> None:
@@ -460,8 +461,8 @@ class DatabaseManager:
         settings = self.get_settings(user_id)
         if not settings:
             return
-        balance = settings.get("balance", 0.0)
-        daily_budget = settings.get("daily_budget", 0.0)
+        balance = int(settings.get("balance", 0))
+        daily_budget = int(settings.get("daily_budget", 0))
         if balance >= daily_budget and daily_budget > 0:
             notifications = (
                 self.session.query(Notification)

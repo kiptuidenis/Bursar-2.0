@@ -35,8 +35,8 @@ class Settings(Base):
     __tablename__ = "settings"
     
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    balance = Column(Float, default=0.0)
-    daily_budget = Column(Float, default=0.0)
+    balance = Column(Integer, default=0)
+    daily_budget = Column(Integer, default=0)
     phone_number = Column(String(50), default="")
     payout_time = Column(String(10), default="08:00")
     mode = Column(String(50), default="sandbox")
@@ -63,7 +63,7 @@ class Payout(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     payout_date = Column(String(50), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Integer, nullable=False)
     phone_number = Column(String(50), nullable=False)
     status = Column(String(50), nullable=False)
     conversation_id = Column(String(100), default="")
@@ -96,7 +96,7 @@ class BudgetItem(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     category = Column(String(100), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Integer, nullable=False)
     
     user = relationship("User", back_populates="budget_items")
 
@@ -106,7 +106,7 @@ class Deposit(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     checkout_request_id = Column(String(100), unique=True, nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Integer, nullable=False)
     status = Column(String(50), default="PENDING", nullable=False)
     mpesa_receipt = Column(String(100), default="")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

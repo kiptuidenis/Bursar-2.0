@@ -20,8 +20,8 @@ async def initiate_deposit(request: Request, payload: DepositRequest, user_id: i
         if existing:
             return JSONResponse(status_code=existing["response_code"], content=json.loads(existing["response_body"]))
 
-    amount = payload.amount
-    if not amount.is_integer() or amount < 10 or amount > 250000:
+    amount = int(payload.amount)
+    if amount < 10 or amount > 250000:
         raise HTTPException(status_code=400, detail="Invalid Amount.")
 
     settings = db.get_settings(user_id)
@@ -29,10 +29,10 @@ async def initiate_deposit(request: Request, payload: DepositRequest, user_id: i
     if not phone:
         raise HTTPException(status_code=400, detail="Target phone number must be configured in settings before depositing.")
         
-    daily_budget = settings.get("daily_budget", 0.0)
-    balance = settings.get("balance", 0.0)
+    daily_budget = int(settings.get("daily_budget", 0))
+    balance = int(settings.get("balance", 0))
     if daily_budget > 0 and (balance + amount) < daily_budget:
-        raise HTTPException(status_code=400, detail=f"Total balance after deposit (KES {balance + amount:.2f}) cannot be less than your daily budget (KES {daily_budget:.2f}).")
+        raise HTTPException(status_code=400, detail=f"Total balance after deposit (KES {balance + amount}) cannot be less than your daily budget (KES {daily_budget}).")
 
 
     api_ref = f"DEP_{uuid.uuid4().hex[:12]}"
