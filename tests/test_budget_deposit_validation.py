@@ -43,9 +43,11 @@ def test_daily_budget_cannot_exceed_balance_on_settings_update():
     c.post("/api/auth/signup", json={"phone_number": "254700000021", "password": "Str0ng!P@ssw0rd"})
     c.post("/api/auth/login", json={"phone_number": "254700000021", "password": "Str0ng!P@ssw0rd"})
 
-    # Set balance to 500
-    res_bal = c.post("/api/settings", json={"balance": 500.0})
-    assert res_bal.status_code == 200
+    # Set balance to 500 via DB
+    db = get_test_db()
+    users = db.get_all_users()
+    user_id = next(u["id"] for u in users if u["phone_number"] == "254700000021")
+    db.update_settings(user_id, balance=500.0)
 
     # Try setting daily budget to 600 (should fail because 600 > 500)
     res_fail = c.post("/api/settings", json={"daily_budget": 600.0})
@@ -95,8 +97,11 @@ def test_add_budget_item_cannot_exceed_balance():
     c.post("/api/auth/signup", json={"phone_number": "254700000023", "password": "Str0ng!P@ssw0rd"})
     c.post("/api/auth/login", json={"phone_number": "254700000023", "password": "Str0ng!P@ssw0rd"})
 
-    # Set balance to 500.0
-    c.post("/api/settings", json={"balance": 500.0})
+    # Set balance to 500.0 via DB
+    db = get_test_db()
+    users = db.get_all_users()
+    user_id = next(u["id"] for u in users if u["phone_number"] == "254700000023")
+    db.update_settings(user_id, balance=500.0)
 
     # Add item of 400.0 -> should succeed
     res_item1 = c.post("/api/budget/items", json={"category": "Food", "amount": 400.0})

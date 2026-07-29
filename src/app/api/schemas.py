@@ -14,7 +14,6 @@ class AuthLoginPayload(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
-    balance: Optional[float] = None
     daily_budget: Optional[float] = None
     phone_number: Optional[str] = None
     payout_time: Optional[str] = None

@@ -131,8 +131,10 @@ def test_settings_masked_updates_multi_tenant():
     user_id = res_signup.json()["user_id"]
     c.post("/api/auth/login", json={"phone_number": "254712345678", "password": "Str0ng!P@ssw0rd"})
     
+    db = get_test_db()
+    db.update_settings(user_id=user_id, balance=200.0)
+
     payload = {
-        "balance": 200.0,
         "daily_budget": 50.0,
         "mpesa_consumer_secret": "secret_key"
     }
@@ -142,12 +144,11 @@ def test_settings_masked_updates_multi_tenant():
     res1 = c.get("/api/settings").json()
     assert res1["mpesa_consumer_secret"] == "********"
     
-    # Update balance with mask submitted (should preserve secret)
-    c.post("/api/settings", json={"balance": 500.0, "mpesa_consumer_secret": "********"})
+    # Update settings with mask submitted (should preserve secret)
+    c.post("/api/settings", json={"daily_budget": 60.0, "mpesa_consumer_secret": "********"})
     
-    db = get_test_db()
     settings = db.get_settings(user_id=user_id)
-    assert settings["balance"] == 500.0
+    assert settings["daily_budget"] == 60.0
     assert settings["mpesa_consumer_secret"] == "secret_key"
 
 def test_b2c_callbacks_success_and_failure():
@@ -169,7 +170,7 @@ def test_b2c_callbacks_success_and_failure():
     )
     db.update_settings(user_id=user_id, balance=700.0) # Pre-deducted
     
-    # 3. Trigger callback for success (anonymous webhook)
+    # 3. Trigger callback for success (anonymous webhook with secret header)
     success_payload = {
         "Result": {
             "ResultType": 0,
@@ -180,8 +181,7 @@ def test_b2c_callbacks_success_and_failure():
             "ResultParameters": None
         }
     }
-    # Callback route does not require authentication
-    res_cb = client.post("/api/callbacks/b2c-result", json=success_payload)
+    res_cb = c.post("/api/callbacks/b2c-result", json=success_payload, headers={"X-Callback-Secret": "testnet"})
     assert res_cb.status_code == 200
     assert res_cb.json()["status"] == "acknowledged"
     
@@ -202,7 +202,7 @@ def test_b2c_callbacks_success_and_failure():
     )
     db.update_settings(user_id=user_id, balance=450.0) # Pre-deducted
     
-    # Trigger callback for failure (anonymous webhook)
+    # Trigger callback for failure (anonymous webhook with secret header)
     fail_payload = {
         "Result": {
             "ResultType": 0,
@@ -213,7 +213,7 @@ def test_b2c_callbacks_success_and_failure():
             "ResultParameters": None
         }
     }
-    res_cb_fail = client.post("/api/callbacks/b2c-result", json=fail_payload)
+    res_cb_fail = c.post("/api/callbacks/b2c-result", json=fail_payload, headers={"X-Callback-Secret": "testnet"})
     assert res_cb_fail.status_code == 200
     
     # Verify DB state (should be FAILED and balance refunded)

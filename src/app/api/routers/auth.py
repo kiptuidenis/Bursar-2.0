@@ -60,8 +60,11 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             path="/"
         )
         return {"status": "success", "user_id": user_id}
-    except sqlalchemy.exc.IntegrityError:
-        raise HTTPException(status_code=400, detail="This phone number is already registered.")
+    except sqlalchemy.exc.IntegrityError as e:
+        err_msg = str(e).lower()
+        if "unique" in err_msg or "phone_number" in err_msg:
+            raise HTTPException(status_code=400, detail="This phone number is already registered.")
+        raise HTTPException(status_code=500, detail="Database integrity error occurred during registration.")
 
 @router.post("/login")
 @limiter.limit("5/minute")

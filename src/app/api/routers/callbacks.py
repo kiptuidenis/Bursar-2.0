@@ -12,8 +12,8 @@ router = APIRouter(prefix="/api", tags=["Callbacks"])
 
 def verify_callback_authenticity(request: Request, body: Dict[str, Any] = None) -> bool:
     """
-    Validates callback secret token, query parameters, headers, or challenge payloads.
-    In production mode or when configured, missing or invalid secret tokens trigger 401 Unauthorized.
+    Validates callback signature authenticity using SHA-256 HMAC signature or secret token verification.
+    Always fails closed (raises 401 Unauthorized) if authentication check fails or signature is missing.
     """
     # 1. IP Whitelisting Check (if configured)
     if config.ALLOWED_CALLBACK_IPS and request.client:
@@ -24,19 +24,44 @@ def verify_callback_authenticity(request: Request, body: Dict[str, Any] = None) 
                 detail="Unauthorized callback request: IP address is not permitted."
             )
 
-    # 2. Extract potential token sources
+    # 2. Check X-IntaSend-Signature header HMAC verification
+    signature = request.headers.get("X-IntaSend-Signature", "").strip()
+    secret_key = config.INTASEND_WEBHOOK_CHALLENGE or config.CALLBACK_SECRET_TOKEN
+
+    if signature:
+        if not secret_key:
+            raise HTTPException(status_code=401, detail="Unauthorized callback request: Webhook secret key not configured.")
+        
+        import json
+        import hashlib
+        try:
+            body_dict = body if isinstance(body, dict) else {}
+            body_bytes = json.dumps(body_dict, separators=(',', ':')).encode("utf-8")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid request body.")
+
+        expected_sig = hmac.new(
+            secret_key.encode("utf-8"),
+            body_bytes,
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(signature.encode("utf-8"), expected_sig.encode("utf-8")):
+            raise HTTPException(status_code=401, detail="Unauthorized callback request: Signature verification failed.")
+
+        return True
+
+    # 3. Check direct token in headers, query parameters, or body challenge
     query_token = request.query_params.get("token", "").strip()
     header_token = (
         request.headers.get("X-Callback-Secret", "")
         or request.headers.get("X-Webhook-Token", "")
-        or request.headers.get("X-IntaSend-Signature", "")
     ).strip()
-    
+
     body_dict = body if isinstance(body, dict) else {}
     body_challenge = str(body_dict.get("challenge", "") or "").strip()
 
     provided_tokens = [t for t in (query_token, header_token, body_challenge) if t]
-
     expected_tokens = []
     if config.CALLBACK_SECRET_TOKEN:
         expected_tokens.append(config.CALLBACK_SECRET_TOKEN)
@@ -45,6 +70,8 @@ def verify_callback_authenticity(request: Request, body: Dict[str, Any] = None) 
     if config.IS_TEST_MODE:
         expected_tokens.append("testnet")
 
+    if not provided_tokens:
+        raise HTTPException(status_code=401, detail="Unauthorized callback request: Missing signature header or token.")
 
     token_valid = False
     for provided in provided_tokens:
@@ -55,21 +82,8 @@ def verify_callback_authenticity(request: Request, body: Dict[str, Any] = None) 
         if token_valid:
             break
 
-    is_prod = not config.IS_DEV_MODE and not config.IS_TEST_MODE
-
-    # In production mode, secret token verification is strictly required
-    if is_prod and not token_valid:
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized callback request: Invalid or missing secret token."
-        )
-
-    # In dev/test mode, enforce if token was supplied or if non-default expected token exists
-    if provided_tokens and not token_valid:
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized callback request: Invalid secret token."
-        )
+    if not token_valid:
+        raise HTTPException(status_code=401, detail="Unauthorized callback request: Invalid secret token.")
 
     return True
 
