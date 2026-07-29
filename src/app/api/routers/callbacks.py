@@ -6,6 +6,7 @@ from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id
 from app.services.payment_gateway import check_stk_status, check_payout_status
 from app.core import config
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api", tags=["Callbacks"])
 
@@ -89,6 +90,7 @@ def verify_callback_authenticity(request: Request, body: Dict[str, Any] = None) 
 
 
 @router.post("/callbacks/stk-callback")
+@limiter.limit("60/minute")
 async def mpesa_stk_callback(
     request: Request,
     body: Dict[str, Any] = Body(...),
@@ -196,6 +198,7 @@ def simulate_stk_callback(
 
 
 @router.post("/callbacks/b2c-result")
+@limiter.limit("60/minute")
 async def mpesa_b2c_result_callback(
     request: Request,
     body: Dict[str, Any] = Body(...),
@@ -242,6 +245,7 @@ async def mpesa_b2c_result_callback(
 
 
 @router.post("/callbacks/b2c-timeout")
+@limiter.limit("60/minute")
 async def mpesa_b2c_timeout_callback(
     request: Request,
     body: Dict[str, Any] = Body(...),
@@ -273,6 +277,7 @@ async def mpesa_b2c_timeout_callback(
 
 
 @router.post("/callbacks/intasend-webhook")
+@limiter.limit("60/minute")
 async def intasend_webhook(
     request: Request,
     body: Dict[str, Any] = Body(...),

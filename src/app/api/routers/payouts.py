@@ -8,21 +8,23 @@ from app.db.models import Payout
 from app.api.dependencies import get_db, get_current_user_id
 from app.services.scheduler import check_and_trigger_payout
 
-router = APIRouter(prefix="/api", tags=["Payouts"])
-
-@router.get("/payouts")
-def list_payouts(limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    return db.get_payouts(user_id, limit=limit)
-
-@router.get("/logs")
-def list_logs(limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    return db.get_logs(user_id, limit=limit)
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.core.limiter import limiter
 
+router = APIRouter(prefix="/api", tags=["Payouts"])
+
+@router.get("/payouts")
+@limiter.limit("60/minute")
+def list_payouts(request: Request, limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    return db.get_payouts(user_id, limit=limit)
+
+@router.get("/logs")
+@limiter.limit("60/minute")
+def list_logs(request: Request, limit: int = 100, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    return db.get_logs(user_id, limit=limit)
+
 @router.post("/payout/trigger")
-@limiter.limit("5/5minutes")
+@limiter.limit("5/minute")
 async def trigger_payout_manually(request: Request, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
     try:

@@ -18,7 +18,8 @@ def _mask_sensitive_fields(settings: dict) -> dict:
     return masked
 
 @router.get("")
-def get_settings(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("60/minute")
+def get_settings(request: Request, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     settings = db.get_settings(user_id)
     if not settings:
         return {}

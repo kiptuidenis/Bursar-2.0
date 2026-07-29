@@ -11,7 +11,8 @@ from app.core.limiter import limiter
 router = APIRouter(prefix="/api/budget", tags=["Budget"])
 
 @router.get("/items")
-def list_budget_items(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("60/minute")
+def list_budget_items(request: Request, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     return db.get_budget_items(user_id)
 
 @router.post("/items")
@@ -40,7 +41,8 @@ def add_or_update_budget_item(request: Request, payload: BudgetItemPayload, user
     return {"status": "success", "item_id": item_id, "daily_budget": int(db.get_settings(user_id).get("daily_budget", 0))}
 
 @router.delete("/items/{item_id}")
-def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("20/minute")
+def delete_budget_item(request: Request, item_id: int, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if db.is_budget_locked(user_id):
         raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
         
@@ -50,7 +52,8 @@ def delete_budget_item(item_id: int, user_id: int = Depends(get_current_user_id)
     return {"status": "success", "daily_budget": int(db.get_settings(user_id).get("daily_budget", 0))}
 
 @router.post("/lock")
-def lock_budget_endpoint(payload: BudgetLockPayload = Body(default=None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("10/minute")
+def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(default=None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if payload is None:
         payload = BudgetLockPayload()
         

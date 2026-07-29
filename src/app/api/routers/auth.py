@@ -134,7 +134,8 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
 
 
 @router.post("/logout")
-def logout_user(response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("15/minute")
+def logout_user(request: Request, response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
     response.delete_cookie(key="session_token", secure=SESSION_COOKIE_SECURE)
     response.delete_cookie(key="csrf_token", path="/")
     if session_token:
@@ -143,7 +144,8 @@ def logout_user(response: Response, session_token: Optional[str] = Cookie(None),
     return {"status": "success"}
 
 @router.get("/me")
-def get_me(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("60/minute")
+def get_me(request: Request, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     import datetime
     user = db.session.query(User).filter(User.id == user_id).first()
     if not user:
@@ -155,11 +157,13 @@ def get_me(user_id: int = Depends(get_current_user_id), db: DatabaseManager = De
     }
 
 @router.post("/ping")
-def ping_session(user_id: int = Depends(get_current_user_id)):
+@limiter.limit("60/minute")
+def ping_session(request: Request, user_id: int = Depends(get_current_user_id)):
     return {"status": "ok"}
 
 @router.get("/config")
-def get_auth_config():
+@limiter.limit("30/minute")
+def get_auth_config(request: Request):
     from app.core import config
     return {
         "recaptcha_enabled": config.RECAPTCHA_ENABLED and bool(config.RECAPTCHA_SITE_KEY) and config.RECAPTCHA_SITE_KEY != "your_recaptcha_site_key_here",

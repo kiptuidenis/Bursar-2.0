@@ -63,7 +63,8 @@ async def initiate_deposit(request: Request, payload: DepositRequest, user_id: i
         raise HTTPException(status_code=500, detail="Failed to initiate deposit payment. Please try again later.")
 
 @router.get("/status/{checkout_request_id}")
-async def check_deposit_status(checkout_request_id: str, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("30/minute")
+async def check_deposit_status(request: Request, checkout_request_id: str, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     deposit = db.get_deposit(checkout_request_id)
     if not deposit or deposit["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Deposit transaction not found.")

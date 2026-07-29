@@ -16,16 +16,17 @@ router = APIRouter(prefix="/api/profile", tags=["Profile"])
 
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
+from app.core.limiter import limiter
+
 @router.get("")
-def get_profile(user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("60/minute")
+def get_profile(request: Request, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     profile = db.get_profile(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found.")
     profile_dict = dict(profile)
     profile_dict["notifications_enabled"] = bool(profile_dict["notifications_enabled"])
     return profile_dict
-
-from app.core.limiter import limiter
 
 @router.post("")
 @limiter.limit("10/minute")
@@ -58,7 +59,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.core.limiter import limiter
 
 @router.post("/password")
-@limiter.limit("5/15minutes")
+@limiter.limit("5/minute")
 def change_password(request: Request, payload: PasswordChange, response: Response, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     profile = db.get_profile(user_id)
     if not profile:
@@ -93,7 +94,8 @@ def change_password(request: Request, payload: PasswordChange, response: Respons
     return {"status": "success"}
 
 @router.get("/sessions")
-def get_sessions(session_token: Optional[str] = Cookie(None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("60/minute")
+def get_sessions(request: Request, session_token: Optional[str] = Cookie(None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     sessions = db.get_active_sessions(user_id)
     
     # Map raw session info to display details
@@ -135,7 +137,8 @@ def get_sessions(session_token: Optional[str] = Cookie(None), user_id: int = Dep
     return results
 
 @router.delete("/sessions/other")
-def revoke_other_sessions(session_token: Optional[str] = Cookie(None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("15/minute")
+def revoke_other_sessions(request: Request, session_token: Optional[str] = Cookie(None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if not session_token:
         raise HTTPException(status_code=401, detail="No active session found.")
     db.revoke_other_sessions(user_id, session_token)
@@ -143,7 +146,8 @@ def revoke_other_sessions(session_token: Optional[str] = Cookie(None), user_id: 
     return {"status": "success"}
 
 @router.delete("/sessions/{session_id}")
-def revoke_session(session_id: int, session_token: Optional[str] = Cookie(None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("15/minute")
+def revoke_session(request: Request, session_id: int, session_token: Optional[str] = Cookie(None), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     # Check if user is trying to revoke their current session
     sessions = db.get_active_sessions(user_id)
     target_session = next((s for s in sessions if s["id"] == session_id), None)
@@ -158,7 +162,8 @@ def revoke_session(session_id: int, session_token: Optional[str] = Cookie(None),
     return {"status": "success"}
 
 @router.post("/avatar")
-def upload_avatar(file: UploadFile = File(...), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+@limiter.limit("10/minute")
+def upload_avatar(request: Request, file: UploadFile = File(...), user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     contents = file.file.read()
     
     from app.core.image_validator import process_and_sanitize_avatar
@@ -198,7 +203,9 @@ def upload_avatar(file: UploadFile = File(...), user_id: int = Depends(get_curre
     return {"status": "success", "avatar_url": url}
 
 @router.post("/deactivate")
+@limiter.limit("3/minute")
 def deactivate_account(
+    request: Request,
     payload: DeactivateRequest, 
     response: Response,
     user_id: int = Depends(get_current_user_id), 

@@ -1,0 +1,108 @@
+import os
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app, get_db
+from app.db.manager import DatabaseManager
+from app.core import config
+
+DB_FILE = "test_all_rate_limits.db"
+test_db_manager = None
+
+def get_test_db():
+    global test_db_manager
+    if test_db_manager is None:
+        test_db_manager = DatabaseManager(DB_FILE)
+        test_db_manager.initialize()
+    return test_db_manager
+
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    for f in (DB_FILE, DB_FILE + "-shm", DB_FILE + "-wal"):
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+            except Exception:
+                pass
+
+    global test_db_manager
+    test_db_manager = DatabaseManager(DB_FILE)
+    test_db_manager.initialize()
+
+    app.dependency_overrides[get_db] = get_test_db
+    yield
+    app.dependency_overrides.pop(get_db, None)
+    if test_db_manager:
+        test_db_manager.close()
+        test_db_manager = None
+    for f in (DB_FILE, DB_FILE + "-shm", DB_FILE + "-wal"):
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+            except Exception:
+                pass
+
+
+@pytest.fixture
+def enable_limiter(monkeypatch):
+    """Fixture to enable slowapi rate limiter explicitly for rate limit tests."""
+    monkeypatch.setattr(config, "IS_TEST_MODE", False)
+    monkeypatch.setattr(app.state.limiter, "enabled", True)
+    yield
+    monkeypatch.setattr(config, "IS_TEST_MODE", True)
+    monkeypatch.setattr(app.state.limiter, "enabled", False)
+
+
+def test_profile_rate_limits_trigger_429(enable_limiter):
+    """Verify rate limits on /api/profile/password and /api/profile/deactivate."""
+    client = TestClient(app)
+    client.post("/api/auth/signup", json={"phone_number": "254711666000", "password": "Str0ng!P@ssw0rdRL"})
+    client.post("/api/auth/login", json={"phone_number": "254711666000", "password": "Str0ng!P@ssw0rdRL"})
+    csrf_token = client.cookies.get("csrf_token")
+    headers = {"X-CSRF-Token": csrf_token}
+
+    # 1. Change password limit (5/minute) -> 6th attempt returns 429
+    for i in range(5):
+        client.post("/api/profile/password", json={"current_password": "WrongPassword!", "new_password": "Str0ng!P@ssw0rdRL2"}, headers=headers)
+
+    res_cp = client.post("/api/profile/password", json={"current_password": "WrongPassword!", "new_password": "Str0ng!P@ssw0rdRL2"}, headers=headers)
+    assert res_cp.status_code == 429
+
+    # 2. Deactivate limit (3/minute) -> 4th attempt returns 429
+    for i in range(3):
+        client.post("/api/profile/deactivate", json={"password": "WrongPassword!", "confirmation": "DELETE"}, headers=headers)
+
+    res_deact = client.post("/api/profile/deactivate", json={"password": "WrongPassword!", "confirmation": "DELETE"}, headers=headers)
+    assert res_deact.status_code == 429
+
+
+def test_notifications_rate_limits_trigger_429(enable_limiter):
+    """Verify rate limits on /api/notifications endpoints."""
+    client = TestClient(app)
+    client.post("/api/auth/signup", json={"phone_number": "254711666111", "password": "Str0ng!P@ssw0rdRL"})
+    client.post("/api/auth/login", json={"phone_number": "254711666111", "password": "Str0ng!P@ssw0rdRL"})
+    csrf_token = client.cookies.get("csrf_token")
+    headers = {"X-CSRF-Token": csrf_token}
+
+    # read-all limit (30/minute) -> 31st attempt returns 429
+    for i in range(30):
+        client.post("/api/notifications/read-all", headers=headers)
+
+    res_read_all = client.post("/api/notifications/read-all", headers=headers)
+    assert res_read_all.status_code == 429
+
+
+def test_payouts_rate_limits_trigger_429(enable_limiter):
+    """Verify rate limit on /api/payout/trigger (5/minute)."""
+    client = TestClient(app)
+    client.post("/api/auth/signup", json={"phone_number": "254711666222", "password": "Str0ng!P@ssw0rdRL"})
+    client.post("/api/auth/login", json={"phone_number": "254711666222", "password": "Str0ng!P@ssw0rdRL"})
+    csrf_token = client.cookies.get("csrf_token")
+    headers = {"X-CSRF-Token": csrf_token}
+
+    for i in range(5):
+        client.post("/api/payout/trigger", headers=headers)
+
+    res_trigger = client.post("/api/payout/trigger", headers=headers)
+    assert res_trigger.status_code == 429
