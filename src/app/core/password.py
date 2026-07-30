@@ -1,5 +1,23 @@
 import re
 from typing import Optional
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
+# OWASP ASVS recommended Argon2id configuration (memory: 64MB, time_cost: 3, parallelism: 4)
+argon2_hasher = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
+
+def hash_password_argon2(password: str) -> str:
+    """Hash plaintext password using Argon2id with random salt embedded in string."""
+    return argon2_hasher.hash(password)
+
+def verify_password_argon2(password: str, hash_string: str) -> bool:
+    """Verify plaintext password against stored Argon2id hash string."""
+    try:
+        return argon2_hasher.verify(hash_string, password)
+    except VerifyMismatchError:
+        return False
+    except Exception:
+        return False
 
 # Top breached/common dictionary roots (lowercase)
 COMMON_BREACHED_PATTERNS = {
@@ -7,6 +25,7 @@ COMMON_BREACHED_PATTERNS = {
     "123456", "12345678", "123456789", "welcome", "letmein",
     "monkey", "dragon", "master", "access", "shadow"
 }
+
 
 def validate_password_strength(password: str, user_context: Optional[str] = None) -> Optional[str]:
     """

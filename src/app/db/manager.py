@@ -176,7 +176,12 @@ class DatabaseManager:
 
     # Cryptographic Hashing Helpers
     def _hash_password(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:
-        """Hash a plaintext password using PBKDF2-HMAC-SHA256 with 100,000 iterations."""
+        """Hash a plaintext password using Argon2id with OWASP ASVS recommended cost parameters."""
+        from app.core.password import hash_password_argon2
+        return hash_password_argon2(password), "argon2"
+
+    def _hash_password_pbkdf2_legacy(self, password: str, salt: Optional[bytes] = None) -> tuple[str, str]:
+        """Legacy helper: Hash password using PBKDF2-HMAC-SHA256 with 100,000 iterations."""
         if salt is None:
             salt = secrets.token_bytes(16)
         hash_bytes = hashlib.pbkdf2_hmac(
@@ -188,20 +193,28 @@ class DatabaseManager:
         return hash_bytes.hex(), salt.hex()
 
     def _verify_password(self, password: str, password_hash_hex: str, salt_hex: str) -> bool:
-        """Verify password against stored hash using constant-time comparison to prevent timing side-channel attacks."""
+        """Verify password against stored hash (Argon2id or legacy PBKDF2)."""
+        if password_hash_hex and password_hash_hex.startswith("$argon2id$"):
+            from app.core.password import verify_password_argon2
+            return verify_password_argon2(password, password_hash_hex)
+
+        # Legacy PBKDF2 verification using constant-time comparison (SEC-001)
         import hmac
-        salt = bytes.fromhex(salt_hex)
-        hash_bytes = hashlib.pbkdf2_hmac(
-            'sha256',
-            password.encode('utf-8'),
-            salt,
-            100000
-        )
-        return hmac.compare_digest(hash_bytes.hex().encode('utf-8'), password_hash_hex.encode('utf-8'))
+        try:
+            salt = bytes.fromhex(salt_hex)
+            hash_bytes = hashlib.pbkdf2_hmac(
+                'sha256',
+                password.encode('utf-8'),
+                salt,
+                100000
+            )
+            return hmac.compare_digest(hash_bytes.hex().encode('utf-8'), password_hash_hex.encode('utf-8'))
+        except Exception:
+            return False
 
     # User Auth Operations
     def create_user(self, phone_number: str, password_plaintext: str) -> int:
-        """Register a new user, hashes password, and creates default settings row."""
+        """Register a new user, hashes password using Argon2id, and creates default settings row."""
         password_hash, salt = self._hash_password(password_plaintext)
         
         db_user = User(
@@ -270,12 +283,18 @@ class DatabaseManager:
             self._commit()
 
     def authenticate_user(self, phone_number: str, password_plaintext: str) -> Optional[int]:
-        """Authenticate user credentials. Returns user_id if valid, None otherwise."""
+        """Authenticate user credentials. Transparently upgrades legacy PBKDF2 hashes to Argon2id upon successful authentication."""
         user = self.session.query(User).filter(User.phone_number == phone_number).first()
         if not user:
             return None
             
         if self._verify_password(password_plaintext, user.password_hash, user.salt):
+            # Transparent re-hashing migration for legacy PBKDF2 users
+            if not user.password_hash.startswith("$argon2id$"):
+                new_hash, new_salt = self._hash_password(password_plaintext)
+                user.password_hash = new_hash
+                user.salt = new_salt
+                self._commit()
             return user.id
         return None
 
