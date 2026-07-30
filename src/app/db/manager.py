@@ -188,7 +188,8 @@ class DatabaseManager:
         return hash_bytes.hex(), salt.hex()
 
     def _verify_password(self, password: str, password_hash_hex: str, salt_hex: str) -> bool:
-        """Verify password against stored hash."""
+        """Verify password against stored hash using constant-time comparison to prevent timing side-channel attacks."""
+        import hmac
         salt = bytes.fromhex(salt_hex)
         hash_bytes = hashlib.pbkdf2_hmac(
             'sha256',
@@ -196,7 +197,7 @@ class DatabaseManager:
             salt,
             100000
         )
-        return hash_bytes.hex() == password_hash_hex
+        return hmac.compare_digest(hash_bytes.hex().encode('utf-8'), password_hash_hex.encode('utf-8'))
 
     # User Auth Operations
     def create_user(self, phone_number: str, password_plaintext: str) -> int:
