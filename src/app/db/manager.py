@@ -518,7 +518,7 @@ class DatabaseManager:
             return False
         try:
             lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            return ref_date < lock_date
+            return ref_date <= lock_date
         except ValueError:
             return False
 
