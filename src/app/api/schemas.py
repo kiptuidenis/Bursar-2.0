@@ -96,6 +96,17 @@ class BudgetLockPayload(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     items: Optional[List[DraftBudgetItem]] = None
+    payout_phone_number: Optional[str] = None
+    password: Optional[str] = None
+    otp_code: Optional[str] = None
+
+class StepUpOTPPayload(BaseModel):
+    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update)")
+
+class PayoutPhonePayload(BaseModel):
+    payout_phone_number: str = Field(..., description="Safaricom phone number for M-Pesa payouts")
+    password: str = Field(..., description="User account password for authorization")
+    otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit Email OTP code")
 
 class ProfileUpdate(BaseModel):
     first_name: Optional[str] = None

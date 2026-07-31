@@ -99,6 +99,27 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if daily_budget > balance and balance > 0:
         raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
         
+    # Dual Step-Up Verification for Payout Phone Number & Budget Locking
+    if payload.payout_phone_number or payload.password or payload.otp_code:
+        from app.api.routers.auth import sanitize_phone_number
+        from app.db.models import User
+        user = db.session.query(User).filter(User.id == user_id).first()
+        
+        if payload.payout_phone_number:
+            sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
+        else:
+            sanitized_phone = db.get_payout_phone_number(user_id)
+
+        if payload.password and payload.otp_code:
+            if user and not db._verify_password(payload.password, user.password_hash, user.salt):
+                raise HTTPException(status_code=401, detail="Invalid password credential.")
+            if user and user.email:
+                is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
+                if not is_valid_otp:
+                    raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+            if sanitized_phone:
+                db.update_payout_phone_number(user_id, sanitized_phone)
+
     db.lock_budget(user_id)
     db.update_settings(user_id, start_date=start_date, end_date=end_date)
     db.log_event(user_id, "INFO", f"Budget configuration locked until the end of the month with payout range {start_date or 'none'} to {end_date or 'none'}.")

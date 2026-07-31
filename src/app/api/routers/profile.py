@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, UploadF
 logger = logging.getLogger(__name__)
 
 from app.db.manager import DatabaseManager
+from app.db.models import User
 from app.api.dependencies import get_db, get_current_user_id, session_manager
 from app.api.schemas import ProfileUpdate, PasswordChange, DeactivateRequest
 from app.core.config import SESSION_COOKIE_SECURE
@@ -234,4 +235,54 @@ def deactivate_account(
     response.delete_cookie(key="session_token", path="/", secure=SESSION_COOKIE_SECURE, samesite="lax", httponly=True)
     response.delete_cookie(key="csrf_token", path="/", secure=SESSION_COOKIE_SECURE, samesite="lax")
     return {"status": "success"}
+
+from app.api.schemas import StepUpOTPPayload, PayoutPhonePayload
+from app.services.email import send_otp_email
+
+@router.post("/request-stepup-otp")
+@limiter.limit("5/minute")
+def request_stepup_otp(request: Request, payload: StepUpOTPPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    profile = db.get_profile(user_id)
+    if not profile or not profile.get("email"):
+        raise HTTPException(status_code=400, detail="User account does not have a verified email address.")
+
+    user_email = profile["email"].strip().lower()
+    otp_code = db.create_otp_challenge(user_email, purpose=payload.purpose, ttl_seconds=300, user_id=user_id)
+    send_otp_email(user_email, otp_code, purpose=payload.purpose)
+
+    return {
+        "status": "success",
+        "message": "Authorization code sent to your email."
+    }
+
+@router.post("/payout-phone")
+@limiter.limit("5/minute")
+def update_payout_phone(request: Request, payload: PayoutPhonePayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
+    from app.api.routers.auth import sanitize_phone_number
+    sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
+
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # 1. Verify Password
+    if not db._verify_password(payload.password, user.password_hash, user.salt):
+        raise HTTPException(status_code=401, detail="Invalid password credential.")
+
+    # 2. Verify OTP
+    if not user.email:
+        raise HTTPException(status_code=400, detail="User email address not set.")
+
+    is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="phone_update")
+    if not is_valid_otp:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+
+    # Verification successful! Update payout phone number
+    db.update_payout_phone_number(user_id, sanitized_phone)
+    db.log_event(user_id, "INFO", f"Payout phone number updated to '{sanitized_phone}'.")
+
+    return {
+        "status": "success",
+        "payout_phone_number": sanitized_phone
+    }
 
