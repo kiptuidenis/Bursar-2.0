@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.dependencies import db_manager, get_db, get_current_user_id
 from app.services.scheduler import BackgroundScheduler
+from app.core import config
 
 # Import sub-routers
 from app.api.routers import auth, settings, budget, deposits, payouts, callbacks, profile, notifications
@@ -68,7 +69,17 @@ async def lifespan(app: FastAPI):
         app.state.scheduler.stop()
     db_manager.close()
 
-app = FastAPI(lifespan=lifespan, title="Bursar 2.0 API")
+docs_url = "/docs" if config.SHOW_API_DOCS else None
+redoc_url = "/redoc" if config.SHOW_API_DOCS else None
+openapi_url = "/openapi.json" if config.SHOW_API_DOCS else None
+
+app = FastAPI(
+    lifespan=lifespan,
+    title="Bursar 2.0 API",
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url
+)
 
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -131,6 +142,10 @@ app.add_middleware(CSRFProtectionMiddleware)
 
 from app.core.security_headers import SecurityHeadersMiddleware
 app.add_middleware(SecurityHeadersMiddleware)
+
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+if "*" not in config.ALLOWED_HOSTS or not (config.IS_DEV_MODE or config.IS_TEST_MODE):
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.ALLOWED_HOSTS)
 
 
 # Register routers

@@ -207,6 +207,18 @@ else:
     # Default for dev/test: False (HTTP TestClient needs cookies without Secure flag)
     SESSION_COOKIE_SECURE = False
 
+_show_docs_env = os.environ.get("SHOW_API_DOCS", "").strip().lower()
+if not IS_DEV_MODE and not IS_TEST_MODE:
+    SHOW_API_DOCS: bool = _show_docs_env in ("true", "1", "yes")
+else:
+    SHOW_API_DOCS: bool = _show_docs_env not in ("false", "0", "no")
+
+_raw_allowed_hosts = os.environ.get("ALLOWED_HOSTS", "").strip()
+if _raw_allowed_hosts:
+    ALLOWED_HOSTS: List[str] = [_h.strip() for _h in _raw_allowed_hosts.split(",") if _h.strip()]
+else:
+    ALLOWED_HOSTS = ["*"] if (IS_DEV_MODE or IS_TEST_MODE) else ["bursar.co.ke", "*.bursar.co.ke", "localhost", "127.0.0.1"]
+
 
 
 
