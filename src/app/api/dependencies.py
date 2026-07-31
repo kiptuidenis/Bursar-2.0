@@ -32,4 +32,5 @@ def get_current_user_id(
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication session expired or invalid. Please log in again.")
         
+    request.state.user_id = user_id
     return user_id
