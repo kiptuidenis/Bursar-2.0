@@ -3,14 +3,37 @@ from typing import Optional, List
 
 # Pydantic input models
 class AuthPayload(BaseModel):
-    phone_number: str = Field(..., description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    phone_number: Optional[str] = Field(None, description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    email: Optional[str] = Field(None, description="Email address for authentication")
     password: str = Field(..., min_length=8, description="Strong password (minimum 8 characters with uppercase, lowercase, digit, and symbol)")
+    payout_phone_number: Optional[str] = Field(None, description="Safaricom phone number for M-Pesa payouts (optional)")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
 
 class AuthLoginPayload(BaseModel):
-    phone_number: str = Field(..., description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    phone_number: Optional[str] = Field(None, description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    email: Optional[str] = Field(None, description="Email address for authentication")
     password: str = Field(..., min_length=1, description="Password")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
+
+class EmailSignupPayload(BaseModel):
+    email: str = Field(..., description="Email address for authentication")
+    password: str = Field(..., min_length=8, description="Strong password (minimum 8 characters with uppercase, lowercase, digit, and symbol)")
+    payout_phone_number: Optional[str] = Field(None, description="Safaricom phone number for M-Pesa payouts (optional)")
+    recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
+
+class EmailLoginPayload(BaseModel):
+    email: str = Field(..., description="Email address for authentication")
+    password: str = Field(..., min_length=1, description="Password")
+    recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
+
+class OTPVerificationPayload(BaseModel):
+    email: str = Field(..., description="Recipient email address")
+    otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit numeric OTP code")
+    purpose: str = Field("login_2fa", description="Purpose of OTP challenge")
+
+class OTPResendPayload(BaseModel):
+    email: str = Field(..., description="Recipient email address")
+    purpose: str = Field("login_2fa", description="Purpose of OTP challenge")
 
 
 class SettingsUpdate(BaseModel):

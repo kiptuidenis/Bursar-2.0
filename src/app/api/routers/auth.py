@@ -16,11 +16,12 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 
+EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+
 def sanitize_phone_number(phone: str) -> str:
     phone = phone.strip()
     if phone.startswith("+"):
         phone = phone[1:]
-    # Convert local 07... / 01... formats to international 2547... / 2541...
     if phone.startswith("0") and len(phone) == 10:
         phone = "254" + phone[1:]
         
@@ -31,6 +32,9 @@ def sanitize_phone_number(phone: str) -> str:
         )
     return phone
 
+from app.api.schemas import AuthPayload, AuthLoginPayload, OTPVerificationPayload, OTPResendPayload
+from app.services.email import send_otp_email
+
 @router.post("/signup")
 @limiter.limit("5/minute")
 def signup_user(request: Request, payload: AuthPayload, response: Response, db: DatabaseManager = Depends(get_db)):
@@ -38,16 +42,164 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
-    sanitized_phone = sanitize_phone_number(payload.phone_number)
-    
-    from app.core.password import validate_password_strength
-    pwd_error = validate_password_strength(payload.password, user_context=sanitized_phone)
-    if pwd_error:
-        raise HTTPException(status_code=400, detail=pwd_error)
+    if not payload.email and not payload.phone_number:
+        raise HTTPException(status_code=422, detail="Email address or phone number is required.")
 
-    try:
-        user_id = db.create_user(sanitized_phone, payload.password)
-        db.log_event(user_id, "INFO", "User registration completed successfully.")
+    # Check Email Signup vs Legacy Phone Signup
+    if payload.email:
+        email_clean = payload.email.strip().lower()
+        if not re.match(EMAIL_REGEX, email_clean):
+            raise HTTPException(status_code=400, detail="Invalid email address format.")
+            
+        from app.core.password import validate_password_strength
+        pwd_error = validate_password_strength(payload.password, user_context=email_clean)
+        if pwd_error:
+            raise HTTPException(status_code=400, detail=pwd_error)
+
+        existing = db.get_user_by_email(email_clean)
+        if existing:
+            raise HTTPException(status_code=400, detail="An account with this email address already exists.")
+
+        try:
+            user_id = db.create_user_email(email_clean, payload.password, payout_phone=payload.payout_phone_number)
+            db.log_event(user_id, "INFO", "User registration initiated. Pending email 2FA verification.")
+            
+            # Generate 6-digit OTP challenge and dispatch email
+            otp_code = db.create_otp_challenge(email_clean, purpose="signup_2fa", ttl_seconds=300, user_id=user_id)
+            send_otp_email(email_clean, otp_code, purpose="signup_2fa")
+
+            return {
+                "status": "2fa_required",
+                "email": email_clean,
+                "purpose": "signup_2fa",
+                "message": "Verification code sent to your email."
+            }
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception:
+            raise HTTPException(status_code=500, detail="An error occurred during registration.")
+
+    # Legacy Phone Signup Handler
+    if payload.phone_number:
+        sanitized_phone = sanitize_phone_number(payload.phone_number)
+        from app.core.password import validate_password_strength
+        pwd_error = validate_password_strength(payload.password, user_context=sanitized_phone)
+        if pwd_error:
+            raise HTTPException(status_code=400, detail=pwd_error)
+
+        try:
+            user_id = db.create_user(sanitized_phone, payload.password)
+            db.log_event(user_id, "INFO", "User registration completed successfully.")
+            
+            from app.core.csrf import generate_csrf_token
+            new_csrf = generate_csrf_token()
+            response.set_cookie(
+                key="csrf_token",
+                value=new_csrf,
+                httponly=False,
+                secure=SESSION_COOKIE_SECURE,
+                samesite="lax",
+                path="/"
+            )
+            return {"status": "success", "user_id": user_id}
+        except sqlalchemy.exc.IntegrityError as e:
+            err_msg = str(e).lower()
+            if "unique" in err_msg or "phone_number" in err_msg:
+                raise HTTPException(status_code=400, detail="This phone number is already registered.")
+            raise HTTPException(status_code=500, detail="Database integrity error occurred during registration.")
+
+    raise HTTPException(status_code=422, detail="Email address or phone number is required.")
+
+@router.post("/login")
+@limiter.limit("5/minute")
+def login_user(request: Request, payload: AuthLoginPayload, response: Response, db: DatabaseManager = Depends(get_db)):
+    client_ip = request.client.host if request.client else None
+    if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
+        raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
+
+    if not payload.email and not payload.phone_number:
+        raise HTTPException(status_code=422, detail="Email address or phone number is required.")
+
+    # Check Email Login vs Legacy Phone Login
+    if payload.email:
+        email_clean = payload.email.strip().lower()
+        user = db.get_user_by_email(email_clean)
+        
+        # Pre-check account lockout
+        is_locked, remaining_secs = db.is_account_locked(email_clean)
+        if is_locked:
+            remaining_mins = max(1, int(remaining_secs / 60))
+            from fastapi.responses import JSONResponse
+            resp = JSONResponse(
+                status_code=429,
+                content={"detail": f"Account locked. Try again in {remaining_mins} minutes."}
+            )
+            resp.headers["Retry-After"] = str(remaining_secs)
+            return resp
+
+        if not user or not db._verify_password(payload.password, user.password_hash, user.salt):
+            attempts, just_locked = db.record_failed_login_attempt(email_clean)
+            if just_locked:
+                from fastapi.responses import JSONResponse
+                resp = JSONResponse(
+                    status_code=429,
+                    content={"detail": "Account locked. Try again in 15 minutes."}
+                )
+                resp.headers["Retry-After"] = "900"
+                return resp
+            raise HTTPException(status_code=401, detail="Invalid email address or password.")
+
+        # Password verified! Generate 6-digit Email OTP challenge
+        otp_code = db.create_otp_challenge(email_clean, purpose="login_2fa", ttl_seconds=300, user_id=user.id)
+        send_otp_email(email_clean, otp_code, purpose="login_2fa")
+
+        return {
+            "status": "2fa_required",
+            "email": email_clean,
+            "purpose": "login_2fa",
+            "message": "Two-factor verification code sent to your email."
+        }
+
+    # Legacy Phone Login Handler
+    if payload.phone_number:
+        sanitized_phone = sanitize_phone_number(payload.phone_number)
+        is_locked, remaining_secs = db.is_account_locked(sanitized_phone)
+        if is_locked:
+            remaining_mins = max(1, int(remaining_secs / 60))
+            from fastapi.responses import JSONResponse
+            resp = JSONResponse(
+                status_code=429,
+                content={"detail": f"Account locked. Try again in {remaining_mins} minutes."}
+            )
+            resp.headers["Retry-After"] = str(remaining_secs)
+            return resp
+
+        user_id = db.authenticate_user(sanitized_phone, payload.password)
+        if not user_id:
+            attempts, just_locked = db.record_failed_login_attempt(sanitized_phone)
+            if just_locked:
+                from fastapi.responses import JSONResponse
+                resp = JSONResponse(
+                    status_code=429,
+                    content={"detail": "Account locked. Try again in 15 minutes."}
+                )
+                resp.headers["Retry-After"] = "900"
+                return resp
+            raise HTTPException(status_code=401, detail="Invalid phone number or password PIN.")
+
+        db.reset_failed_login_attempts(sanitized_phone)
+            
+        user_agent = request.headers.get("user-agent", "Unknown Device")
+        ip_address = request.client.host if request.client else "Unknown IP"
+        token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent=user_agent, ip_address=ip_address)
+        response.set_cookie(
+            key="session_token",
+            value=token,
+            httponly=True,
+            secure=SESSION_COOKIE_SECURE,
+            samesite="lax",
+            max_age=86400
+        )
         
         from app.core.csrf import generate_csrf_token
         new_csrf = generate_csrf_token()
@@ -59,53 +211,28 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             samesite="lax",
             path="/"
         )
+        db.log_event(user_id, "INFO", "User successfully authenticated.")
         return {"status": "success", "user_id": user_id}
-    except sqlalchemy.exc.IntegrityError as e:
-        err_msg = str(e).lower()
-        if "unique" in err_msg or "phone_number" in err_msg:
-            raise HTTPException(status_code=400, detail="This phone number is already registered.")
-        raise HTTPException(status_code=500, detail="Database integrity error occurred during registration.")
 
-@router.post("/login")
-@limiter.limit("5/minute")
-def login_user(request: Request, payload: AuthLoginPayload, response: Response, db: DatabaseManager = Depends(get_db)):
-    client_ip = request.client.host if request.client else None
-    if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
-        raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
+    raise HTTPException(status_code=422, detail="Email address or phone number is required.")
 
-    sanitized_phone = sanitize_phone_number(payload.phone_number)
+@router.post("/verify-otp")
+@limiter.limit("10/minute")
+def verify_otp(request: Request, payload: OTPVerificationPayload, response: Response, db: DatabaseManager = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+    is_valid = db.verify_otp_challenge(email_clean, payload.otp_code, payload.purpose)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
 
-    # 1. Pre-check if account is locked due to 5+ failed attempts
-    is_locked, remaining_secs = db.is_account_locked(sanitized_phone)
-    if is_locked:
-        remaining_mins = max(1, int(remaining_secs / 60))
-        from fastapi.responses import JSONResponse
-        resp = JSONResponse(
-            status_code=429,
-            content={"detail": f"Account locked. Try again in {remaining_mins} minutes."}
-        )
-        resp.headers["Retry-After"] = str(remaining_secs)
-        return resp
+    user = db.get_user_by_email(email_clean)
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found.")
 
-    user_id = db.authenticate_user(sanitized_phone, payload.password)
-    
-    if not user_id:
-        attempts, just_locked = db.record_failed_login_attempt(sanitized_phone)
-        if just_locked:
-            from fastapi.responses import JSONResponse
-            resp = JSONResponse(
-                status_code=429,
-                content={"detail": "Account locked. Try again in 15 minutes."}
-            )
-            resp.headers["Retry-After"] = "900"
-            return resp
-        raise HTTPException(status_code=401, detail="Invalid phone number or password PIN.")
-        
-    db.reset_failed_login_attempts(sanitized_phone)
-        
+    db.reset_failed_login_attempts(email_clean)
     user_agent = request.headers.get("user-agent", "Unknown Device")
     ip_address = request.client.host if request.client else "Unknown IP"
-    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent=user_agent, ip_address=ip_address) # Valid for 24 hours
+    token = session_manager.create_session(user.id, expires_in_seconds=86400, db=db, user_agent=user_agent, ip_address=ip_address)
+
     response.set_cookie(
         key="session_token",
         value=token,
@@ -114,7 +241,6 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
         samesite="lax",
         max_age=86400
     )
-    
     from app.core.csrf import generate_csrf_token
     new_csrf = generate_csrf_token()
     response.set_cookie(
@@ -126,11 +252,28 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
         path="/"
     )
 
-    from app.core.password import validate_password_strength
-    is_weak = validate_password_strength(payload.password, user_context=sanitized_phone) is not None
+    db.log_event(user.id, "INFO", f"OTP verification successful for purpose '{payload.purpose}'. Session issued.")
+    return {
+        "status": "success",
+        "user_id": user.id,
+        "email": user.email,
+        "email_verified": user.email_verified
+    }
 
-    db.log_event(user_id, "INFO", "User successfully authenticated.")
-    return {"status": "success", "user_id": user_id, "force_password_change": is_weak}
+@router.post("/resend-otp")
+@limiter.limit("3/minute")
+def resend_otp(request: Request, payload: OTPResendPayload, db: DatabaseManager = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+    user = db.get_user_by_email(email_clean)
+    user_id = user.id if user else None
+
+    otp_code = db.create_otp_challenge(email_clean, purpose=payload.purpose, ttl_seconds=300, user_id=user_id)
+    send_otp_email(email_clean, otp_code, purpose=payload.purpose)
+
+    return {
+        "status": "success",
+        "message": "A new verification code has been sent to your email."
+    }
 
 
 @router.post("/logout")
