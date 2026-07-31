@@ -184,7 +184,9 @@ if IS_TEST_MODE:
 SECRET_KEY: SecretStr = validate_environment_secret_keys(is_test_mode=IS_TEST_MODE)
 FALLBACK_SECRET_KEYS: List[bytes] = parse_fallback_secret_keys(os.environ.get("OLD_SECRET_KEYS", ""), max_fallbacks=3)
 
-APP_ENV = os.environ.get("APP_ENV", "development").lower()
+# App Global Properties
+APP_NAME: str = os.environ.get("APP_NAME", "Bursar 2.0")
+APP_ENV: str = os.environ.get("APP_ENV", "development").lower()
 IS_DEV_MODE = APP_ENV in ("development", "dev", "local")
 
 ALLOWED_ORIGINS: List[str] = parse_allowed_origins(
@@ -218,6 +220,20 @@ if _raw_allowed_hosts:
     ALLOWED_HOSTS: List[str] = [_h.strip() for _h in _raw_allowed_hosts.split(",") if _h.strip()]
 else:
     ALLOWED_HOSTS = ["*"] if (IS_DEV_MODE or IS_TEST_MODE) else ["bursar.co.ke", "*.bursar.co.ke", "localhost", "127.0.0.1"]
+
+# AWS SES Configuration Properties
+AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
+AWS_ACCESS_KEY_ID: str = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY: str = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+SES_SENDER_EMAIL: str = os.environ.get("SES_SENDER_EMAIL", "support@bursar.co.ke")
+_email_mock_env = os.environ.get("EMAIL_MOCK_MODE", "").strip().lower()
+if IS_TEST_MODE:
+    EMAIL_MOCK_MODE: bool = True
+elif _email_mock_env in ("false", "0", "no"):
+    EMAIL_MOCK_MODE = False
+else:
+    # Default to Mock Mode if AWS credentials are not configured
+    EMAIL_MOCK_MODE = not bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)
 
 
 
