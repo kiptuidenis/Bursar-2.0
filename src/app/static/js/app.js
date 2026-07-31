@@ -1318,21 +1318,21 @@ async function fetchPayouts() {
                     statusClass = "badge-success";
                 } else if (payout.status === "FAILED") {
                     statusClass = "badge-failed";
-                    tooltip = `title="${payout.error_message || 'Transaction rejected'}"`;
+                    tooltip = `title="${escapeHTML(payout.error_message || 'Transaction rejected')}"`;
                 }
 
                 // Show the exact timestamp of completion or failure
                 const exactTime = payout.completed_at || payout.failed_at || "";
-                const timeDisplay = exactTime ? exactTime.split(" ")[1] || exactTime : "—";
+                const timeDisplay = exactTime ? escapeHTML(exactTime.split(" ")[1] || exactTime) : "—";
 
                 return `
                     <tr>
-                        <td data-label="Date"><strong>${payout.payout_date}</strong></td>
+                        <td data-label="Date"><strong>${escapeHTML(payout.payout_date || '')}</strong></td>
                         <td data-label="Time" class="text-mono" style="font-size:0.82rem; color: var(--text-muted);">${timeDisplay}</td>
-                        <td data-label="Amount">KES ${parseFloat(payout.amount).toFixed(2)}</td>
-                        <td data-label="Recipient">${payout.phone_number}</td>
-                        <td data-label="M-Pesa Ref" class="text-mono">${payout.transaction_id || payout.conversation_id || '—'}</td>
-                        <td data-label="Status"><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
+                        <td data-label="Amount">KES ${parseFloat(payout.amount || 0).toFixed(2)}</td>
+                        <td data-label="Recipient">${escapeHTML(payout.phone_number || '')}</td>
+                        <td data-label="M-Pesa Ref" class="text-mono">${escapeHTML(payout.transaction_id || payout.conversation_id || '—')}</td>
+                        <td data-label="Status"><span class="badge ${statusClass}" ${tooltip}>${escapeHTML(statusText || '')}</span></td>
                     </tr>
                 `;
             }).join("");
@@ -1657,7 +1657,7 @@ function renderBudgetBreakdown() {
             if (lockNoticeText) {
                 let text = `<strong>Locked:</strong> Allocations are locked until the end of the month to prevent overspending.`;
                 if (currentSettings.start_date || currentSettings.end_date) {
-                    text += `<br><span style="display:inline-block; margin-top:0.25rem; font-size:0.75rem;"><i data-lucide="calendar" style="width:0.85rem; height:0.85rem; vertical-align:middle; margin-right:0.15rem; display:inline-block;"></i> Payout schedule: <strong>${currentSettings.start_date || 'immediate'}</strong> to <strong>${currentSettings.end_date || 'indefinite'}</strong></span>`;
+                    text += `<br><span style="display:inline-block; margin-top:0.25rem; font-size:0.75rem;"><i data-lucide="calendar" style="width:0.85rem; height:0.85rem; vertical-align:middle; margin-right:0.15rem; display:inline-block;"></i> Payout schedule: <strong>${escapeHTML(currentSettings.start_date || 'immediate')}</strong> to <strong>${escapeHTML(currentSettings.end_date || 'indefinite')}</strong></span>`;
                 }
                 lockNoticeText.innerHTML = text;
                 if (window.lucide) {
@@ -2064,13 +2064,13 @@ async function fetchSessions() {
         tbody.innerHTML = sessions.map(s => {
             const actionBtn = s.is_current 
                 ? `<span class="text-muted" style="font-size: 0.85rem; font-weight:600;">Current Session</span>`
-                : `<button type="button" class="btn btn-secondary btn-sm revoke-session-btn" data-session-id="${s.id}" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; color: var(--color-accent-rose); border-color: rgba(239, 68, 68, 0.2);">Revoke</button>`;
+                : `<button type="button" class="btn btn-secondary btn-sm revoke-session-btn" data-session-id="${escapeHTML(String(s.id))}" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; color: var(--color-accent-rose); border-color: rgba(239, 68, 68, 0.2);">Revoke</button>`;
                 
             return `
                 <tr>
-                    <td data-label="Device"><strong>${s.device}</strong></td>
-                    <td data-label="IP Address">${s.ip_address}</td>
-                    <td data-label="Login Time">${s.created_at}</td>
+                    <td data-label="Device"><strong>${escapeHTML(s.device || '')}</strong></td>
+                    <td data-label="IP Address">${escapeHTML(s.ip_address || '')}</td>
+                    <td data-label="Login Time">${escapeHTML(s.created_at || '')}</td>
                     <td data-label="Action">${actionBtn}</td>
                 </tr>
             `;
