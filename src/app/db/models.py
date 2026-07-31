@@ -8,13 +8,16 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    phone_number = Column(String(50), unique=True, nullable=False)
+    phone_number = Column(String(50), unique=True, nullable=True)
+    email = Column(String(255), unique=True, index=True, nullable=True)
+    email_verified = Column(Boolean, default=False, nullable=False)
+    two_factor_enabled = Column(Boolean, default=True, nullable=False)
+    payout_phone_number = Column(String(50), default="")
     password_hash = Column(String(255), nullable=False)
     salt = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     first_name = Column(String(100), default="")
     last_name = Column(String(100), default="")
-    email = Column(String(100), default="")
     avatar_url = Column(String(255), default="")
     bio = Column(String(500), default="")
     theme = Column(String(50), default="")
@@ -30,6 +33,21 @@ class User(Base):
     deposits = relationship("Deposit", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    otp_codes = relationship("OtpCode", back_populates="user", cascade="all, delete-orphan")
+
+class OtpCode(Base):
+    __tablename__ = "otp_codes"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    otp_code_hash = Column(String(255), nullable=False)
+    purpose = Column(String(50), nullable=False)
+    expires_at = Column(String(50), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    created_at = Column(String(50), nullable=False)
+
+    user = relationship("User", back_populates="otp_codes")
 
 class Settings(Base):
     __tablename__ = "settings"

@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
-from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification
+from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification, OtpCode
 
 
 
@@ -171,6 +171,12 @@ class DatabaseManager:
                     conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
                 if "account_locked_until" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN account_locked_until VARCHAR(50) DEFAULT ''"))
+                if "email_verified" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 0"))
+                if "two_factor_enabled" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT 1"))
+                if "payout_phone_number" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN payout_phone_number VARCHAR(50) DEFAULT ''"))
         except Exception:
             pass
 
@@ -192,7 +198,7 @@ class DatabaseManager:
         )
         return hash_bytes.hex(), salt.hex()
 
-    def _verify_password(self, password: str, password_hash_hex: str, salt_hex: str) -> bool:
+    def _verify_password(self, password: str, password_hash_hex: str, salt_hex: str = "") -> bool:
         """Verify password against stored hash (Argon2id or legacy PBKDF2)."""
         if password_hash_hex and password_hash_hex.startswith("$argon2id$"):
             from app.core.password import verify_password_argon2
@@ -213,6 +219,150 @@ class DatabaseManager:
             return False
 
     # User Auth Operations
+    def create_user_email(self, email: str, password_plaintext: str, payout_phone: Optional[str] = None) -> int:
+        """Register a new user using email address, hashes password with Argon2id, and initializes settings."""
+        email_clean = email.strip().lower()
+        existing = self.session.query(User).filter(User.email == email_clean).first()
+        if existing:
+            raise ValueError(f"User with email '{email_clean}' already exists.")
+            
+        password_hash, salt = self._hash_password(password_plaintext)
+        
+        db_user = User(
+            email=email_clean,
+            password_hash=password_hash,
+            salt=salt,
+            payout_phone_number=payout_phone or "",
+            email_verified=False,
+            two_factor_enabled=True
+        )
+        self.session.add(db_user)
+        self._commit()
+        
+        db_settings = Settings(
+            user_id=db_user.id,
+            phone_number=payout_phone or ""
+        )
+        self.session.add(db_settings)
+        self._commit()
+        return db_user.id
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Fetch user ORM model instance by email address."""
+        if not email:
+            return None
+        return self.session.query(User).filter(User.email == email.strip().lower()).first()
+
+    def update_payout_phone_number(self, user_id: int, phone_number: str):
+        """Update payout Safaricom phone number for financial disbursements."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.payout_phone_number = phone_number
+            settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+            if settings:
+                settings.phone_number = phone_number
+            self._commit()
+
+    def get_payout_phone_number(self, user_id: int) -> Optional[str]:
+        """Get stored payout phone number for a user."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if user and user.payout_phone_number:
+            return user.payout_phone_number
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            return settings.phone_number
+        return ""
+
+    def create_otp_challenge(self, email: str, purpose: str, ttl_seconds: int = 300, user_id: Optional[int] = None) -> str:
+        """
+        Generate a cryptographically secure 6-digit numeric OTP challenge,
+        store Argon2id hashed code in `otp_codes` table, and return raw code for email delivery.
+        """
+        email_clean = email.strip().lower()
+        if not user_id:
+            user = self.get_user_by_email(email_clean)
+            if user:
+                user_id = user.id
+                
+        # Invalidate any active pending OTP challenges for this email and purpose
+        self.session.query(OtpCode).filter(
+            OtpCode.email == email_clean,
+            OtpCode.purpose == purpose
+        ).delete(synchronize_session=False)
+        self._commit()
+
+        # Generate 6-digit numeric code
+        otp_raw = f"{secrets.randbelow(1000000):06d}"
+        
+        # Hash code using Argon2id
+        otp_hash, _ = self._hash_password(otp_raw)
+        
+        expires_at_dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=ttl_seconds)
+        expires_str = expires_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+        created_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        
+        otp_record = OtpCode(
+            user_id=user_id,
+            email=email_clean,
+            otp_code_hash=otp_hash,
+            purpose=purpose,
+            expires_at=expires_str,
+            attempts=0,
+            created_at=created_str
+        )
+        self.session.add(otp_record)
+        self._commit()
+        return otp_raw
+
+    def verify_otp_challenge(self, email: str, otp_code: str, purpose: str) -> bool:
+        """
+        Validate a 6-digit OTP code against the database challenge.
+        Checks expiration, attempt limits (max 3 attempts), and sets `email_verified=True` upon success.
+        """
+        email_clean = email.strip().lower()
+        record = self.session.query(OtpCode).filter(
+            OtpCode.email == email_clean,
+            OtpCode.purpose == purpose
+        ).order_by(OtpCode.id.desc()).first()
+        
+        if not record:
+            return False
+
+        # 1. Check expiration
+        try:
+            expires_dt = datetime.datetime.strptime(record.expires_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+            now_dt = datetime.datetime.now(datetime.timezone.utc)
+            if now_dt > expires_dt:
+                self.session.delete(record)
+                self._commit()
+                return False
+        except Exception:
+            return False
+
+        # 2. Check attempt limits
+        if record.attempts >= 3:
+            self.session.delete(record)
+            self._commit()
+            return False
+
+        # 3. Verify OTP code hash
+        is_valid = self._verify_password(otp_code, record.otp_code_hash)
+        if not is_valid:
+            record.attempts += 1
+            self._commit()
+            return False
+
+        # Verification successful! Delete used OTP challenge record
+        self.session.delete(record)
+        
+        # Mark user email as verified
+        user = self.session.query(User).filter(User.email == email_clean).first()
+        if user:
+            user.email_verified = True
+            
+        self._commit()
+        return True
+
     def create_user(self, phone_number: str, password_plaintext: str) -> int:
         """Register a new user, hashes password using Argon2id, and creates default settings row."""
         password_hash, salt = self._hash_password(password_plaintext)
@@ -301,7 +451,12 @@ class DatabaseManager:
     def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Fetch user profile details."""
         user = self.session.query(User).filter(User.id == user_id).first()
-        return _row_to_dict(user) if user else None
+        if not user:
+            return None
+        data = _row_to_dict(user)
+        if data.get("email") is None:
+            data["email"] = ""
+        return data
 
     def update_profile(self, user_id: int, **kwargs: Any) -> None:
         """Update user profile fields."""

@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from app.main import app, get_db
 from app.db.manager import DatabaseManager
 from app.core.csrf import generate_csrf_token, verify_csrf_token
-from app.db.models import User, Settings, Payout, Log, BudgetItem, Deposit, Session as DbSession
+from app.db.models import User, Settings, Payout, Log, BudgetItem, Deposit, Session as DbSession, OtpCode
 
 DB_FILE = "test_csrf_protection.db"
 test_db_manager = None
@@ -18,21 +18,30 @@ def get_test_db():
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    global test_db_manager
+    if test_db_manager:
+        test_db_manager.close()
+        test_db_manager = None
+    for f in (DB_FILE, DB_FILE + "-shm", DB_FILE + "-wal"):
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+            except Exception:
+                pass
     os.environ["TESTING_CSRF_STRICT"] = "1"
     app.dependency_overrides[get_db] = get_test_db
-    db = get_test_db()
-    db.session.query(DbSession).delete()
-    db.session.query(BudgetItem).delete()
-    db.session.query(Log).delete()
-    db.session.query(Deposit).delete()
-    db.session.query(Payout).delete()
-    db.session.query(Settings).delete()
-    db.session.query(User).delete()
-    db._commit()
     yield
     os.environ.pop("TESTING_CSRF_STRICT", None)
     app.dependency_overrides.pop(get_db, None)
-    db.close()
+    if test_db_manager:
+        test_db_manager.close()
+        test_db_manager = None
+    for f in (DB_FILE, DB_FILE + "-shm", DB_FILE + "-wal"):
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+            except Exception:
+                pass
 
 def test_verify_csrf_token_helper():
     token = generate_csrf_token()
