@@ -136,8 +136,8 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
 @router.post("/logout")
 @limiter.limit("15/minute")
 def logout_user(request: Request, response: Response, session_token: Optional[str] = Cookie(None), db: DatabaseManager = Depends(get_db)):
-    response.delete_cookie(key="session_token", secure=SESSION_COOKIE_SECURE)
-    response.delete_cookie(key="csrf_token", path="/")
+    response.delete_cookie(key="session_token", path="/", secure=SESSION_COOKIE_SECURE, samesite="lax", httponly=True)
+    response.delete_cookie(key="csrf_token", path="/", secure=SESSION_COOKIE_SECURE, samesite="lax")
     if session_token:
         db.session.query(DbSession).filter(DbSession.session_token == session_token).delete(synchronize_session=False)
         db._commit()

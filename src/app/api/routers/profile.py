@@ -2,8 +2,11 @@ import re
 import os
 import time
 import uuid
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, UploadFile, File, Request
+
+logger = logging.getLogger(__name__)
 
 from app.db.manager import DatabaseManager
 from app.api.dependencies import get_db, get_current_user_id, session_manager
@@ -227,7 +230,8 @@ def deactivate_account(
         
     db.deactivate_user(user_id)
     
-    # Clean up session cookie
-    response.delete_cookie(key="session_token", secure=SESSION_COOKIE_SECURE)
+    # Clean up session and CSRF cookies with exact matching attributes
+    response.delete_cookie(key="session_token", path="/", secure=SESSION_COOKIE_SECURE, samesite="lax", httponly=True)
+    response.delete_cookie(key="csrf_token", path="/", secure=SESSION_COOKIE_SECURE, samesite="lax")
     return {"status": "success"}
 
