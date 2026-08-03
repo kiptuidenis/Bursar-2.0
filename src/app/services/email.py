@@ -51,7 +51,7 @@ def format_otp_email_html(otp_code: str, purpose: str) -> str:
             <p style="color: #94a3b8; font-size: 14px;">If you did not request this verification code, please ignore this email or contact support immediately.</p>
         </div>
         <div class="footer">
-            <p>&copy; {config.APP_NAME} | Bursar Financial Systems. Sent from support@bursar.co.ke</p>
+            <p>&copy; {config.APP_NAME} | Bursar Financial Systems. Sent from {config.SES_SENDER_EMAIL} | Support: {config.SUPPORT_EMAIL}</p>
         </div>
     </div>
 </body>
@@ -66,7 +66,7 @@ Your 6-digit OTP verification code is: {otp_code}
 This code expires in 5 minutes.
 If you did not request this verification code, please ignore this email.
 
-Bursar Financial Systems (support@bursar.co.ke)"""
+Bursar Financial Systems (Support: {config.SUPPORT_EMAIL})"""
 
 def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "login_2fa") -> bool:
     """

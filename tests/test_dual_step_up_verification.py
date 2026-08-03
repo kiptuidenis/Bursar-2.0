@@ -1,5 +1,6 @@
 import os
 import pytest
+import datetime
 from fastapi.testclient import TestClient
 from app.main import app, get_db
 from app.db.manager import DatabaseManager
@@ -123,10 +124,14 @@ def test_budget_lock_with_stepup_otp_and_payout_phone():
     client.post("/api/profile/request-stepup-otp", json={"purpose": "payout_stepup"})
     otp_code = last_sent_otp_emails[email]["otp_code"]
 
+    today_dt = datetime.datetime.now(datetime.timezone.utc)
+    start_str = (today_dt + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    end_str = (today_dt + datetime.timedelta(days=5)).strftime("%Y-%m-%d")
+
     # 4. Lock budget with Dual Step-Up Verification
     res_lock = client.post("/api/budget/lock", json={
-        "start_date": "2026-08-01",
-        "end_date": "2026-08-05",
+        "start_date": start_str,
+        "end_date": end_str,
         "payout_phone_number": "254799112233",
         "password": password,
         "otp_code": otp_code

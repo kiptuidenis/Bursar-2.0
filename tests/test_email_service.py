@@ -59,7 +59,7 @@ def test_send_otp_email_aws_ses_success(mocker):
     # Verify boto3.client called with ses
     mock_ses_client.send_email.assert_called_once()
     call_kwargs = mock_ses_client.send_email.call_args[1]
-    assert call_kwargs["Source"] == "support@bursar.co.ke"
+    assert call_kwargs["Source"] == "noreply@bursar.co.ke"
     assert call_kwargs["Destination"]["ToAddresses"] == [email]
     assert "654321" in call_kwargs["Message"]["Subject"]["Data"]
 

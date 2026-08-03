@@ -225,7 +225,8 @@ else:
 AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
 AWS_ACCESS_KEY_ID: str = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY: str = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
-SES_SENDER_EMAIL: str = os.environ.get("SES_SENDER_EMAIL", "support@bursar.co.ke")
+SES_SENDER_EMAIL: str = os.environ.get("SES_SENDER_EMAIL", "noreply@bursar.co.ke")
+SUPPORT_EMAIL: str = os.environ.get("SUPPORT_EMAIL", "support@bursar.co.ke")
 _email_mock_env = os.environ.get("EMAIL_MOCK_MODE", "").strip().lower()
 if IS_TEST_MODE:
     EMAIL_MOCK_MODE: bool = True
