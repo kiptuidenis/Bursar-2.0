@@ -26,14 +26,14 @@ def db():
 
 def test_user_creation_with_normalized_lowercase_email(db):
     """Verify create_user_email normalizes emails to lowercase and enforces uniqueness (Subphase 2.1)."""
-    user_id = db.create_user_email("Test.User@Bursar.Co.Ke", "Str0ng!P@ssw0rd", payout_phone="254712345678")
+    user_id = db.create_user_email("Test.User@Bursar.Co.Ke", "Str0ng!P@ssw0rd")
     assert user_id > 0
     
     # Verify email stored as lowercase
     user = db.session.query(User).filter(User.id == user_id).first()
     assert user is not None
     assert user.email == "test.user@bursar.co.ke"
-    assert user.payout_phone_number == "254712345678"
+    assert user.payout_phone_number == ""
     assert user.email_verified is False
     assert user.two_factor_enabled is True
     

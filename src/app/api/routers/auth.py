@@ -61,7 +61,7 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             raise HTTPException(status_code=400, detail="An account with this email address already exists.")
 
         try:
-            user_id = db.create_user_email(email_clean, payload.password, payout_phone=payload.payout_phone_number)
+            user_id = db.create_user_email(email_clean, payload.password)
             db.log_event(user_id, "INFO", "User registration initiated. Pending email 2FA verification.")
             
             # Generate 6-digit OTP challenge and dispatch email

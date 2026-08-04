@@ -6,7 +6,6 @@ class AuthPayload(BaseModel):
     phone_number: Optional[str] = Field(None, description="Safaricom phone number (e.g. 254712345678 or 0712345678)")
     email: Optional[str] = Field(None, description="Email address for authentication")
     password: str = Field(..., min_length=8, description="Strong password (minimum 8 characters with uppercase, lowercase, digit, and symbol)")
-    payout_phone_number: Optional[str] = Field(None, description="Safaricom phone number for M-Pesa payouts (optional)")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
 
 class AuthLoginPayload(BaseModel):
@@ -18,7 +17,6 @@ class AuthLoginPayload(BaseModel):
 class EmailSignupPayload(BaseModel):
     email: str = Field(..., description="Email address for authentication")
     password: str = Field(..., min_length=8, description="Strong password (minimum 8 characters with uppercase, lowercase, digit, and symbol)")
-    payout_phone_number: Optional[str] = Field(None, description="Safaricom phone number for M-Pesa payouts (optional)")
     recaptcha_token: Optional[str] = Field(None, description="Google reCAPTCHA token")
 
 class EmailLoginPayload(BaseModel):

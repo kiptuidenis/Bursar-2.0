@@ -198,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabSignup) tabSignup.classList.add("active");
             if (tabLogin) tabLogin.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Register";
-            if (authSubtitle) authSubtitle.innerText = "Create an account with your Safaricom number";
+            if (authSubtitle) authSubtitle.innerText = "Create an account with your email address";
             if (passwordLabel) passwordLabel.innerText = "Create Strong Password";
             if (authPassword) authPassword.placeholder = "Password (min 8 chars, A-Z, a-z, 0-9, symbol)";
             if (confirmGroup) confirmGroup.style.display = "block";
@@ -218,6 +218,151 @@ document.addEventListener("DOMContentLoaded", () => {
     if (authOverlay) {
         authOverlay.addEventListener("click", (e) => {
             if (e.target === authOverlay) closeAuthOverlay();
+        });
+    }
+
+    // 2FA OTP Modal Logic
+    const otpOverlay = document.getElementById("otp-overlay");
+    const closeOtpBtn = document.getElementById("close-otp-btn");
+    const otpForm = document.getElementById("otp-form");
+    const otpInput = document.getElementById("otp-input");
+    const otpTimerEl = document.getElementById("otp-timer");
+    const otpErrorMsg = document.getElementById("otp-error-msg");
+    const otpResendBtn = document.getElementById("otp-resend-btn");
+    let currentOtpEmail = "";
+    let currentOtpPurpose = "login_2fa";
+    let timerInterval = null;
+
+    function openOtpOverlay(email, purpose) {
+        currentOtpEmail = email;
+        currentOtpPurpose = purpose;
+        if (authOverlay) authOverlay.classList.remove("active");
+        if (otpOverlay) otpOverlay.classList.add("active");
+        if (otpErrorMsg) otpErrorMsg.style.display = "none";
+        if (otpInput) {
+            otpInput.value = "";
+            otpInput.focus();
+        }
+        startOtpCountdown(300);
+    }
+
+    function closeOtpOverlay() {
+        if (otpOverlay) otpOverlay.classList.remove("active");
+        if (timerInterval) clearInterval(timerInterval);
+    }
+
+    if (closeOtpBtn) closeOtpBtn.addEventListener("click", closeOtpOverlay);
+    if (otpOverlay) {
+        otpOverlay.addEventListener("click", (e) => {
+            if (e.target === otpOverlay) closeOtpOverlay();
+        });
+    }
+
+    function startOtpCountdown(seconds) {
+        if (timerInterval) clearInterval(timerInterval);
+        let left = seconds;
+
+        function updateDisplay() {
+            const mins = Math.floor(left / 60);
+            const secs = left % 60;
+            if (otpTimerEl) {
+                otpTimerEl.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+            if (left <= 0) {
+                clearInterval(timerInterval);
+                if (otpTimerEl) otpTimerEl.innerText = "Expired";
+            }
+            left--;
+        }
+        updateDisplay();
+        timerInterval = setInterval(updateDisplay, 1000);
+    }
+
+    if (otpResendBtn) {
+        otpResendBtn.addEventListener("click", async () => {
+            if (!currentOtpEmail) return;
+            otpResendBtn.disabled = true;
+            otpResendBtn.innerText = "Sending...";
+
+            try {
+                const res = await fetch("/api/auth/resend-otp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: currentOtpEmail, purpose: currentOtpPurpose })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Resend OTP failed.");
+
+                startOtpCountdown(300);
+                if (otpErrorMsg) {
+                    otpErrorMsg.innerText = "New verification code sent!";
+                    otpErrorMsg.style.display = "block";
+                    otpErrorMsg.style.color = "#34d399";
+                }
+            } catch (err) {
+                if (otpErrorMsg) {
+                    otpErrorMsg.innerText = err.message;
+                    otpErrorMsg.style.display = "block";
+                    otpErrorMsg.style.color = "#f87171";
+                }
+            } finally {
+                setTimeout(() => {
+                    if (otpResendBtn) {
+                        otpResendBtn.disabled = false;
+                        otpResendBtn.innerText = "Resend Code";
+                    }
+                }, 60000);
+            }
+        });
+    }
+
+    if (otpForm) {
+        otpForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const otpCode = otpInput ? otpInput.value.trim() : "";
+            const otpSubmitBtn = document.getElementById("otp-submit-btn");
+            if (otpErrorMsg) otpErrorMsg.style.display = "none";
+
+            if (otpSubmitBtn) {
+                otpSubmitBtn.disabled = true;
+                otpSubmitBtn.innerText = "Verifying...";
+            }
+
+            try {
+                const csrfToken = (function getCsrfToken() {
+                    const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
+                    return match ? decodeURIComponent(match[1]) : "";
+                })();
+
+                const headers = { "Content-Type": "application/json" };
+                if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+
+                const res = await fetch("/api/auth/verify-otp", {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify({
+                        email: currentOtpEmail,
+                        otp_code: otpCode,
+                        purpose: currentOtpPurpose
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Invalid or expired verification code.");
+
+                closeOtpOverlay();
+                window.location.replace("/dashboard");
+            } catch (err) {
+                if (otpSubmitBtn) {
+                    otpSubmitBtn.disabled = false;
+                    otpSubmitBtn.innerText = "Verify Code";
+                }
+                if (otpErrorMsg) {
+                    otpErrorMsg.innerText = err.message;
+                    otpErrorMsg.style.display = "block";
+                    otpErrorMsg.style.color = "#f87171";
+                }
+            }
         });
     }
 
@@ -258,7 +403,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const targetErrorElement = document.getElementById("auth-error-msg");
             if (targetErrorElement) targetErrorElement.style.display = "none";
 
-            const phone_number = document.getElementById("auth-phone").value.trim();
+            const emailInput = document.getElementById("auth-email");
+            const phoneInput = document.getElementById("auth-phone");
+            let email = emailInput ? emailInput.value.trim().toLowerCase() : "";
+            if (!email && phoneInput && phoneInput.value.trim()) {
+                const rawVal = phoneInput.value.trim();
+                email = rawVal.includes("@") ? rawVal.toLowerCase() : `${rawVal}@bursar.co.ke`;
+            }
             const password = authPassword.value;
 
             if (currentAuthAction === "signup") {
@@ -295,6 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
             })();
 
             const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
+            const payload = { email, password, recaptcha_token };
 
             try {
                 const headers = { "Content-Type": "application/json" };
@@ -303,7 +455,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(url, {
                     method: "POST",
                     headers: headers,
-                    body: JSON.stringify({ phone_number, password, recaptcha_token })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await res.json();
@@ -335,14 +487,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error(data.detail || "Authentication request failed.");
                 }
 
-                if (currentAuthAction === "signup") {
-                    currentAuthAction = "login";
-                    showAuthOverlay("login");
-                    authPassword.value = password;
-                    authForm.dispatchEvent(new Event("submit"));
-                } else {
-                    window.location.replace("/dashboard");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalBtnText;
                 }
+
+                const purpose = currentAuthAction === "signup" ? "signup_2fa" : "login_2fa";
+                openOtpOverlay(email, purpose);
             } catch (err) {
                 if (submitBtn && submitBtn.innerText === "Verifying...") {
                     submitBtn.disabled = false;
