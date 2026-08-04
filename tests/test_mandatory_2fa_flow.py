@@ -161,3 +161,13 @@ def test_resend_otp_dispatches_new_code():
     
     second_otp = last_sent_otp_emails[email]["otp_code"]
     assert len(second_otp) == 6
+
+def test_signup_unexpected_exception_logging(mocker):
+    """Verify unexpected database or internal exceptions during signup trigger logger.error and return HTTP 500 without crashing."""
+    client = TestClient(app)
+    db = get_test_db()
+    mocker.patch.object(db, "create_user_email", side_effect=RuntimeError("Simulated database failure"))
+
+    res = client.post("/api/auth/signup", json={"email": "unexpected_error@bursar.co.ke", "password": "Str0ng!P@ssw0rd"})
+    assert res.status_code == 500
+    assert "Registration failed: Simulated database failure" in res.json()["detail"]
