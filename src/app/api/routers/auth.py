@@ -1,4 +1,5 @@
 import re
+import logging
 import sqlalchemy
 from typing import Optional
 from app.db.models import User, Session as DbSession
@@ -10,6 +11,8 @@ from app.core.config import SESSION_COOKIE_SECURE
 from app.services.recaptcha import verify_recaptcha_token
 
 from app.core.limiter import limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 

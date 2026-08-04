@@ -167,6 +167,8 @@ class DatabaseManager:
 
             columns = [c["name"] for c in inspector.get_columns("users")]
             with self.engine.begin() as conn:
+                if "email" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL"))
                 if "failed_login_attempts" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
                 if "account_locked_until" not in columns:
