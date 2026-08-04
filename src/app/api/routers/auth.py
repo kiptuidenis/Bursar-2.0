@@ -76,8 +76,9 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             }
         except ValueError as ve:
             raise HTTPException(status_code=400, detail=str(ve))
-        except Exception:
-            raise HTTPException(status_code=500, detail="An error occurred during registration.")
+        except Exception as e:
+            logger.error(f"Registration error for email '{email_clean}': {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
     # Legacy Phone Signup Handler
     if payload.phone_number:

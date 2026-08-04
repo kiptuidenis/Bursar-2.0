@@ -224,28 +224,34 @@ class DatabaseManager:
         email_clean = email.strip().lower()
         existing = self.session.query(User).filter(User.email == email_clean).first()
         if existing:
-            raise ValueError(f"User with email '{email_clean}' already exists.")
+            raise ValueError(f"An account with email '{email_clean}' already exists.")
             
         password_hash, salt = self._hash_password(password_plaintext)
         
-        db_user = User(
-            email=email_clean,
-            password_hash=password_hash,
-            salt=salt,
-            payout_phone_number=payout_phone or "",
-            email_verified=False,
-            two_factor_enabled=True
-        )
-        self.session.add(db_user)
-        self._commit()
-        
-        db_settings = Settings(
-            user_id=db_user.id,
-            phone_number=payout_phone or ""
-        )
-        self.session.add(db_settings)
-        self._commit()
-        return db_user.id
+        try:
+            db_user = User(
+                email=email_clean,
+                password_hash=password_hash,
+                salt=salt,
+                phone_number=None,
+                payout_phone_number=payout_phone or "",
+                email_verified=False,
+                two_factor_enabled=True
+            )
+            self.session.add(db_user)
+            self.session.flush()
+            
+            db_settings = Settings(
+                user_id=db_user.id,
+                phone_number=payout_phone or ""
+            )
+            self.session.add(db_settings)
+            self._commit()
+            return db_user.id
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"Error creating user with email '{email_clean}': {e}", exc_info=True)
+            raise ValueError(f"Could not create user account: {str(e)}")
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Fetch user ORM model instance by email address."""
