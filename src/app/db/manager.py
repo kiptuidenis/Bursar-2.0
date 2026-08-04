@@ -3,11 +3,14 @@ import secrets
 import time
 import os
 import datetime
+import logging
 from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
 from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification, OtpCode
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -167,6 +170,11 @@ class DatabaseManager:
 
             columns = [c["name"] for c in inspector.get_columns("users")]
             with self.engine.begin() as conn:
+                if self.engine.name == "mysql":
+                    try:
+                        conn.execute(text("ALTER TABLE users MODIFY COLUMN phone_number VARCHAR(50) NULL DEFAULT NULL"))
+                    except Exception as e:
+                        logger.warning(f"Failed to modify phone_number column nullability on MySQL: {e}")
                 if "email" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL"))
                 if "failed_login_attempts" not in columns:
