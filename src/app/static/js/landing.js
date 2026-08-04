@@ -405,11 +405,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const emailInput = document.getElementById("auth-email");
             const phoneInput = document.getElementById("auth-phone");
-            let email = emailInput ? emailInput.value.trim().toLowerCase() : "";
-            if (!email && phoneInput && phoneInput.value.trim()) {
-                const rawVal = phoneInput.value.trim();
-                email = rawVal.includes("@") ? rawVal.toLowerCase() : `${rawVal}@bursar.co.ke`;
+
+            let rawVal = "";
+            if (emailInput && emailInput.value.trim()) {
+                rawVal = emailInput.value.trim();
+            } else if (phoneInput && phoneInput.value.trim()) {
+                rawVal = phoneInput.value.trim();
             }
+
+            const isEmail = rawVal.includes("@");
             const password = authPassword.value;
 
             if (currentAuthAction === "signup") {
@@ -446,7 +450,12 @@ document.addEventListener("DOMContentLoaded", () => {
             })();
 
             const url = currentAuthAction === "login" ? "/api/auth/login" : "/api/auth/signup";
-            const payload = { email, password, recaptcha_token };
+            const payload = { password, recaptcha_token };
+            if (isEmail) {
+                payload.email = rawVal.toLowerCase();
+            } else {
+                payload.phone_number = rawVal;
+            }
 
             try {
                 const headers = { "Content-Type": "application/json" };
@@ -492,8 +501,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     submitBtn.innerText = originalBtnText;
                 }
 
-                const purpose = currentAuthAction === "signup" ? "signup_2fa" : "login_2fa";
-                openOtpOverlay(email, purpose);
+                if (data.status === "2fa_required" || isEmail) {
+                    const purpose = currentAuthAction === "signup" ? "signup_2fa" : "login_2fa";
+                    openOtpOverlay(payload.email || rawVal, purpose);
+                } else {
+                    if (currentAuthAction === "signup") {
+                        currentAuthAction = "login";
+                        showAuthOverlay("login");
+                        authPassword.value = password;
+                        authForm.dispatchEvent(new Event("submit"));
+                    } else {
+                        window.location.replace("/dashboard");
+                    }
+                }
             } catch (err) {
                 if (submitBtn && submitBtn.innerText === "Verifying...") {
                     submitBtn.disabled = false;
