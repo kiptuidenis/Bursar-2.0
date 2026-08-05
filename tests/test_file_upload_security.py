@@ -45,11 +45,24 @@ def create_dummy_jpeg_bytes(width=50, height=50, color=(0, 255, 0)) -> bytes:
     img.save(buf, format="JPEG")
     return buf.getvalue()
 
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
+def _setup_client(phone_number="254711999111", password="Str0ng!P@ssw0rd"):
+    c = TestClient(app)
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    c.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    c.cookies.set("csrf_token", csrf)
+    c.headers = {"X-CSRF-Token": csrf}
+    return c, user_id
+
 def test_valid_png_avatar_upload_reencoded():
-    client = TestClient(app)
-    # Signup & Login
-    client.post("/api/auth/signup", json={"phone_number": "254711999111", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711999111", "password": "Str0ng!P@ssw0rd"})
+    client, user_id = _setup_client("254711999111")
 
     png_bytes = create_dummy_png_bytes()
     response = client.post(
@@ -64,9 +77,7 @@ def test_valid_png_avatar_upload_reencoded():
     assert data["avatar_url"].endswith(".png")
 
 def test_disguised_html_script_rejected():
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711999222", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711999222", "password": "Str0ng!P@ssw0rd"})
+    client, user_id = _setup_client("254711999222")
 
     fake_png = b"<script>alert('XSS Vulnerability')</script>"
     response = client.post(
@@ -78,9 +89,7 @@ def test_disguised_html_script_rejected():
     assert "Invalid or unsupported image file format." in response.json()["detail"]
 
 def test_polyglot_png_reencoded_and_cleaned():
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711999333", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711999333", "password": "Str0ng!P@ssw0rd"})
+    client, user_id = _setup_client("254711999333")
 
     # Valid PNG bytes with appended script polyglot payload
     polyglot_bytes = create_dummy_png_bytes() + b"<script>alert('polyglot')</script>"
@@ -102,9 +111,7 @@ def test_polyglot_png_reencoded_and_cleaned():
     assert b"<script>" not in saved_bytes
 
 def test_svg_xml_upload_rejected():
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711999444", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711999444", "password": "Str0ng!P@ssw0rd"})
+    client, user_id = _setup_client("254711999444")
 
     svg_payload = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
     response = client.post(
@@ -116,9 +123,7 @@ def test_svg_xml_upload_rejected():
     assert "Invalid or unsupported image file format." in response.json()["detail"]
 
 def test_old_avatar_deleted_on_new_upload():
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711999555", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711999555", "password": "Str0ng!P@ssw0rd"})
+    client, user_id = _setup_client("254711999555")
 
     # Upload avatar 1
     res1 = client.post(

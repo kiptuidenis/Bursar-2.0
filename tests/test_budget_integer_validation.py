@@ -30,19 +30,20 @@ def clean_db():
     app.dependency_overrides.pop(get_db, None)
     db.close()
 
-def create_authenticated_user():
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
+def create_authenticated_user(phone_number="254712345678", password="Str0ng!P@ssw0rd"):
     client = TestClient(app)
-    client.post("/api/auth/signup", json={
-        "phone_number": "254712345678",
-        "password": "Str0ng!P@ssw0rd",
-        "confirm_password": "Str0ng!P@ssw0rd"
-    })
-    login_res = client.post("/api/auth/login", json={
-        "phone_number": "254712345678",
-        "password": "Str0ng!P@ssw0rd"
-    })
-    token = login_res.cookies.get("csrf_token", "")
-    return client, token
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    client.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf)
+    return client, csrf
 
 def test_post_budget_item_with_decimal_amount_returns_400():
     client, csrf_token = create_authenticated_user()

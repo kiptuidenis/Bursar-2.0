@@ -37,16 +37,29 @@ def clean_db():
     app.dependency_overrides.pop(get_db, None)
     db.close()
 
-def test_daily_budget_cannot_exceed_balance_on_settings_update():
-    # 1. Signup & login
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
+def _setup_client(phone_number, password="Str0ng!P@ssw0rd"):
     c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000021", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254700000021", "password": "Str0ng!P@ssw0rd"})
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    c.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    c.cookies.set("csrf_token", csrf)
+    # Set default header on client for state mutating calls
+    c.headers = {"X-CSRF-Token": csrf}
+    return c, user_id
+
+def test_daily_budget_cannot_exceed_balance_on_settings_update():
+    # 1. Setup authenticated client
+    c, user_id = _setup_client("254700000021")
 
     # Set balance to 500 via DB
     db = get_test_db()
-    users = db.get_all_users()
-    user_id = next(u["id"] for u in users if u["phone_number"] == "254700000021")
     db.update_settings(user_id, balance=500.0)
 
     # Try setting daily budget to 600 (should fail because 600 > 500)
@@ -59,10 +72,8 @@ def test_daily_budget_cannot_exceed_balance_on_settings_update():
     assert res_ok.status_code == 200
 
 def test_deposit_amount_cannot_be_less_than_daily_budget():
-    # 1. Signup & login
-    c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000022", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254700000022", "password": "Str0ng!P@ssw0rd"})
+    # 1. Setup authenticated client
+    c, user_id = _setup_client("254700000022")
 
     # Setup phone number in settings so deposit is allowed
     c.post("/api/settings", json={"phone_number": "254700000022"})
@@ -78,8 +89,6 @@ def test_deposit_amount_cannot_be_less_than_daily_budget():
 
     # Set balance to 250 directly in DB (simulating subsequent balance state after payouts)
     db = get_test_db()
-    users = db.get_all_users()
-    user_id = next(u["id"] for u in users if u["phone_number"] == "254700000022")
     db.adjust_balance(user_id, 250.0)
 
     # Subsequent deposit of 100 (total balance would be 350 >= 300) -> should succeed
@@ -92,15 +101,11 @@ def test_deposit_amount_cannot_be_less_than_daily_budget():
     assert "cannot be less than your daily budget" in res_dep_fail2.json()["detail"].lower()
 
 def test_add_budget_item_cannot_exceed_balance():
-    # 1. Signup & login
-    c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000023", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254700000023", "password": "Str0ng!P@ssw0rd"})
+    # 1. Setup authenticated client
+    c, user_id = _setup_client("254700000023")
 
     # Set balance to 500.0 via DB
     db = get_test_db()
-    users = db.get_all_users()
-    user_id = next(u["id"] for u in users if u["phone_number"] == "254700000023")
     db.update_settings(user_id, balance=500.0)
 
     # Add item of 400.0 -> should succeed
@@ -129,10 +134,8 @@ def test_atomic_deposit_status_updates():
 
 
 def test_deposit_amount_invalid_decimals_or_bounds_rejected():
-    # 1. Signup & login
-    c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700000099", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254700000099", "password": "Str0ng!P@ssw0rd"})
+    # 1. Setup authenticated client
+    c, user_id = _setup_client("254700000099")
 
     # Test 1: Decimal amount (100.50) -> must fail with 400 or 422
     res_dec = c.post("/api/deposit/initiate", json={"amount": 100.50})

@@ -43,6 +43,20 @@ def clean_db():
             except Exception:
                 pass
 
+from app.api.dependencies import session_manager
+
+def _setup_session(phone_number="254711122233"):
+    client = TestClient(app)
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password("Str0ng!P@ssw0rd")
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    client.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf)
+    return client, csrf
+
 def test_verify_csrf_token_helper():
     token = generate_csrf_token()
     assert verify_csrf_token(token, token) is True
@@ -52,10 +66,7 @@ def test_verify_csrf_token_helper():
     assert verify_csrf_token(token, None) is False
 
 def test_csrf_missing_header_rejected():
-    client = TestClient(app)
-    # Signup & Login to establish valid session
-    client.post("/api/auth/signup", json={"phone_number": "254711122233", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711122233", "password": "Str0ng!P@ssw0rd"})
+    client, csrf_token = _setup_session("254711122233")
 
     # Attempt state-mutating profile update with session cookie but NO X-CSRF-Token header
     res_err = client.post("/api/profile", json={"first_name": "Test", "last_name": "User", "email": "test@example.com"})
@@ -63,22 +74,17 @@ def test_csrf_missing_header_rejected():
     assert "CSRF token missing or invalid." in res_err.json()["detail"]
 
 def test_csrf_missing_cookie_rejected():
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711122234", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711122234", "password": "Str0ng!P@ssw0rd"})
+    client, csrf_token = _setup_session("254711122234")
     
-    token = generate_csrf_token()
     # Delete csrf_token cookie but send header
     client.cookies.delete("csrf_token")
 
-    res_err = client.post("/api/profile", json={"first_name": "Test"}, headers={"X-CSRF-Token": token})
+    res_err = client.post("/api/profile", json={"first_name": "Test"}, headers={"X-CSRF-Token": csrf_token})
     assert res_err.status_code == 403
     assert "CSRF token missing or invalid." in res_err.json()["detail"]
 
 def test_csrf_mismatched_token_rejected():
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711122235", "password": "Str0ng!P@ssw0rd"})
-    client.post("/api/auth/login", json={"phone_number": "254711122235", "password": "Str0ng!P@ssw0rd"})
+    client, csrf_token = _setup_session("254711122235")
     
     token2 = generate_csrf_token()
     # Send mismatched X-CSRF-Token header
@@ -87,14 +93,7 @@ def test_csrf_mismatched_token_rejected():
     assert "CSRF token missing or invalid." in res_err.json()["detail"]
 
 def test_csrf_valid_token_accepted():
-    client = TestClient(app)
-    # Signup & Login
-    client.post("/api/auth/signup", json={"phone_number": "254711122244", "password": "Str0ng!P@ssw0rd"})
-    res_login = client.post("/api/auth/login", json={"phone_number": "254711122244", "password": "Str0ng!P@ssw0rd"})
-    assert res_login.status_code == 200
-    
-    csrf_token = client.cookies.get("csrf_token")
-    assert csrf_token is not None
+    client, csrf_token = _setup_session("254711122244")
 
     # State-mutating request with matching csrf_token cookie & X-CSRF-Token header succeeds
     res_ok = client.post("/api/profile", json={"first_name": "Jane", "last_name": "Doe", "email": "jane@example.com"}, headers={"X-CSRF-Token": csrf_token})
@@ -109,20 +108,17 @@ def test_csrf_safe_methods_exempt():
 def test_csrf_exempt_public_endpoints():
     client = TestClient(app)
     # Login & Signup public endpoints don't require CSRF header
-    res_signup = client.post("/api/auth/signup", json={"phone_number": "254711122255", "password": "Str0ng!P@ssw0rd"})
+    res_signup = client.post("/api/auth/signup", json={"email": "public_test@example.com", "password": "Str0ng!P@ssw0rd"})
     assert res_signup.status_code == 200
 
-    res_login = client.post("/api/auth/login", json={"phone_number": "254711122255", "password": "Str0ng!P@ssw0rd"})
-    assert res_login.status_code == 200
-
 def test_csrf_token_rotation():
-    client = TestClient(app)
-    res_signup = client.post("/api/auth/signup", json={"phone_number": "254711122266", "password": "Str0ng!P@ssw0rd"})
-    token1 = client.cookies.get("csrf_token")
+    client, token1 = _setup_session("254711122266")
     assert token1 is not None
 
-    # Login rotates token
-    res_login = client.post("/api/auth/login", json={"phone_number": "254711122266", "password": "Str0ng!P@ssw0rd"})
-    token2 = client.cookies.get("csrf_token")
-    assert token2 is not None
+    # Password change rotates CSRF token
+    res = client.post("/api/profile/password", json={"current_password": "Str0ng!P@ssw0rd", "new_password": "NewStr0ng!P@ss2026"}, headers={"X-CSRF-Token": token1})
+    assert res.status_code == 200
+    csrf_cookies = [c.value for c in client.cookies.jar if c.name == "csrf_token"]
+    assert len(csrf_cookies) > 0
+    token2 = csrf_cookies[-1]
     assert token1 != token2

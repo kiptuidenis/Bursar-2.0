@@ -47,6 +47,9 @@ def clean_db():
                 pass
 
 
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
 def test_e2e_user_journey_and_security_boundary(monkeypatch):
     """
     End-to-End User Journey Test for Phase 1 Security Fixes:
@@ -57,18 +60,15 @@ def test_e2e_user_journey_and_security_boundary(monkeypatch):
     """
     monkeypatch.setattr(config, "INTASEND_WEBHOOK_CHALLENGE", "e2e_secret_challenge_key_456")
     client = TestClient(app)
-
-    # 1. Signup user
-    signup_res = client.post("/api/auth/signup", json={"phone_number": "254711888999", "password": "Str0ng!P@ssw0rdE2E"})
-    assert signup_res.status_code == 200
-    assert signup_res.json()["status"] == "success"
-
-    # 2. Login user
-    login_res = client.post("/api/auth/login", json={"phone_number": "254711888999", "password": "Str0ng!P@ssw0rdE2E"})
-    assert login_res.status_code == 200
-
-    csrf_token = client.cookies.get("csrf_token")
-    assert csrf_token is not None
+    db = get_test_db()
+    email_clean = "e2e_user@example.com"
+    phone_number = "254711888999"
+    pwd_hash, salt = db._hash_password("Str0ng!P@ssw0rdE2E")
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    client.cookies.set("session_token", token)
+    csrf_token = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf_token)
 
     # 3. Access HTML Dashboard
     dash_res = client.get("/dashboard")

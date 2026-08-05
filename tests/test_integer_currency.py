@@ -67,13 +67,25 @@ def test_model_columns_are_integer_type():
     assert isinstance(Deposit.amount.type, Integer)
 
 
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
+def _setup_auth_client(phone_number, password="Str0ng!P@ssw0rdKes"):
+    client = TestClient(app)
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    client.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf)
+    headers = {"X-CSRF-Token": csrf}
+    return client, headers
+
 def test_api_rejects_decimal_currency_amounts():
     """Verify that API endpoints reject fractional decimal KES values with validation errors."""
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711777000", "password": "Str0ng!P@ssw0rdKes"})
-    client.post("/api/auth/login", json={"phone_number": "254711777000", "password": "Str0ng!P@ssw0rdKes"})
-    csrf_token = client.cookies.get("csrf_token")
-    headers = {"X-CSRF-Token": csrf_token}
+    client, headers = _setup_auth_client("254711777000")
 
     # 1. Deposit initiate rejects 150.75
     res_dep = client.post("/api/deposit/initiate", json={"amount": 150.75}, headers=headers)
@@ -90,11 +102,7 @@ def test_api_rejects_decimal_currency_amounts():
 
 def test_api_accepts_whole_integer_kes_amounts():
     """Verify that API endpoints accept positive whole integer KES amounts."""
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711777111", "password": "Str0ng!P@ssw0rdKes"})
-    client.post("/api/auth/login", json={"phone_number": "254711777111", "password": "Str0ng!P@ssw0rdKes"})
-    csrf_token = client.cookies.get("csrf_token")
-    headers = {"X-CSRF-Token": csrf_token}
+    client, headers = _setup_auth_client("254711777111")
 
     # 1. Budget item with whole KES 200
     res_budget = client.post("/api/budget/items", json={"category": "Transport", "amount": 200}, headers=headers)

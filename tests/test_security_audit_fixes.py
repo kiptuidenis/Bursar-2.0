@@ -49,18 +49,24 @@ def clean_db():
                 pass
 
 
+from app.api.dependencies import session_manager
+
+def _setup_auth_client(phone_number, password="Str0ng!P@ssw0rd1"):
+    client = TestClient(app)
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    client.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf)
+    headers = {"X-CSRF-Token": csrf}
+    return client, headers
+
 def test_balance_injection_prevented():
     """Verify that clients cannot inject or modify the wallet balance via POST /api/settings."""
-    client = TestClient(app)
-    # Signup and Login
-    res_signup = client.post("/api/auth/signup", json={"phone_number": "254711999111", "password": "Str0ng!P@ssw0rd1"})
-    assert res_signup.status_code == 200
-
-    res_login = client.post("/api/auth/login", json={"phone_number": "254711999111", "password": "Str0ng!P@ssw0rd1"})
-    assert res_login.status_code == 200
-
-    csrf_token = client.cookies.get("csrf_token")
-    headers = {"X-CSRF-Token": csrf_token}
+    client, headers = _setup_auth_client("254711999111")
 
     # Verify initial settings balance is 0.0
     res_get = client.get("/api/settings")
@@ -114,16 +120,13 @@ def test_webhook_signature_verification_fail_closed(monkeypatch):
 
 def test_mpesa_consumer_key_masked_in_settings():
     """Verify that mpesa_consumer_key is masked alongside secret/password in settings response."""
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711999222", "password": "Str0ng!P@ssw0rd2"})
-    client.post("/api/auth/login", json={"phone_number": "254711999222", "password": "Str0ng!P@ssw0rd2"})
-    csrf_token = client.cookies.get("csrf_token")
+    client, headers = _setup_auth_client("254711999222")
 
     # Update sensitive settings
     client.post(
         "/api/settings",
         json={"mpesa_consumer_key": "my_consumer_key_xyz", "mpesa_consumer_secret": "my_secret_123"},
-        headers={"X-CSRF-Token": csrf_token}
+        headers=headers
     )
 
     res = client.get("/api/settings")

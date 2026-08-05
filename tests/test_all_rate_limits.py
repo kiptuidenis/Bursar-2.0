@@ -64,13 +64,25 @@ def enable_limiter(monkeypatch):
             pass
 
 
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
+def _setup_auth_client(phone_number, password="Str0ng!P@ssw0rdRL"):
+    client = TestClient(app)
+    db = get_test_db()
+    email_clean = f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
+    client.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf)
+    headers = {"X-CSRF-Token": csrf}
+    return client, headers
+
 def test_profile_rate_limits_trigger_429(enable_limiter):
     """Verify rate limits on /api/profile/password and /api/profile/deactivate."""
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711666000", "password": "Str0ng!P@ssw0rdRL"})
-    client.post("/api/auth/login", json={"phone_number": "254711666000", "password": "Str0ng!P@ssw0rdRL"})
-    csrf_token = client.cookies.get("csrf_token")
-    headers = {"X-CSRF-Token": csrf_token}
+    client, headers = _setup_auth_client("254711666000")
 
     # 1. Change password limit (5/minute) -> 6th attempt returns 429
     for i in range(5):
@@ -89,11 +101,7 @@ def test_profile_rate_limits_trigger_429(enable_limiter):
 
 def test_notifications_rate_limits_trigger_429(enable_limiter):
     """Verify rate limits on /api/notifications endpoints."""
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711666111", "password": "Str0ng!P@ssw0rdRL"})
-    client.post("/api/auth/login", json={"phone_number": "254711666111", "password": "Str0ng!P@ssw0rdRL"})
-    csrf_token = client.cookies.get("csrf_token")
-    headers = {"X-CSRF-Token": csrf_token}
+    client, headers = _setup_auth_client("254711666111")
 
     # read-all limit (30/minute) -> 31st attempt returns 429
     for i in range(30):
@@ -105,11 +113,7 @@ def test_notifications_rate_limits_trigger_429(enable_limiter):
 
 def test_payouts_rate_limits_trigger_429(enable_limiter):
     """Verify rate limit on /api/payout/trigger (5/minute)."""
-    client = TestClient(app)
-    client.post("/api/auth/signup", json={"phone_number": "254711666222", "password": "Str0ng!P@ssw0rdRL"})
-    client.post("/api/auth/login", json={"phone_number": "254711666222", "password": "Str0ng!P@ssw0rdRL"})
-    csrf_token = client.cookies.get("csrf_token")
-    headers = {"X-CSRF-Token": csrf_token}
+    client, headers = _setup_auth_client("254711666222")
 
     for i in range(5):
         client.post("/api/payout/trigger", headers=headers)
