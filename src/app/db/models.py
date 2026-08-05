@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint, Text, Boolean, BigInteger
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -26,6 +26,8 @@ class User(Base):
     account_locked_until = Column(String(50), default="")
     
     # Relationships
+    wallet = relationship("Wallet", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    budget = relationship("Budget", back_populates="user", uselist=False, cascade="all, delete-orphan")
     settings = relationship("Settings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     payouts = relationship("Payout", back_populates="user", cascade="all, delete-orphan")
     logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
@@ -34,6 +36,30 @@ class User(Base):
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     otp_codes = relationship("OtpCode", back_populates="user", cascade="all, delete-orphan")
+
+class Wallet(Base):
+    __tablename__ = "wallets"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    available_balance = Column(BigInteger, default=0, nullable=False) # Whole KES
+    locked_balance = Column(BigInteger, default=0, nullable=False)    # Whole KES
+    currency = Column(String(3), default="KES", nullable=False)
+    
+    user = relationship("User", back_populates="wallet")
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    daily_budget = Column(BigInteger, default=0, nullable=False)       # Whole KES
+    payout_time = Column(String(10), default="08:00", nullable=False)
+    start_date = Column(String(10), default="", nullable=False)
+    end_date = Column(String(10), default="", nullable=False)
+    locked_until = Column(String(50), default="", nullable=False)
+    
+    user = relationship("User", back_populates="budget")
 
 class OtpCode(Base):
     __tablename__ = "otp_codes"
@@ -46,6 +72,7 @@ class OtpCode(Base):
     expires_at = Column(String(50), nullable=False)
     attempts = Column(Integer, default=0, nullable=False)
     created_at = Column(String(50), nullable=False)
+    password_hash = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="otp_codes")
 

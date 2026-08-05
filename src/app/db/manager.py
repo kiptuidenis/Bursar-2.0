@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
-from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification, OtpCode
+from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification, OtpCode, Wallet, Budget
 
 logger = logging.getLogger(__name__)
 
@@ -229,15 +229,13 @@ class DatabaseManager:
             return False
 
     # User Auth Operations
-    def create_user_email(self, email: str, password_plaintext: str, payout_phone: Optional[str] = None) -> int:
-        """Register a new user using email address, hashes password with Argon2id, and initializes settings."""
+    def create_user_email(self, email: str, password_hash: str, salt: str = "argon2", payout_phone: Optional[str] = None) -> int:
+        """Register a new user using email address with pre-hashed password, and initializes settings (email_verified=True)."""
         email_clean = email.strip().lower()
         existing = self.session.query(User).filter(User.email == email_clean).first()
         if existing:
             raise ValueError(f"An account with email '{email_clean}' already exists.")
             
-        password_hash, salt = self._hash_password(password_plaintext)
-        
         try:
             db_user = User(
                 email=email_clean,
@@ -245,12 +243,27 @@ class DatabaseManager:
                 salt=salt,
                 phone_number=None,
                 payout_phone_number=payout_phone or "",
-                email_verified=False,
+                email_verified=True,
                 two_factor_enabled=True
             )
             self.session.add(db_user)
             self.session.flush()
             
+            db_wallet = Wallet(
+                user_id=db_user.id,
+                available_balance=0,
+                locked_balance=0,
+                currency="KES"
+            )
+            self.session.add(db_wallet)
+
+            db_budget = Budget(
+                user_id=db_user.id,
+                daily_budget=0,
+                payout_time="08:00"
+            )
+            self.session.add(db_budget)
+
             db_settings = Settings(
                 user_id=db_user.id,
                 phone_number=payout_phone or ""
@@ -262,6 +275,24 @@ class DatabaseManager:
             self.session.rollback()
             logger.error(f"Error creating user with email '{email_clean}': {e}", exc_info=True)
             raise ValueError(f"Could not create user account: {str(e)}")
+
+    def get_user_wallet(self, user_id: int) -> Wallet:
+        """Fetch or initialize user's Wallet ORM model."""
+        wallet = self.session.query(Wallet).filter(Wallet.user_id == user_id).first()
+        if not wallet:
+            wallet = Wallet(user_id=user_id, available_balance=0, locked_balance=0, currency="KES")
+            self.session.add(wallet)
+            self._commit()
+        return wallet
+
+    def get_user_budget(self, user_id: int) -> Budget:
+        """Fetch or initialize user's Budget ORM model."""
+        budget = self.session.query(Budget).filter(Budget.user_id == user_id).first()
+        if not budget:
+            budget = Budget(user_id=user_id, daily_budget=0, payout_time="08:00")
+            self.session.add(budget)
+            self._commit()
+        return budget
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Fetch user ORM model instance by email address."""
@@ -289,7 +320,15 @@ class DatabaseManager:
             return settings.phone_number
         return ""
 
-    def create_otp_challenge(self, email: str, purpose: str, ttl_seconds: int = 300, user_id: Optional[int] = None) -> str:
+    def get_otp_record(self, email: str, purpose: str) -> Optional[OtpCode]:
+        """Fetch active OTP challenge record for specified email and purpose."""
+        email_clean = email.strip().lower()
+        return self.session.query(OtpCode).filter(
+            OtpCode.email == email_clean,
+            OtpCode.purpose == purpose
+        ).order_by(OtpCode.id.desc()).first()
+
+    def create_otp_challenge(self, email: str, purpose: str, ttl_seconds: int = 300, user_id: Optional[int] = None, password_hash: Optional[str] = None) -> str:
         """
         Generate a cryptographically secure 6-digit numeric OTP challenge,
         store Argon2id hashed code in `otp_codes` table, and return raw code for email delivery.
@@ -324,7 +363,8 @@ class DatabaseManager:
             purpose=purpose,
             expires_at=expires_str,
             attempts=0,
-            created_at=created_str
+            created_at=created_str,
+            password_hash=password_hash
         )
         self.session.add(otp_record)
         self._commit()
@@ -597,14 +637,22 @@ class DatabaseManager:
         users = self.session.query(User).all()
         return [{"id": u.id, "phone_number": u.phone_number} for u in users]
 
-    # Settings Operations (Isolated per user)
+    # Settings & Wallet/Budget Domain Operations (Isolated per user)
     def get_settings(self, user_id: int, decrypt_secrets: bool = True) -> Dict[str, Any]:
-        """Retrieve the configuration settings for a specific user."""
+        """Retrieve configuration settings for a specific user, merging Wallet and Budget domain fields."""
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        if not settings:
-            return {}
-        data = _row_to_dict(settings)
-        if decrypt_secrets:
+        wallet = self.get_user_wallet(user_id)
+        budget = self.get_user_budget(user_id)
+        
+        data = _row_to_dict(settings) if settings else {}
+        data["balance"] = wallet.available_balance
+        data["daily_budget"] = budget.daily_budget
+        data["payout_time"] = budget.payout_time
+        data["start_date"] = budget.start_date
+        data["end_date"] = budget.end_date
+        data["budget_locked_until"] = budget.locked_until
+        
+        if decrypt_secrets and data:
             from app.core.encryption import decrypt_credential
             if data.get("mpesa_consumer_secret"):
                 data["mpesa_consumer_secret"] = decrypt_credential(data["mpesa_consumer_secret"])
@@ -613,36 +661,63 @@ class DatabaseManager:
         return data
 
     def update_settings(self, user_id: int, **kwargs: Any) -> None:
-        """Dynamically update settings columns for a specific user, encrypting sensitive fields at rest."""
+        """Dynamically update settings, budget, and wallet models for a specific user."""
         if not kwargs:
             return
         
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        if not settings:
-            return
+        wallet = self.get_user_wallet(user_id)
+        budget = self.get_user_budget(user_id)
             
         from app.core.encryption import encrypt_credential
         for key, val in kwargs.items():
             if key == "user_id":
                 continue
-            if key in ("mpesa_consumer_secret", "mpesa_initiator_password"):
+            if key == "balance":
+                wallet.available_balance = int(val)
+                if settings:
+                    settings.balance = int(val)
+            elif key == "daily_budget":
+                budget.daily_budget = int(val)
+                if settings:
+                    settings.daily_budget = int(val)
+            elif key == "payout_time":
+                budget.payout_time = str(val)
+                if settings:
+                    settings.payout_time = str(val)
+            elif key == "start_date":
+                budget.start_date = str(val)
+                if settings:
+                    settings.start_date = str(val)
+            elif key == "end_date":
+                budget.end_date = str(val)
+                if settings:
+                    settings.end_date = str(val)
+            elif key in ("budget_locked_until", "locked_until"):
+                budget.locked_until = str(val)
+                if settings:
+                    settings.budget_locked_until = str(val)
+            elif key in ("mpesa_consumer_secret", "mpesa_initiator_password"):
                 if val == "********":
-                    # Ignore masked placeholder sent by frontend; preserve existing encrypted secret
                     continue
                 if isinstance(val, str) and val.strip():
                     val = encrypt_credential(val)
-            if hasattr(settings, key):
+                if settings and hasattr(settings, key):
+                    setattr(settings, key, val)
+            elif settings and hasattr(settings, key):
                 setattr(settings, key, val)
         self._commit()
 
     def adjust_balance(self, user_id: int, amount: int | float) -> None:
-        """Add or subtract from the current wallet balance of a specific user using atomic SQL arithmetic."""
+        """Add or subtract from current wallet balance of a specific user using atomic SQL arithmetic."""
         int_amount = int(amount)
-        self.session.query(Settings).filter(
-            Settings.user_id == user_id
-        ).update({
-            Settings.balance: Settings.balance + int_amount
-        }, synchronize_session=False)
+        wallet = self.get_user_wallet(user_id)
+        wallet.available_balance += int_amount
+        
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.balance += int_amount
+            
         self._commit()
         if int_amount > 0:
             self.resolve_low_balance_warnings(user_id)
