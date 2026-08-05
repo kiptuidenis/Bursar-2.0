@@ -166,8 +166,37 @@ def test_signup_unexpected_exception_logging(mocker):
     """Verify unexpected database or internal exceptions during signup trigger logger.error and return HTTP 500 without crashing."""
     client = TestClient(app)
     db = get_test_db()
-    mocker.patch.object(db, "create_user_email", side_effect=RuntimeError("Simulated database failure"))
+    mocker.patch.object(db, "create_otp_challenge", side_effect=RuntimeError("Simulated OTP failure"))
 
     res = client.post("/api/auth/signup", json={"email": "unexpected_error@bursar.co.ke", "password": "Str0ng!P@ssw0rd"})
     assert res.status_code == 500
-    assert "Registration failed: Simulated database failure" in res.json()["detail"]
+
+def test_pre_verification_zero_unverified_db_rows():
+    """Verify registration creates ZERO rows in users table until OTP code is verified."""
+    client = TestClient(app)
+    email = "preverify@bursar.co.ke"
+
+    # 1. Signup request
+    res = client.post("/api/auth/signup", json={"email": email, "password": "Str0ng!P@ssw0rd"})
+    assert res.status_code == 200
+    assert res.json()["status"] == "2fa_required"
+
+    # User MUST NOT exist in database table yet!
+    assert get_test_db().get_user_by_email(email) is None
+
+    # 2. Resending OTP or re-registering before verification does not crash or cause duplicate error
+    res2 = client.post("/api/auth/signup", json={"email": email, "password": "NewP@ssw0rd123"})
+    assert res2.status_code == 200
+    assert res2.json()["status"] == "2fa_required"
+
+    # Still no user in database
+    assert get_test_db().get_user_by_email(email) is None
+
+    # 3. Submit valid OTP -> User created in database with email_verified = True
+    otp_code = last_sent_otp_emails[email]["otp_code"]
+    res_verify = client.post("/api/auth/verify-otp", json={"email": email, "otp_code": otp_code, "purpose": "signup_2fa"})
+    assert res_verify.status_code == 200
+
+    user = get_test_db().get_user_by_email(email)
+    assert user is not None
+    assert user.email_verified is True

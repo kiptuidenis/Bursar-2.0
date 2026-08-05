@@ -34,7 +34,7 @@ def test_user_creation_with_normalized_lowercase_email(db):
     assert user is not None
     assert user.email == "test.user@bursar.co.ke"
     assert user.payout_phone_number == ""
-    assert user.email_verified is False
+    assert user.email_verified is True
     assert user.two_factor_enabled is True
     
     # Case-insensitive query lookup

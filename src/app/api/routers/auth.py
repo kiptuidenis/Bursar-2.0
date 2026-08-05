@@ -64,11 +64,15 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
             raise HTTPException(status_code=400, detail="An account with this email address already exists.")
 
         try:
-            user_id = db.create_user_email(email_clean, payload.password)
-            db.log_event(user_id, "INFO", "User registration initiated. Pending email 2FA verification.")
-            
-            # Generate 6-digit OTP challenge and dispatch email
-            otp_code = db.create_otp_challenge(email_clean, purpose="signup_2fa", ttl_seconds=300, user_id=user_id)
+            password_hash, salt = db._hash_password(payload.password)
+            stored_cred = f"{password_hash}:{salt}"
+
+            otp_code = db.create_otp_challenge(
+                email_clean,
+                purpose="signup_2fa",
+                ttl_seconds=300,
+                password_hash=stored_cred
+            )
             send_otp_email(email_clean, otp_code, purpose="signup_2fa")
 
             return {
@@ -224,13 +228,39 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
 @limiter.limit("10/minute")
 def verify_otp(request: Request, payload: OTPVerificationPayload, response: Response, db: DatabaseManager = Depends(get_db)):
     email_clean = payload.email.strip().lower()
-    is_valid = db.verify_otp_challenge(email_clean, payload.otp_code, payload.purpose)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
 
-    user = db.get_user_by_email(email_clean)
-    if not user:
-        raise HTTPException(status_code=404, detail="User account not found.")
+    if payload.purpose == "signup_2fa":
+        otp_rec = db.get_otp_record(email_clean, payload.purpose)
+        if not otp_rec or not otp_rec.password_hash:
+            raise HTTPException(status_code=400, detail="Invalid or expired verification session. Please register again.")
+
+        stored_cred = otp_rec.password_hash
+        parts = stored_cred.split(":")
+        password_hash = parts[0]
+        salt = parts[1] if len(parts) > 1 else "argon2"
+
+        is_valid = db.verify_otp_challenge(email_clean, payload.otp_code, payload.purpose)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+
+        existing = db.get_user_by_email(email_clean)
+        if existing:
+            user = existing
+        else:
+            user_id = db.create_user_email(email_clean, password_hash, salt)
+            user = db.get_user_by_email(email_clean)
+    else:
+        is_valid = db.verify_otp_challenge(email_clean, payload.otp_code, payload.purpose)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+
+        user = db.get_user_by_email(email_clean)
+        if not user:
+            raise HTTPException(status_code=404, detail="User account not found.")
+
+    if user and not user.email_verified:
+        user.email_verified = True
+        db._commit()
 
     db.reset_failed_login_attempts(email_clean)
     user_agent = request.headers.get("user-agent", "Unknown Device")
@@ -271,7 +301,13 @@ def resend_otp(request: Request, payload: OTPResendPayload, db: DatabaseManager 
     user = db.get_user_by_email(email_clean)
     user_id = user.id if user else None
 
-    otp_code = db.create_otp_challenge(email_clean, purpose=payload.purpose, ttl_seconds=300, user_id=user_id)
+    password_hash = None
+    if payload.purpose == "signup_2fa":
+        existing_rec = db.get_otp_record(email_clean, payload.purpose)
+        if existing_rec:
+            password_hash = existing_rec.password_hash
+
+    otp_code = db.create_otp_challenge(email_clean, purpose=payload.purpose, ttl_seconds=300, user_id=user_id, password_hash=password_hash)
     send_otp_email(email_clean, otp_code, purpose=payload.purpose)
 
     return {
