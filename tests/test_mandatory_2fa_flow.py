@@ -200,3 +200,9 @@ def test_pre_verification_zero_unverified_db_rows():
     user = get_test_db().get_user_by_email(email)
     assert user is not None
     assert user.email_verified is True
+
+def test_signup_phone_only_registration_disabled():
+    c = TestClient(app)
+    res = c.post("/api/auth/signup", json={"phone_number": "254712345678", "password": "Str0ng!P@ssw0rd"})
+    assert res.status_code == 400
+    assert "registration using phone numbers is disabled" in res.json()["detail"].lower()

@@ -417,6 +417,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const password = authPassword.value;
 
             if (currentAuthAction === "signup") {
+                if (!isEmail) {
+                    if (targetErrorElement) {
+                        targetErrorElement.innerText = "Registration requires a valid email address. Phone-only registration is disabled.";
+                        targetErrorElement.style.display = "block";
+                    }
+                    return;
+                }
                 const confirmEl = document.getElementById("auth-confirm-password");
                 const confirmPassword = confirmEl ? confirmEl.value : "";
                 if (password !== confirmPassword) {

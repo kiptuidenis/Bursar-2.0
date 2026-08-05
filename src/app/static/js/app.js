@@ -773,10 +773,18 @@ function setupEventHandlers() {
             e.preventDefault();
             if (errorMsg) errorMsg.style.display = "none";
 
-            const phone_number = document.getElementById("auth-phone").value.trim();
+            const rawVal = document.getElementById("auth-phone").value.trim();
+            const isEmail = rawVal.includes("@");
             const password = authPassword ? authPassword.value : "";
 
             if (currentAuthAction === "signup") {
+                if (!isEmail) {
+                    if (errorMsg) {
+                        errorMsg.innerText = "Registration requires a valid email address. Phone-only registration is disabled.";
+                        errorMsg.style.display = "block";
+                    }
+                    return;
+                }
                 const confirmPassword = confirmInput ? confirmInput.value : "";
                 if (password !== confirmPassword) {
                     if (errorMsg) {

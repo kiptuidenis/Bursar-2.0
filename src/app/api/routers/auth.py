@@ -45,78 +45,48 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
     if not verify_recaptcha_token(payload.recaptcha_token, client_ip=client_ip):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
-    if not payload.email and not payload.phone_number:
-        raise HTTPException(status_code=422, detail="Email address or phone number is required.")
+    if not payload.email or not payload.email.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Registration using phone numbers is disabled. Please register with a valid email address."
+        )
 
-    # Check Email Signup vs Legacy Phone Signup
-    if payload.email:
-        email_clean = payload.email.strip().lower()
-        if not re.match(EMAIL_REGEX, email_clean):
-            raise HTTPException(status_code=400, detail="Invalid email address format.")
-            
-        from app.core.password import validate_password_strength
-        pwd_error = validate_password_strength(payload.password, user_context=email_clean)
-        if pwd_error:
-            raise HTTPException(status_code=400, detail=pwd_error)
+    email_clean = payload.email.strip().lower()
+    if not re.match(EMAIL_REGEX, email_clean):
+        raise HTTPException(status_code=400, detail="Invalid email address format.")
+        
+    from app.core.password import validate_password_strength
+    pwd_error = validate_password_strength(payload.password, user_context=email_clean)
+    if pwd_error:
+        raise HTTPException(status_code=400, detail=pwd_error)
 
-        existing = db.get_user_by_email(email_clean)
-        if existing:
-            raise HTTPException(status_code=400, detail="An account with this email address already exists.")
+    existing = db.get_user_by_email(email_clean)
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email address already exists.")
 
-        try:
-            password_hash, salt = db._hash_password(payload.password)
-            stored_cred = f"{password_hash}:{salt}"
+    try:
+        password_hash, salt = db._hash_password(payload.password)
+        stored_cred = f"{password_hash}:{salt}"
 
-            otp_code = db.create_otp_challenge(
-                email_clean,
-                purpose="signup_2fa",
-                ttl_seconds=300,
-                password_hash=stored_cred
-            )
-            send_otp_email(email_clean, otp_code, purpose="signup_2fa")
+        otp_code = db.create_otp_challenge(
+            email_clean,
+            purpose="signup_2fa",
+            ttl_seconds=300,
+            password_hash=stored_cred
+        )
+        send_otp_email(email_clean, otp_code, purpose="signup_2fa")
 
-            return {
-                "status": "2fa_required",
-                "email": email_clean,
-                "purpose": "signup_2fa",
-                "message": "Verification code sent to your email."
-            }
-        except ValueError as ve:
-            raise HTTPException(status_code=400, detail=str(ve))
-        except Exception as e:
-            logger.error(f"Registration error for email '{email_clean}': {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
-
-    # Legacy Phone Signup Handler
-    if payload.phone_number:
-        sanitized_phone = sanitize_phone_number(payload.phone_number)
-        from app.core.password import validate_password_strength
-        pwd_error = validate_password_strength(payload.password, user_context=sanitized_phone)
-        if pwd_error:
-            raise HTTPException(status_code=400, detail=pwd_error)
-
-        try:
-            user_id = db.create_user(sanitized_phone, payload.password)
-            db.log_event(user_id, "INFO", "User registration completed successfully.")
-            
-            from app.core.csrf import generate_csrf_token
-            new_csrf = generate_csrf_token()
-            response.set_cookie(
-                key="csrf_token",
-                value=new_csrf,
-                httponly=False,
-                secure=SESSION_COOKIE_SECURE,
-                samesite="lax",
-                path="/"
-            )
-            return {"status": "success", "user_id": user_id}
-        except sqlalchemy.exc.IntegrityError as e:
-            err_msg = str(e).lower()
-            if "unique" in err_msg or "phone_number" in err_msg:
-                raise HTTPException(status_code=400, detail="This phone number is already registered.")
-            raise HTTPException(status_code=500, detail="Database integrity error occurred during registration.")
-
-    raise HTTPException(status_code=422, detail="Email address or phone number is required.")
+        return {
+            "status": "2fa_required",
+            "email": email_clean,
+            "purpose": "signup_2fa",
+            "message": "Verification code sent to your email."
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Registration error for email '{email_clean}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.post("/login")
 @limiter.limit("5/minute")
