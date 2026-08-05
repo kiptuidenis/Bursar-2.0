@@ -187,6 +187,12 @@ class DatabaseManager:
                     conn.execute(text("ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT 1"))
                 if "payout_phone_number" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN payout_phone_number VARCHAR(50) DEFAULT ''"))
+
+            if inspector.has_table("otp_codes"):
+                otp_cols = [c["name"] for c in inspector.get_columns("otp_codes")]
+                with self.engine.begin() as conn:
+                    if "password_hash" not in otp_cols:
+                        conn.execute(text("ALTER TABLE otp_codes ADD COLUMN password_hash TEXT NULL"))
         except Exception:
             pass
 
@@ -431,7 +437,22 @@ class DatabaseManager:
         self.session.add(db_user)
         self._commit()
         
-        # Create user's settings profile automatically (defaulting settings phone number to registration phone number)
+        # Create user's wallet, budget, and settings profiles automatically
+        db_wallet = Wallet(
+            user_id=db_user.id,
+            available_balance=0,
+            locked_balance=0,
+            currency="KES"
+        )
+        self.session.add(db_wallet)
+
+        db_budget = Budget(
+            user_id=db_user.id,
+            daily_budget=0,
+            payout_time="08:00"
+        )
+        self.session.add(db_budget)
+
         db_settings = Settings(
             user_id=db_user.id,
             phone_number=phone_number
@@ -629,6 +650,9 @@ class DatabaseManager:
         """Permanently delete user account and trigger cascading deletions."""
         user = self.session.query(User).filter(User.id == user_id).first()
         if user:
+            self.session.query(Wallet).filter(Wallet.user_id == user_id).delete(synchronize_session=False)
+            self.session.query(Budget).filter(Budget.user_id == user_id).delete(synchronize_session=False)
+            self.session.query(Settings).filter(Settings.user_id == user_id).delete(synchronize_session=False)
             self.session.delete(user)
             self._commit()
 
@@ -651,6 +675,7 @@ class DatabaseManager:
         data["start_date"] = budget.start_date
         data["end_date"] = budget.end_date
         data["budget_locked_until"] = budget.locked_until
+        data["is_budget_locked"] = self.is_budget_locked(user_id)
         
         if decrypt_secrets and data:
             from app.core.encryption import decrypt_credential
@@ -745,9 +770,9 @@ class DatabaseManager:
             self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
-        """Check if the user's budget allocations are locked for the current calendar month or active schedule."""
-        settings = self.get_settings(user_id)
-        if not settings:
+        """Check if user's budget allocations are locked for the current calendar month or active schedule."""
+        budget = self.get_user_budget(user_id)
+        if not budget:
             return False
             
         import datetime
@@ -755,11 +780,11 @@ class DatabaseManager:
         ref_str = ref_date.strftime("%Y-%m-%d")
         
         # If an explicit payout schedule end_date exists and ref_str > end_date, budget schedule has ended & budget is unlocked
-        end_date = settings.get("end_date", "")
+        end_date = budget.end_date
         if end_date and ref_str > end_date:
             return False
 
-        locked_until = settings.get("budget_locked_until", "")
+        locked_until = budget.locked_until
         if not locked_until:
             return False
         try:
@@ -929,18 +954,22 @@ class DatabaseManager:
         return False
 
     def recalculate_daily_budget(self, user_id: int) -> float:
-        """Sum all allocation items and update the user's daily budget settings."""
+        """Sum all allocation items and update user's daily budget settings and Budget domain model."""
         total = self.session.query(func.sum(BudgetItem.amount)).filter(BudgetItem.user_id == user_id).scalar()
         if total is None:
             total = 0.0
             
+        int_total = int(total)
+        budget = self.get_user_budget(user_id)
+        budget.daily_budget = int_total
+
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
         if settings:
-            settings.daily_budget = total
-            self._commit()
+            settings.daily_budget = int_total
             
-        self.log_event(user_id, "INFO", f"Recalculated daily budget allocation total: KES {total:.2f}.")
-        return total
+        self._commit()
+        self.log_event(user_id, "INFO", f"Recalculated daily budget allocation total: KES {int_total}.")
+        return float(int_total)
 
     def create_deposit(self, user_id: int, checkout_request_id: str, amount: float) -> int:
         """Create a pending deposit transaction record."""
