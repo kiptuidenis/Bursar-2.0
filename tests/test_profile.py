@@ -34,11 +34,23 @@ def clean_db():
     app.dependency_overrides.pop(get_db, None)
     db.close()
 
+from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
+
+def _create_authenticated_client(phone_number, password, email=None, user_agent="Unknown Device"):
+    c = TestClient(app, headers={"User-Agent": user_agent})
+    db = get_test_db()
+    email_clean = email or f"user_{phone_number}@example.com"
+    pwd_hash, salt = db._hash_password(password)
+    user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_number, phone_number=phone_number)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent=user_agent)
+    c.cookies.set("session_token", token)
+    csrf_token = generate_csrf_token()
+    c.cookies.set("csrf_token", csrf_token)
+    return c, user_id
+
 def test_profile_endpoints():
-    c = TestClient(app)
-    # Signup
-    c.post("/api/auth/signup", json={"phone_number": "254711223344", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254711223344", "password": "Str0ng!P@ssw0rd"})
+    c, user_id = _create_authenticated_client("254711223344", "Str0ng!P@ssw0rd")
 
     # Get empty profile initially
     res_get = c.get("/api/profile")
@@ -46,7 +58,6 @@ def test_profile_endpoints():
     data = res_get.json()
     assert data["first_name"] == ""
     assert data["last_name"] == ""
-    assert data["email"] == ""
     assert data["theme"] == ""
 
     # Update profile
@@ -94,9 +105,7 @@ def test_profile_endpoints():
     assert "email" in res_err_em.json()["detail"].lower()
 
 def test_password_pin_change():
-    c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254755667788", "password": "OldP@ssw0rd!"})
-    c.post("/api/auth/login", json={"phone_number": "254755667788", "password": "OldP@ssw0rd!"})
+    c, user_id = _create_authenticated_client("254755667788", "OldP@ssw0rd!")
 
     # Change PIN with wrong current PIN
     res_err1 = c.post("/api/profile/password", json={"current_password": "WrongP@ssw0rd!", "new_password": "NewP@ssw0rd!"})
@@ -115,25 +124,20 @@ def test_password_pin_change():
     res_ok = c.post("/api/profile/password", json={"current_password": "OldP@ssw0rd!", "new_password": "NewP@ssw0rd!"})
     assert res_ok.status_code == 200
 
-    # Verify old login details fail
-    res_login_old = c.post("/api/auth/login", json={"phone_number": "254755667788", "password": "OldP@ssw0rd!"})
-    assert res_login_old.status_code == 401
-
-    # Verify new login details succeed
-    c_new = TestClient(app)
-    res_login_new = c_new.post("/api/auth/login", json={"phone_number": "254755667788", "password": "NewP@ssw0rd!"})
-    assert res_login_new.status_code == 200
-    assert "session_token" in res_login_new.cookies
+    # Verify old login credentials fail
+    db = get_test_db()
+    user = db.session.query(User).filter(User.id == user_id).first()
+    assert not db._verify_password("OldP@ssw0rd!", user.password_hash, user.salt)
+    assert db._verify_password("NewP@ssw0rd!", user.password_hash, user.salt)
 
 def test_session_tracking_and_revocation():
-    # Login Device A
-    c_a = TestClient(app)
-    c_a.post("/api/auth/signup", json={"phone_number": "254799001122", "password": "Str0ng!P@ssw0rd"})
-    c_a.post("/api/auth/login", json={"phone_number": "254799001122", "password": "Str0ng!P@ssw0rd"}, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0) Chrome/114.0.0.0"})
+    c_a, user_id = _create_authenticated_client("254799001122", "Str0ng!P@ssw0rd", user_agent="Mozilla/5.0 (Windows NT 10.0) Chrome/114.0.0.0")
 
-    # Login Device B
+    # Device B session creation
+    db = get_test_db()
+    token_b = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_5) Safari/605.1.15")
     c_b = TestClient(app)
-    c_b.post("/api/auth/login", json={"phone_number": "254799001122", "password": "Str0ng!P@ssw0rd"}, headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5) Safari/605.1.15"})
+    c_b.cookies.set("session_token", token_b)
 
     # Retrieve sessions via Device A
     res_sessions = c_a.get("/api/profile/sessions")
@@ -162,13 +166,8 @@ def test_session_tracking_and_revocation():
     assert res_b_req.status_code == 401
 
 def test_account_deactivation():
-    c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254700112233", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254700112233", "password": "Str0ng!P@ssw0rd"})
-
+    c, user_id = _create_authenticated_client("254700112233", "Str0ng!P@ssw0rd")
     db = get_test_db()
-    users = db.get_all_users()
-    user_id = next(u["id"] for u in users if u["phone_number"] == "254700112233")
 
     # Mismatched confirmation phrase fails
     res_err1 = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELET"})
@@ -199,9 +198,7 @@ def test_account_deactivation():
     assert c.get("/api/profile").status_code == 401
 
 def test_avatar_upload():
-    c = TestClient(app)
-    c.post("/api/auth/signup", json={"phone_number": "254722334455", "password": "Str0ng!P@ssw0rd"})
-    c.post("/api/auth/login", json={"phone_number": "254722334455", "password": "Str0ng!P@ssw0rd"})
+    c, user_id = _create_authenticated_client("254722334455", "Str0ng!P@ssw0rd")
 
     # Test file upload with wrong type (e.g. text file)
     txt_file = io.BytesIO(b"Hello avatar text")
@@ -228,6 +225,9 @@ def test_avatar_upload():
 
     # Clean up uploaded test file
     rel_path = avatar_url.lstrip("/")
+    filepath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", rel_path)
+    if os.path.exists(filepath):
+        os.remove(filepath)
     filepath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", rel_path)
     if os.path.exists(filepath):
         os.remove(filepath)

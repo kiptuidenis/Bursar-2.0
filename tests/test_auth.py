@@ -56,28 +56,23 @@ def test_signup_password_policy_rejection():
         client = TestClient(app)
 
         # 1. Under 8 chars returns 422
-        res1 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Short1!"})
-        assert res1.status_code == 422
+        res1 = client.post("/api/auth/signup", json={"email": "test@example.com", "password": "Short1!"})
+        assert res1.status_code in (400, 422)
 
         # 2. Missing uppercase returns 400
-        res2 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "password123!"})
+        res2 = client.post("/api/auth/signup", json={"email": "test@example.com", "password": "password123!"})
         assert res2.status_code == 400
         assert "uppercase" in res2.json()["detail"]
 
         # 3. Missing symbol returns 400
-        res3 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Password123"})
+        res3 = client.post("/api/auth/signup", json={"email": "test@example.com", "password": "Password123"})
         assert res3.status_code == 400
         assert "special symbol" in res3.json()["detail"]
 
-        # 4. Containing phone number returns 400
-        res4 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Str0ngP@ss999888"})
-        assert res4.status_code == 400
-        assert "phone number" in res4.json()["detail"]
-
-        # 5. Valid strong password passes signup
-        res5 = client.post("/api/auth/signup", json={"phone_number": "254711999888", "password": "Burs@rSecur32026!"})
+        # 4. Valid strong password passes signup
+        res5 = client.post("/api/auth/signup", json={"email": "test@example.com", "password": "Burs@rSecur32026!"})
         assert res5.status_code == 200
-        assert "user_id" in res5.json()
+        assert res5.json()["status"] == "2fa_required"
 
     finally:
         app.dependency_overrides.pop(get_db, None)

@@ -78,3 +78,42 @@ def test_account_lockout_after_5_failed_attempts(test_db):
             app.dependency_overrides[get_db] = old_db_override
         else:
             app.dependency_overrides.pop(get_db, None)
+
+def test_email_account_lockout_after_5_failed_attempts(test_db):
+    """
+    Submitting 5 incorrect password attempts for an email-registered account locks the account for 15 minutes.
+    A 6th attempt with the CORRECT password while locked is rejected with 429 Account Locked (C-04 fix verification).
+    """
+    old_db_override = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = _db_override(test_db)
+
+    try:
+        email = "lockout_test@example.com"
+        correct_pwd = "Str0ng!P@ssw0rd2026"
+        pwd_hash, salt = test_db._hash_password(correct_pwd)
+        user_id = test_db.create_user_email(email, pwd_hash, salt)
+
+        client = TestClient(app)
+        wrong_payload = {"email": email, "password": "WrongP@ssw0rd!"}
+        correct_payload = {"email": email, "password": correct_pwd}
+
+        # 1. Attempts 1 through 4 -> 401 Unauthorized
+        for i in range(4):
+            res = client.post("/api/auth/login", json=wrong_payload)
+            assert res.status_code == 401, f"Attempt {i+1} expected 401, got {res.status_code}"
+
+        # 2. 5th attempt -> 429 Account Locked!
+        res_lock = client.post("/api/auth/login", json=wrong_payload)
+        assert res_lock.status_code == 429, f"5th attempt expected 429, got {res_lock.status_code}"
+        assert "account locked" in res_lock.json()["detail"].lower()
+
+        # 3. 6th attempt with CORRECT password while locked -> 429 Account Locked (PREVENTED!)
+        res_correct_while_locked = client.post("/api/auth/login", json=correct_payload)
+        assert res_correct_while_locked.status_code == 429
+        assert "account locked" in res_correct_while_locked.json()["detail"].lower()
+
+    finally:
+        if old_db_override is not None:
+            app.dependency_overrides[get_db] = old_db_override
+        else:
+            app.dependency_overrides.pop(get_db, None)

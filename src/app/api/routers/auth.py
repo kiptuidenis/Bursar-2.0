@@ -86,7 +86,7 @@ def signup_user(request: Request, payload: AuthPayload, response: Response, db: 
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Registration error for email '{email_clean}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again later.")
 
 @router.post("/login")
 @limiter.limit("5/minute")
@@ -163,7 +163,7 @@ def login_user(request: Request, payload: AuthLoginPayload, response: Response, 
                 )
                 resp.headers["Retry-After"] = "900"
                 return resp
-            raise HTTPException(status_code=401, detail="Invalid phone number or password PIN.")
+            raise HTTPException(status_code=401, detail="Invalid email address or password.")
 
         db.reset_failed_login_attempts(sanitized_phone)
             

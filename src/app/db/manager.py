@@ -235,7 +235,7 @@ class DatabaseManager:
             return False
 
     # User Auth Operations
-    def create_user_email(self, email: str, password_hash: str, salt: str = "argon2", payout_phone: Optional[str] = None) -> int:
+    def create_user_email(self, email: str, password_hash: str, salt: str = "argon2", payout_phone: Optional[str] = None, phone_number: Optional[str] = None) -> int:
         """Register a new user using email address with pre-hashed password, and initializes settings (email_verified=True)."""
         email_clean = email.strip().lower()
         existing = self.session.query(User).filter(User.email == email_clean).first()
@@ -247,7 +247,7 @@ class DatabaseManager:
                 email=email_clean,
                 password_hash=password_hash,
                 salt=salt,
-                phone_number=None,
+                phone_number=phone_number if phone_number else None,
                 payout_phone_number=payout_phone or "",
                 email_verified=True,
                 two_factor_enabled=True
@@ -461,9 +461,18 @@ class DatabaseManager:
         self._commit()
         return db_user.id
 
-    def is_account_locked(self, phone_number: str) -> tuple[bool, int]:
+    def _get_user_by_identifier(self, identifier: str) -> Optional[User]:
+        """Helper to retrieve user model by email or phone number."""
+        if not identifier:
+            return None
+        clean_id = identifier.strip().lower() if "@" in identifier else identifier.strip()
+        return self.session.query(User).filter(
+            (User.email == clean_id) | (User.phone_number == clean_id)
+        ).first()
+
+    def is_account_locked(self, identifier: str) -> tuple[bool, int]:
         """Check if an account is locked due to 5+ failed login attempts. Returns (is_locked, remaining_seconds)."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        user = self._get_user_by_identifier(identifier)
         if not user or not user.account_locked_until:
             return False, 0
             
@@ -481,9 +490,9 @@ class DatabaseManager:
         except Exception:
             return False, 0
 
-    def record_failed_login_attempt(self, phone_number: str) -> tuple[int, bool]:
+    def record_failed_login_attempt(self, identifier: str) -> tuple[int, bool]:
         """Increment failed login attempts counter. Locks account for 15 mins if 5 attempts reached. Returns (attempts, is_locked)."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        user = self._get_user_by_identifier(identifier)
         if not user:
             return 0, False
             
@@ -496,22 +505,22 @@ class DatabaseManager:
             is_locked = True
             lock_duration = datetime.timedelta(minutes=15)
             user.account_locked_until = (datetime.datetime.utcnow() + lock_duration).strftime("%Y-%m-%d %H:%M:%S")
-            self.log_event(user.id, "WARNING", f"Account locked for 15 minutes due to {current} consecutive failed PIN attempts.")
+            self.log_event(user.id, "WARNING", f"Account locked for 15 minutes due to {current} consecutive failed attempts.")
             
         self._commit()
         return current, is_locked
 
-    def reset_failed_login_attempts(self, phone_number: str) -> None:
+    def reset_failed_login_attempts(self, identifier: str) -> None:
         """Reset failed login attempts counter and clear lockout state on successful authentication."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+        user = self._get_user_by_identifier(identifier)
         if user and (user.failed_login_attempts > 0 or user.account_locked_until):
             user.failed_login_attempts = 0
             user.account_locked_until = ""
             self._commit()
 
-    def authenticate_user(self, phone_number: str, password_plaintext: str) -> Optional[int]:
-        """Authenticate user credentials. Transparently upgrades legacy PBKDF2 hashes to Argon2id upon successful authentication."""
-        user = self.session.query(User).filter(User.phone_number == phone_number).first()
+    def authenticate_user(self, identifier: str, password_plaintext: str) -> Optional[int]:
+        """Authenticate user credentials by phone number or email. Transparently upgrades legacy PBKDF2 hashes to Argon2id."""
+        user = self._get_user_by_identifier(identifier)
         if not user:
             return None
             

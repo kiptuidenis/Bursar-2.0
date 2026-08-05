@@ -65,18 +65,19 @@ from app.core.limiter import limiter
 @router.post("/password")
 @limiter.limit("5/minute")
 def change_password(request: Request, payload: PasswordChange, response: Response, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    profile = db.get_profile(user_id)
-    if not profile:
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user:
         raise HTTPException(status_code=404, detail="User not found.")
         
-    if not db.authenticate_user(profile["phone_number"], payload.current_password):
+    if not db._verify_password(payload.current_password, user.password_hash, user.salt):
         raise HTTPException(status_code=401, detail="Incorrect current password.")
         
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password cannot be the same as your current password.")
 
     from app.core.password import validate_password_strength
-    pwd_error = validate_password_strength(payload.new_password, user_context=profile["phone_number"])
+    user_context = user.email or user.phone_number or ""
+    pwd_error = validate_password_strength(payload.new_password, user_context=user_context)
     if pwd_error:
         raise HTTPException(status_code=400, detail=pwd_error)
         
@@ -218,11 +219,11 @@ def deactivate_account(
     if payload.confirmation != "DELETE":
         raise HTTPException(status_code=400, detail="Confirmation phrase must be 'DELETE'.")
         
-    profile = db.get_profile(user_id)
-    if not profile:
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user:
         raise HTTPException(status_code=404, detail="User not found.")
         
-    if not db.authenticate_user(profile["phone_number"], payload.password):
+    if not db._verify_password(payload.password, user.password_hash, user.salt):
         raise HTTPException(status_code=401, detail="Incorrect password PIN.")
         
     settings = db.get_settings(user_id)
