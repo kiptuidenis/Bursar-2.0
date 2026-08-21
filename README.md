@@ -45,21 +45,6 @@ Bursar acts as an **automated digital allowance dispenser**:
 - **Freelancers & Gig Workers** smoothing out irregular bulk payouts.
 - **Mobile Money Users** aiming to overcome impulse digital transactions.
 
----
-
-## Key Features
-
-- 💸 **Automated Daily B2C Payouts:** Autonomous background daemon triggers daily M-Pesa disbursements at the user's configured hour with zero manual intervention.
-- 🔒 **Enforced Budget Locks (Anti-Temptation):** Cryptographic and database-level rules lock monthly funds against mid-month tampering.
-- 📥 **Instant M-Pesa STK Push Deposits:** Fast, seamless wallet top-ups via Safaricom Daraja & IntaSend payment rails.
-- ⚡ **Idempotency & Concurrency Control:** Composite unique constraints and atomic conditional SQL updates eliminate race conditions and prevent double-spending.
-- 🛡️ **Defense-in-Depth Security:**
-  - NIST-standard **PBKDF2-HMAC-SHA256** password hashing (100,000 iterations).
-  - Encrypted credential storage using **AES-GCM / HKDF** for sensitive gateway keys.
-  - Signed, **HTTP-only SameSite=Lax** session cookies (immune to XSS token theft).
-  - **Google reCAPTCHA v3** bot protection and **SlowAPI** endpoint rate limiting.
-- 🤖 **Grounding AI Assistant:** Integrated **Google Gemini** assistant backed by a **BM25 Retrieval-Augmented Generation (RAG)** documentation search engine to ensure fact-checked answers.
-- 📊 **Interactive Pacing Dashboard:** Real-time Chart.js balance trajectory and 7-day spending visualization.
 
 ---
 
