@@ -1,159 +1,219 @@
-# Bursar 2.0 — Automated Daily Budget Allowance for M-Pesa Users
+# Bursar 2.0 — Automated Daily Budget Allowance Platform
 
-> **Live App → [bursar.co.ke](https://bursar.co.ke)**
+[![Production Live](https://img.shields.io/badge/Live%20Deployment-bursar.co.ke-success?style=for-the-badge&logo=google-chrome&logoColor=white)](https://bursar.co.ke)
+[![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/Framework-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![AWS EC2 & RDS](https://img.shields.io/badge/Cloud-AWS%20EC2%20%26%20RDS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-Bursar 2.0 is a personal money-management web application designed to help Kenyan M-Pesa users beat impulse spending by converting lump-sum income into controlled, automated daily allowances. Instead of keeping your entire monthly budget on M-Pesa where it is easy to overspend, you deposit it into Bursar — and Bursar sends it back to your M-Pesa in precise daily amounts, at the time you choose, every single day.
+> **Live Production App → [bursar.co.ke](https://bursar.co.ke)**
 
----
-
-## The Problem Bursar Solves
-
-Most people receive their salary, freelance payment, or business income as a lump sum at the start of the month. With the full amount sitting in M-Pesa and instantly accessible, it is very easy to overspend in the first two weeks and struggle for the rest of the month.
-
-**Bursar's answer:** Lock your monthly budget inside the app. Every day, at a time you choose, Bursar automatically sends you exactly your pre-planned daily allowance — no more, no less — directly to your M-Pesa number via a real M-Pesa B2C payout.
+**Bursar 2.0** is an automated personal financial management platform engineered to eliminate impulse spending for mobile money (M-Pesa) users. Instead of holding an entire month's income on M-Pesa where it is vulnerable to impulsive purchases, users deposit and lock their budget in Bursar. An autonomous background scheduler daemon then disburses back exact, pre-planned daily allowances directly to their M-Pesa phone number at their chosen time every single day.
 
 ---
 
-## Who It's For
+## Table of Contents
+1. [Project Overview & Motivation](#project-overview--motivation)
+2. [Key Features](#key-features)
+3. [System Architecture](#system-architecture)
+4. [Technology Stack](#technology-stack)
+5. [Repository Structure](#repository-structure)
+6. [Payment Gateways & Modes](#payment-gateways--modes)
+7. [Getting Started & Local Setup](#getting-started--local-setup)
+8. [API Quick Demo & Code Snippets](#api-quick-demo--code-snippets)
+9. [Running Automated Tests](#running-automated-tests)
+10. [CI/CD & Deployment Pipeline](#cicd--deployment-pipeline)
+11. [Contributing](#contributing)
+12. [Acknowledgements & Resources](#acknowledgements--resources)
 
-- **Salaried workers** who want their monthly income to last the full 30 days.
-- **Students** on a fixed monthly allowance who need to stretch every shilling.
-- **Freelancers** who receive irregular bulk payments and need self-imposed daily caps.
-- **Anyone** who uses M-Pesa as their primary spending account and struggles with impulse spending.
+---
+
+## Project Overview & Motivation
+
+### The Problem
+Most people receive their monthly salary, freelance earnings, or allowance as a lump sum. When the full amount sits in an instantly accessible mobile wallet like Safaricom M-Pesa, frictionless digital payments make it remarkably easy to exhaust funds during the first two weeks of the month.
+
+### The Bursar Solution
+Bursar acts as an **automated digital allowance dispenser**:
+1. **Lock the Monthly Budget:** Users deposit funds via M-Pesa STK Push and lock their budget allocations. Once locked, funds cannot be manually withdrawn until the schedule concludes.
+2. **Automated Daily Disbursement:** A high-precision background daemon evaluates user payout schedules and initiates real M-Pesa B2C disbursements to their registered phone number.
+3. **Pacing & Accountability:** Users receive only what they planned for each day (e.g., Food, Transport, Airtime), stretching their income across the entire month.
+
+### Target Audience
+- **Salaried Employees** seeking disciplined monthly cashflow management.
+- **University Students** managing fixed allowances and recurring expenses.
+- **Freelancers & Gig Workers** smoothing out irregular bulk payouts.
+- **Mobile Money Users** aiming to overcome impulse digital transactions.
 
 ---
 
 ## Key Features
 
-### 💰 Automated Daily Payouts
-A background scheduler daemon continuously monitors your configured payout time. When the clock strikes your chosen hour, Bursar automatically initiates a real M-Pesa B2C transfer of your exact daily budget amount to your registered Safaricom number — with no manual action required.
-
-### 📊 Budget Planning by Category
-Define your daily budget across spending categories (e.g., Food, Transport, Airtime). The sum of your categories becomes your locked daily allowance. Once set and deposited, categories cannot be changed mid-month — keeping you accountable to your own plan.
-
-### 🔒 Enforced Budget Locks (Anti-Temptation Design)
-Once you deposit funds and lock your budget, the balance is protected at the database level. Neither you nor the system can reduce it manually until the month ends. This is the core mechanism that makes Bursar effective — removing the temptation to dip into tomorrow's money.
-
-### 📥 M-Pesa STK Push Deposits
-Topping up your Bursar wallet is seamless. Enter an amount and Bursar sends an STK Push directly to your phone. Authorize it with your M-Pesa PIN and the funds are credited — no bank transfers or manual paybill entries needed.
-
-### 🤖 AI Chat Assistant (Coming Soon)
-An in-app AI assistant powered by Google Gemini answers questions about how Bursar works. It uses a BM25 Retrieval-Augmented Generation (RAG) engine backed by Bursar's own documentation — ensuring answers are grounded in verified facts, not hallucinations.
-
-### 🛡️ Double-Spend Protection
-The scheduler uses database-level unique constraints to guarantee each day's payout fires exactly once, even across multiple scheduler ticks or manual trigger attempts.
-
-### 🔐 Security-First Authentication
-- Passwords/PINs hashed with **PBKDF2-HMAC-SHA256** (100,000 iterations — NIST recommended standard).
-- **HTTP-only cookie sessions** that are immune to JavaScript-based XSS theft.
-- Sessions expire automatically after 24 hours of inactivity.
-- **Google reCAPTCHA v3** on login and registration to block bot submissions.
-- M-Pesa PIN is **never** seen or stored by Bursar — STK Push authorization happens directly on your phone.
-
-### 📈 Interactive Pacing Dashboard
-A live Chart.js area chart reconstructs your 7-day wallet balance trend so you can see at a glance whether your spending is on pace, ahead, or behind your monthly plan.
-
-### 👤 User Profiles & Theming
-Upload an avatar, add a bio, and switch between visual themes — a light, premium UI designed with glassmorphism, vibrant gradients, and Outfit/JetBrains Mono typography.
+- 💸 **Automated Daily B2C Payouts:** Autonomous background daemon triggers daily M-Pesa disbursements at the user's configured hour with zero manual intervention.
+- 🔒 **Enforced Budget Locks (Anti-Temptation):** Cryptographic and database-level rules lock monthly funds against mid-month tampering.
+- 📥 **Instant M-Pesa STK Push Deposits:** Fast, seamless wallet top-ups via Safaricom Daraja & IntaSend payment rails.
+- ⚡ **Idempotency & Concurrency Control:** Composite unique constraints and atomic conditional SQL updates eliminate race conditions and prevent double-spending.
+- 🛡️ **Defense-in-Depth Security:**
+  - NIST-standard **PBKDF2-HMAC-SHA256** password hashing (100,000 iterations).
+  - Encrypted credential storage using **AES-GCM / HKDF** for sensitive gateway keys.
+  - Signed, **HTTP-only SameSite=Lax** session cookies (immune to XSS token theft).
+  - **Google reCAPTCHA v3** bot protection and **SlowAPI** endpoint rate limiting.
+- 🤖 **Grounding AI Assistant:** Integrated **Google Gemini** assistant backed by a **BM25 Retrieval-Augmented Generation (RAG)** documentation search engine to ensure fact-checked answers.
+- 📊 **Interactive Pacing Dashboard:** Real-time Chart.js balance trajectory and 7-day spending visualization.
 
 ---
 
-## Architecture Overview
+## System Architecture
+
+The following diagram illustrates the complete end-to-end request flow, automated scheduler processing, payment webhooks, and cloud database persistence:
+
+```mermaid
+flowchart TB
+    subgraph ClientLayer ["Client & Frontend"]
+        Browser["Modern Browser / PWA\n(Glassmorphic UI, Vanilla JS, Chart.js)"]
+    end
+
+    subgraph CloudInfra ["Cloud Infrastructure (AWS EC2 & RDS)"]
+        Nginx["Nginx Reverse Proxy / SSL Termination"]
+        
+        subgraph AppServer ["FastAPI Application (Python 3.11)"]
+            Router["API Routers\n(Auth, Budget, Deposits, Payouts, Callbacks)"]
+            SecMid["Security Middleware\n(CSRF, Rate Limiting, Security Headers)"]
+            Daemon["Background Scheduler Daemon\n(60s Tick, Idempotent Worker)"]
+            RAG["RAG Engine & AI Service\n(BM25 Search + Google Gemini)"]
+        end
+
+        subgraph Database ["Relational Persistence (AWS RDS / SQLite)"]
+            DB[(Database Tables:\nUsers, Settings, Budgets, Deposits,\nPayouts, IdempotencyRecords)]
+        end
+    end
+
+    subgraph PaymentRails ["External Payment Gateways & APIs"]
+        Daraja["Safaricom Daraja API\n(STK Push & B2C Payouts)"]
+        IntaSend["IntaSend Payment Gateway\n(STK Push & Webhook Callbacks)"]
+        GeminiAPI["Google Gemini LLM API"]
+    end
+
+    Browser <-->|HTTPS / HTTP-Only Cookies| Nginx
+    Nginx <-->|Proxy Pass| SecMid
+    SecMid <--> Router
+    Router <-->|SQLAlchemy ORM| DB
+    Daemon -->|Poll Due Schedules & Atomic Lock| DB
+    
+    Router -->|STK Push Request| IntaSend
+    Router -->|STK Push Request| Daraja
+    Daemon -->|Initiate Daily B2C Payout| IntaSend
+    Daemon -->|Initiate Daily B2C Payout| Daraja
+    
+    IntaSend -->|Webhook Event (Deposit/Payout Result)| Router
+    Daraja -->|Callback Event (STK/B2C Result)| Router
+    
+    Router <-->|Knowledge Query| RAG
+    RAG <-->|Enriched Context Prompt| GeminiAPI
+```
+
+---
+
+## Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| **Cloud & Hosting** | **AWS EC2** (Ubuntu Linux, Systemd daemon), **AWS RDS** (Managed MySQL/PostgreSQL), **Nginx** |
+| **Backend Framework** | **Python 3.10+**, **FastAPI**, **Uvicorn** (ASGI server), **Pydantic v2** |
+| **Database & ORM** | **SQLAlchemy ORM**, **SQLite** (Local Dev/Testing with WAL mode), **AWS RDS** (Production) |
+| **Security & Cryptography** | **PBKDF2-HMAC-SHA256**, **AES-GCM / HKDF**, **SlowAPI** (Rate Limiter), **Google reCAPTCHA v3**, **CSRF Tokens** |
+| **Payment Integrations** | **Safaricom Daraja API** (STK Push, B2C), **IntaSend Payments** (STK Push, B2C, Webhooks) |
+| **AI & Search Engine** | **Google Gemini API** (`gemini-2.5-flash`), **Rank-BM25** (Local RAG Indexer) |
+| **Frontend** | **HTML5**, **Modern CSS3 Glassmorphism**, **Vanilla JavaScript (ES6+)**, **Chart.js** |
+| **Testing & CI/CD** | **Pytest** (Unit & Integration), **Playwright** (E2E Browser Tests), **GitHub Actions** |
+
+---
+
+## Repository Structure
 
 ```
-bursar-2.0/
+Bursar-2.0/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml              # Multi-stage CI/CD pipeline (Test, Audit, Deploy to EC2)
 ├── src/
-│   └── app/                        # Core FastAPI application package
-│       ├── main.py                 # Application entry point, lifespan, CORS, routing
+│   └── app/                        # Core application package
+│       ├── main.py                 # FastAPI app entry point, middleware & lifespan
 │       ├── api/
-│       │   ├── dependencies.py     # Shared DI: DB manager, session manager
-│       │   ├── schemas.py          # Pydantic request/response schemas
+│       │   ├── dependencies.py     # Dependency injection (DB, Session manager)
+│       │   ├── schemas.py          # Pydantic request/response validation schemas
 │       │   └── routers/
-│       │       ├── auth.py         # Register, login, logout endpoints
-│       │       ├── budget.py       # Budget category CRUD
-│       │       ├── deposits.py     # STK Push initiation & status polling
-│       │       ├── payouts.py      # Manual payout trigger & payout history
-│       │       ├── callbacks.py    # M-Pesa & IntaSend webhook handlers
-│       │       ├── settings.py     # User settings (payout time, API keys, dates)
-│       │       ├── profile.py      # User profile management & avatar upload
-│       │       └── chat.py         # AI chat assistant endpoint
+│       │       ├── auth.py         # Registration, login, logout, password reset, 2FA
+│       │       ├── budget.py       # Budget category CRUD & lock status
+│       │       ├── callbacks.py    # Daraja & IntaSend payment webhook handlers
+│       │       ├── deposits.py     # STK push initiation & polling status
+│       │       ├── notifications.py# In-app notification center endpoints
+│       │       ├── payouts.py      # Manual payout triggers & transaction logs
+│       │       ├── profile.py      # Profile management, 2FA, avatar upload
+│       │       └── settings.py     # User settings, payment mode, schedules
 │       ├── core/
-│       │   ├── config.py           # Environment variable loading & app config
-│       │   └── security.py         # PBKDF2 hashing, session token signing
+│       │   ├── config.py           # App configuration & environment validation
+│       │   ├── csrf.py             # CSRF token validation middleware
+│       │   ├── encryption.py       # HKDF key derivation & AES credential encryption
+│       │   ├── limiter.py          # SlowAPI rate limiting configuration
+│       │   ├── password.py         # PBKDF2 password hashing & verification
+│       │   ├── security.py         # Session token generation & constant-time auth
+│       │   └── security_headers.py # HTTP security headers (CSP, HSTS, X-Frame)
 │       ├── db/
-│       │   ├── models.py           # SQLAlchemy ORM models (User, Payout, Deposit …)
-│       │   └── manager.py          # Database CRUD operations & lock enforcement
+│       │   ├── manager.py          # Database operations, transactions & state guards
+│       │   └── models.py           # SQLAlchemy declarative ORM models
 │       ├── services/
-│       │   ├── scheduler.py        # Background payout daemon (60-second poll loop)
-│       │   ├── payment_gateway.py  # Unified payment abstraction layer
-│       │   ├── mpesa.py            # Safaricom Daraja B2C & STK Push client
-│       │   ├── intasend.py         # IntaSend B2C & STK Push client
-│       │   ├── ai.py               # Gemini API integration & RAG prompt builder
-│       │   ├── rag.py              # BM25 retrieval-augmented generation engine
-│       │   └── recaptcha.py        # Google reCAPTCHA v3 verification
-│       └── static/
-│           ├── index.html          # Landing page (register / login)
-│           ├── dashboard.html      # Main authenticated dashboard
-│           ├── css/style.css       # Glassmorphic stylesheet
-│           ├── js/                 # Client-side routing, chart loops, API calls
-│           └── docs/               # Markdown knowledge base for the RAG assistant
-│               ├── about.md
-│               ├── faq.md
-│               ├── locks.md
-│               ├── payouts.md
-│               └── security.md
-├── tests/                          # Automated unit & integration tests
-│   ├── test_auth.py                # Session signing & HMAC verification
-│   ├── test_db.py                  # Database models & multi-tenant isolation
-│   ├── test_db_features.py         # Lock mechanics & edge-case coverage
-│   ├── test_main.py                # API endpoints, cookies, CORS
-│   ├── test_mpesa.py               # M-Pesa client signing & mock payloads
-│   ├── test_intasend.py            # IntaSend client mock tests
-│   ├── test_scheduler.py           # Scheduler logic & concurrency protection
-│   ├── test_scheduler_polling.py   # Full polling-loop integration tests
-│   ├── test_budget_deposit_validation.py
-│   ├── test_payout_trigger_diagnostics.py
-│   ├── test_chat.py                # AI chat endpoint tests
-│   ├── test_profile.py             # Profile API tests
-│   ├── test_recaptcha.py           # reCAPTCHA verification tests
-│   ├── test_inactivity.py          # Session inactivity timeout tests
-│   ├── test_unhandled_errors.py    # Global error handler tests
-│   └── e2e/                        # Playwright end-to-end browser tests
-├── .env.example                    # Environment variable template
-├── playwright.config.js            # Playwright E2E test configuration
-├── requirements.txt                # Python dependencies
-└── README.md                       # This file
+│       │   ├── email.py            # SMTP / transactional email notification service
+│       │   ├── intasend.py         # IntaSend STK Push & B2C payout client
+│       │   ├── mpesa.py            # Safaricom Daraja STK Push & B2C client
+│       │   ├── payment_gateway.py  # Unified payment provider abstraction layer
+│       │   ├── recaptcha.py        # Google reCAPTCHA v3 score verification
+│       │   └── scheduler.py        # Background payout daemon & retry worker
+│       └── static/                 # Frontend assets (HTML5, Glassmorphism CSS, JS)
+│           ├── dashboard.html      # Authenticated user dashboard
+│           ├── index.html          # Public landing & login/registration portal
+│           ├── css/style.css       # Design system & responsive styles
+│           └── js/app.js           # Client-side API interactions & chart renderers
+├── tests/                          # Automated test suite (50+ unit/integration tests)
+│   ├── test_auth.py                # Authentication, sessions & hashing tests
+│   ├── test_concurrency_race_conditions.py # Webhook vs. polling race condition tests
+│   ├── test_idempotency.py         # Idempotency key verification tests
+│   ├── test_rate_limiting.py       # SlowAPI rate limiting tests
+│   ├── test_scheduler.py           # Daily payout schedule & lock evaluation tests
+│   └── e2e/                        # Playwright browser integration tests
+├── CONTRIBUTING.md                 # Open-source contribution guidelines
+├── requirements.txt                # Python backend dependencies
+├── package.json                    # Node dependencies for Playwright testing
+└── README.md                       # Main project documentation
 ```
 
 ---
 
-## Payment Gateways
+## Payment Gateways & Modes
 
-Bursar 2.0 supports two payment backends that can be toggled via environment configuration:
+Bursar 2.0 provides seamless switching between sandbox simulation and production financial rails:
 
-| Gateway | Deposits (STK Push) | Payouts (B2C) | Modes |
+| Gateway | Deposits (STK Push) | Payouts (B2C) | Supported Modes |
 |---|---|---|---|
-| **IntaSend** | ✅ | ✅ | `simulation`, `sandbox`, `live` |
-| **Safaricom Daraja** | ✅ | ✅ | `simulation`, `sandbox`, `live` |
-
-The active gateway is selected per-user via their account settings, giving flexibility for testing and production.
+| **IntaSend** | ✅ Supported | ✅ Supported | `simulation`, `sandbox`, `live` |
+| **Safaricom Daraja** | ✅ Supported | ✅ Supported | `simulation`, `sandbox`, `live` |
 
 ---
 
-## Setup & Installation
+## Getting Started & Local Setup
 
-### Prerequisites
-- Python **3.10+**
-- A Safaricom Daraja or IntaSend developer account (for sandbox/live modes)
-- A Google Gemini API key (for the AI assistant)
+### 1. Prerequisites
+- **Python 3.10+** (Python 3.11 recommended)
+- **Node.js 18+** & **npm** (optional, for browser test suite)
+- **Git**
 
-### 1. Clone the Repository
+### 2. Clone Repository
 ```bash
-git clone https://github.com/your-org/bursar-2.0.git
-cd bursar-2.0
+git clone https://github.com/kiptuidenis/Bursar-2.0.git
+cd Bursar-2.0
 ```
 
-### 2. Create and Activate a Virtual Environment
+### 3. Create & Activate Virtual Environment
 ```bash
 # Windows
 python -m venv venv
@@ -164,85 +224,163 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+### 4. Install Dependencies
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-Copy the example env file and fill in your credentials:
+### 5. Configure Environment Variables
+Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
 
-Key variables to configure in `.env`:
-
+Key environment configuration:
 ```env
-# App secret
-SECRET_KEY=your_secure_random_secret_key
+# Application Secret (minimum 32 characters)
+SECRET_KEY=generate_a_secure_random_32_char_secret_key
 
-# Payment gateway (intasend or mpesa)
+# Payment Gateway (simulation / sandbox / live)
 PAYMENT_PROVIDER=intasend
-INTASEND_MODE=sandbox
+INTASEND_MODE=simulation
 INTASEND_SECRET_KEY=your_intasend_secret_key
 INTASEND_PUBLISHABLE_KEY=your_intasend_publishable_key
 
-# Google Gemini AI
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
+# Database Connection (Leave empty for local SQLite bursar.db)
+DATABASE_URL=
 
-# Google reCAPTCHA v3
-RECAPTCHA_ENABLED=true
-RECAPTCHA_SITE_KEY=your_recaptcha_site_key
-RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key
+# Rate Limiting & Security
+RATE_LIMITING_ENABLED=true
+SESSION_COOKIE_SECURE=false # Set to true in HTTPS production
 ```
 
-### 5. Run the Development Server
+### 6. Run the Application Locally
 ```bash
 python -m uvicorn src.app.main:app --reload --port 8000
 ```
+Open your browser and navigate to **`http://127.0.0.1:8000`**.
 
-Navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser.
+---
+
+## API Quick Demo & Code Snippets
+
+### 1. User Registration & Login
+#### cURL Request:
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alex@example.com",
+    "password": "StrongPassword2026!"
+  }'
+```
+#### Expected Response (`200 OK`):
+```json
+{
+  "status": "success",
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "email": "alex@example.com",
+    "phone_number": "254712345678"
+  }
+}
+```
+
+---
+
+### 2. Initiate M-Pesa STK Push Deposit
+#### Python Snippet (`requests`):
+```python
+import requests
+
+session = requests.Session()
+
+# 1. Initiate STK Push deposit of KES 5,000
+deposit_payload = {
+    "amount": 5000,
+    "phone_number": "254712345678"
+}
+response = session.post("http://127.0.0.1:8000/api/deposit/stk-push", json=deposit_payload)
+print(response.json())
+```
+#### Expected Response (`200 OK`):
+```json
+{
+  "status": "success",
+  "message": "STK Push initiated successfully",
+  "checkout_request_id": "ws_CO_210820261122334455"
+}
+```
+
+---
+
+### 3. Manual / Scheduled Daily Payout Trigger
+#### cURL Request:
+```bash
+curl -X POST "http://127.0.0.1:8000/api/payout/trigger" \
+  -H "Cookie: session_token=your_authenticated_session_token"
+```
+#### Expected Response (`200 OK`):
+```json
+{
+  "triggered": true,
+  "reason": null
+}
+```
 
 ---
 
 ## Running Automated Tests
 
-Bursar 2.0 has an extensive test suite covering all core layers — database, authentication, scheduler, payment gateway, and API endpoints.
+The repository includes extensive automated test coverage across authentication, database constraints, concurrency race conditions, and payment gateway workflows.
 
-### Unit & Integration Tests (pytest)
+### Pytest Unit & Integration Tests
 ```bash
 python -m pytest
 ```
 
-### End-to-End Browser Tests (Playwright)
+### Static Syntax & Safety Audit
 ```bash
-npx playwright test
+python tests/check_js_syntax.py
+```
+
+### Playwright End-to-End Tests
+```bash
+npm install
+npx playwright install --with-deps
+npm run test:e2e
 ```
 
 ---
 
-## How the Payout Scheduler Works
+## CI/CD & Deployment Pipeline
 
-1. **On startup**, a `BackgroundScheduler` thread launches and polls every **60 seconds**.
-2. Each tick fetches all active users and evaluates whether a payout is due:
-   - Is the user's budget **locked**?
-   - Is the current time **at or past** the user's configured `payout_time`?
-   - Is today's date **within** the user's configured `start_date` / `end_date` window?
-   - Has a payout for **today already been recorded**? (double-spend check)
-3. If all conditions pass, the scheduler deducts the daily budget from the wallet balance, records a `PENDING` payout, and fires the B2C API call.
-4. If the API call fails, the deducted balance is **refunded** to the wallet and the payout is marked `FAILED` for auditing.
-5. A subsequent tick picks up any pending payouts to check their transaction status via the gateway's status API.
-
+Every push to the `main` branch triggers an automated GitHub Actions pipeline ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)):
+1. **Automated Testing:** Sets up Python 3.11 and executes the full Pytest test suite.
+2. **Static Syntax Auditing:** Validates JavaScript front-end integrity and syntax.
+3. **E2E Browser Verification:** Installs Playwright and validates full user flows.
+4. **Zero-Downtime EC2 Deployment:** Securely connects to **AWS EC2 via SSH**, pulls updated code, updates dependencies, and restarts `bursar.service`.
 
 ---
 
-## Live Application
+## Contributing
 
-**[bursar.co.ke](https://bursar.co.ke)** — The production deployment of Bursar 2.0.
+Contributions make the open-source community thrive! Please see our [**CONTRIBUTING.md**](CONTRIBUTING.md) for full guidelines on setting up your local environment, coding conventions, and submitting pull requests.
+
+---
+
+## Acknowledgements & Resources
+
+- [Safaricom Daraja API Documentation](https://developer.safaricom.co.ke/)
+- [IntaSend Payments Developer Docs](https://intasend.com/docs/)
+- [FastAPI Framework](https://fastapi.tiangolo.com/)
+- [SQLAlchemy ORM Documentation](https://www.sqlalchemy.org/)
+- [Major League Hacking (MLH) Fellowship](https://fellowship.mlh.io/)
 
 ---
 
 ## License
 
-This project is proprietary. All rights reserved.
+This project is licensed under the [MIT License](LICENSE).
