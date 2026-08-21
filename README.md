@@ -1,4 +1,4 @@
-# Bursar 2.0 — Automated Daily Budget Allowance Platform
+# Bursar 2.0 : Automated Daily Budget Allowance Platform
 
 [![Production Live](https://img.shields.io/badge/Live%20Deployment-bursar.co.ke-success?style=for-the-badge&logo=google-chrome&logoColor=white)](https://bursar.co.ke)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -36,7 +36,7 @@ Most people receive their monthly salary, freelance earnings, or allowance as a 
 ### The Bursar Solution
 Bursar acts as an **automated digital allowance dispenser**:
 1. **Lock the Monthly Budget:** Users deposit funds via M-Pesa STK Push and lock their budget allocations. Once locked, funds cannot be manually withdrawn until the schedule concludes.
-2. **Automated Daily Disbursement:** A high-precision background daemon evaluates user payout schedules and initiates real M-Pesa B2C disbursements to their registered phone number.
+2. **Automated Daily Disbursement:** A background daemon evaluates user payout schedules and initiates real M-Pesa B2C disbursements to their registered phone number.
 3. **Pacing & Accountability:** Users receive only what they planned for each day (e.g., Food, Transport, Airtime), stretching their income across the entire month.
 
 ### Target Audience
@@ -362,7 +362,6 @@ Contributions make the open-source community thrive! Please see our [**CONTRIBUT
 - [IntaSend Payments Developer Docs](https://intasend.com/docs/)
 - [FastAPI Framework](https://fastapi.tiangolo.com/)
 - [SQLAlchemy ORM Documentation](https://www.sqlalchemy.org/)
-- [Major League Hacking (MLH) Fellowship](https://fellowship.mlh.io/)
 
 ---
 
