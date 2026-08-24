@@ -52,49 +52,41 @@ Bursar acts as an **automated digital allowance dispenser**:
 
 The following diagram illustrates the complete end-to-end request flow, automated scheduler processing, payment webhooks, and cloud database persistence:
 
+
 ```mermaid
-flowchart TB
-    subgraph ClientLayer ["Client & Frontend"]
-        Browser["Modern Browser / PWA<br/>(Glassmorphic UI, Vanilla JS, Chart.js)"]
+graph TD
+    Client["Client (Browser / Mobile / cURL)"]
+    
+    subgraph FastAPI Application ["FastAPI Application (src/app/main.py)"]
+        Middleware["Middlewares (CORS, CSRF, Rate Limiting, Security Headers)"]
+        Router["Routers Layer (src/app/api/routers/)"]
+        DI["Dependency Injection (src/app/api/dependencies.py)"]
+        Schemas["Pydantic Schemas (src/app/api/schemas.py)"]
+        Core["Core Config & Security (src/app/core/)"]
     end
 
-    subgraph CloudInfra ["Cloud Infrastructure (AWS EC2 & RDS)"]
-        Nginx["Nginx Reverse Proxy / SSL Termination"]
-        
-        subgraph AppServer ["FastAPI Application (Python 3.11)"]
-            Router["API Routers<br/>(Auth, Budget, Deposits, Payouts, Callbacks)"]
-            SecMid["Security Middleware<br/>(CSRF, Rate Limiting, Security Headers)"]
-            Daemon["Background Scheduler Daemon<br/>(60s Tick, Idempotent Worker)"]
-            RAG["RAG Engine & AI Service<br/>(BM25 Search + Google Gemini)"]
-        end
-
-        subgraph Database ["Relational Persistence (AWS RDS / SQLite)"]
-            DB[("Database Tables:<br/>Users, Settings, Budgets, Deposits,<br/>Payouts, IdempotencyRecords")]
-        end
+    subgraph Business & Services Layer ["Services Layer (src/app/services/)"]
+        Scheduler["Background Scheduler"]
+        PaymentGateway["Payment Gateways (M-Pesa / IntaSend)"]
+        EmailService["Email / OTP Service"]
     end
 
-    subgraph PaymentRails ["External Payment Gateways & APIs"]
-        Daraja["Safaricom Daraja API<br/>(STK Push & B2C Payouts)"]
-        IntaSend["IntaSend Payment Gateway<br/>(STK Push & Webhook Callbacks)"]
-        GeminiAPI["Google Gemini LLM API"]
+    subgraph Data Layer ["Database Layer (src/app/db/)"]
+        DBManager["Database Manager (manager.py)"]
+        ORM["SQLAlchemy Models (models.py)"]
+        Database[("SQLite / PostgreSQL Database")]
     end
 
-    Browser <-->|"HTTPS / HTTP-Only Cookies"| Nginx
-    Nginx <-->|"Proxy Pass"| SecMid
-    SecMid <--> Router
-    Router <-->|"SQLAlchemy ORM"| DB
-    Daemon -->|"Poll Schedules & Atomic Lock"| DB
-    
-    Router -->|"STK Push Request"| IntaSend
-    Router -->|"STK Push Request"| Daraja
-    Daemon -->|"Initiate Daily B2C Payout"| IntaSend
-    Daemon -->|"Initiate Daily B2C Payout"| Daraja
-    
-    IntaSend -->|"Webhook Event (Deposit / Payout Result)"| Router
-    Daraja -->|"Callback Event (STK / B2C Result)"| Router
-    
-    Router <-->|"Knowledge Query"| RAG
-    RAG <-->|"Enriched Context Prompt"| GeminiAPI
+    Client <--> Middleware
+    Middleware <--> Router
+    Router <--> Schemas
+    Router <--> DI
+    DI <--> DBManager
+    Router <--> PaymentGateway
+    Router <--> EmailService
+    Scheduler <--> DBManager
+    DBManager <--> ORM
+    ORM <--> Database
 ```
 
 ---
