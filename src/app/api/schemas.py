@@ -143,5 +143,24 @@ class AdminUserUpdatePayoutPhonePayload(BaseModel):
     phone_number: str = Field(..., description="New Safaricom phone number (e.g. 254712345678 or 0712345678)")
     reason: Optional[str] = Field("Admin manual phone correction", description="Reason for updating payout phone")
 
+class AdminBalanceAdjustmentPayload(BaseModel):
+    user_id: int = Field(..., description="Target customer user ID")
+    amount: int = Field(..., gt=0, description="Positive integer amount to adjust in KES")
+    adjustment_type: str = Field("CREDIT", description="'CREDIT' or 'DEBIT'")
+    reason: str = Field(..., min_length=3, description="Mandatory audit explanation for financial modification")
+    reference_id: Optional[str] = Field(None, description="External banking or M-Pesa transaction reference")
+
+    @field_validator("adjustment_type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        upper = v.strip().upper()
+        if upper not in ("CREDIT", "DEBIT"):
+            raise ValueError("Adjustment type must be either 'CREDIT' or 'DEBIT'")
+        return upper
+
+class AdminLockOverridePayload(BaseModel):
+    reason: str = Field(..., min_length=3, description="Mandatory audit explanation for emergency lock override")
+
+
 
 

@@ -1540,6 +1540,154 @@ class DatabaseManager:
         )
         return True
 
+    def get_admin_wallets_list(
+        self,
+        page: int = 1,
+        limit: int = 20,
+        search: Optional[str] = None,
+        sort_by: str = "balance",
+        order: str = "desc"
+    ) -> tuple[List[Dict[str, Any]], int, int]:
+        """Retrieve paginated user wallets and compute platform-wide total balance."""
+        query = self.session.query(User).join(Wallet, User.id == Wallet.user_id)
+
+        if search:
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                (User.email.ilike(search_pattern)) |
+                (User.phone_number.ilike(search_pattern)) |
+                (User.first_name.ilike(search_pattern)) |
+                (User.last_name.ilike(search_pattern))
+            )
+
+        total = query.count()
+        all_wallets = self.session.query(Wallet).all()
+        total_platform_balance = sum(int(w.available_balance or 0) for w in all_wallets)
+
+        if order == "desc":
+            query = query.order_by(Wallet.available_balance.desc(), User.id.desc())
+        else:
+            query = query.order_by(Wallet.available_balance.asc(), User.id.asc())
+
+        offset = (page - 1) * limit
+        users = query.offset(offset).limit(limit).all()
+
+        results = []
+        for u in users:
+            wallet = self.get_user_wallet(u.id)
+            settings = self.get_settings(u.id, decrypt_secrets=False)
+            results.append({
+                "user_id": u.id,
+                "email": u.email or "",
+                "phone_number": u.phone_number or "",
+                "first_name": getattr(u, "first_name", ""),
+                "last_name": getattr(u, "last_name", ""),
+                "balance": int(wallet.available_balance or 0),
+                "locked_balance": int(wallet.locked_balance or 0),
+                "currency": wallet.currency or "KES",
+                "daily_budget": settings.get("daily_budget", 0),
+                "is_budget_locked": self.is_budget_locked(u.id),
+                "is_deposit_locked": self.is_deposit_locked(u.id)
+            })
+
+        return results, total, total_platform_balance
+
+    def admin_adjust_user_balance(
+        self,
+        user_id: int,
+        amount: int,
+        adjustment_type: str,
+        admin_id: Optional[int],
+        reason: str,
+        reference_id: Optional[str],
+        ip_address: str
+    ) -> tuple[int, int]:
+        """Adjust a user's wallet balance (CREDIT or DEBIT) atomically with audit logging."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found.")
+
+        wallet = self.get_user_wallet(user_id)
+        prev_balance = int(wallet.available_balance or 0)
+        adj_type_clean = adjustment_type.strip().upper()
+
+        if adj_type_clean == "CREDIT":
+            delta = int(amount)
+        elif adj_type_clean == "DEBIT":
+            delta = -int(amount)
+        else:
+            raise ValueError("Adjustment type must be 'CREDIT' or 'DEBIT'.")
+
+        new_balance = prev_balance + delta
+        if new_balance < 0:
+            raise ValueError(f"Insufficient customer funds for debit. Current balance is KES {prev_balance}.")
+
+        wallet.available_balance = new_balance
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.balance = new_balance
+
+        self._commit()
+
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_FINANCIAL_ADJUSTMENT",
+            target_type="User",
+            target_id=user_id,
+            before_state=f'{{"balance": {prev_balance}}}',
+            after_state=f'{{"balance": {new_balance}, "adjustment_type": "{adj_type_clean}", "amount": {amount}, "reference_id": "{reference_id or ""}"}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+
+        if delta > 0:
+            self.resolve_low_balance_warnings(user_id)
+
+        return prev_balance, new_balance
+
+    def admin_override_deposit_lock(self, user_id: int, admin_id: Optional[int], reason: str, ip_address: str) -> bool:
+        """Emergency override to release deposit lock for a user."""
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if not settings:
+            return False
+        before_val = settings.deposit_locked_until or ""
+        settings.deposit_locked_until = ""
+        self._commit()
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_OVERRIDE_DEPOSIT_LOCK",
+            target_type="User",
+            target_id=user_id,
+            before_state=f'{{"deposit_locked_until": "{before_val}"}}',
+            after_state='{"deposit_locked_until": ""}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
+    def admin_override_budget_lock(self, user_id: int, admin_id: Optional[int], reason: str, ip_address: str) -> bool:
+        """Emergency override to release active budget lock for a user."""
+        budget = self.session.query(Budget).filter(Budget.user_id == user_id).first()
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        before_val = (budget.locked_until if budget else "") or (settings.budget_locked_until if settings else "")
+        if budget:
+            budget.locked_until = ""
+        if settings:
+            settings.budget_locked_until = ""
+        self._commit()
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_OVERRIDE_BUDGET_LOCK",
+            target_type="User",
+            target_id=user_id,
+            before_state=f'{{"budget_locked_until": "{before_val}"}}',
+            after_state='{"budget_locked_until": ""}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
+
 
     def close(self) -> None:
         """Close the database connection and dispose of engine if in pytest mode."""
