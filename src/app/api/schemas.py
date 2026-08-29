@@ -122,3 +122,8 @@ class DeactivateRequest(BaseModel):
     password: str
     confirmation: str
 
+class AdminLoginPayload(BaseModel):
+    email: str = Field(..., description="Administrator email address")
+    password: str = Field(..., min_length=1, description="Administrator password")
+
+

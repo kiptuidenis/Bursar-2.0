@@ -12,7 +12,8 @@ session_manager = SessionManager(secret_key=SECRET_KEY, fallback_secret_keys=FAL
 
 
 def get_db() -> Generator[DatabaseManager, None, None]:
-    db = DatabaseManager(DB_FILE)
+    db_file = os.environ.get("DATABASE_URL", "bursar.db")
+    db = DatabaseManager(db_file)
     try:
         yield db
     finally:
