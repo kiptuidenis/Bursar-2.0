@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.dependencies import db_manager, get_db, get_current_user_id
+from app.db.manager import DatabaseManager
 from app.services.scheduler import BackgroundScheduler
 from app.core import config
 
