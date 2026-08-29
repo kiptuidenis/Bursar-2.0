@@ -1271,6 +1271,78 @@ class DatabaseManager:
         records = query.order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc()).offset(offset).limit(limit).all()
         return [_row_to_dict(r) for r in records], total
 
+    def get_admin_overview_metrics(self) -> Dict[str, Any]:
+        """Aggregate executive platform float, user activity, queue sizes, and disbursement velocity."""
+        # 1. Total Wallets & Platform Float
+        wallets = self.session.query(Wallet).all()
+        total_user_balance = sum(int(w.available_balance or 0) for w in wallets)
+        
+        # 2. Total Deposits All Time & Pending Deposits
+        deposits = self.session.query(Deposit).all()
+        total_deposited_all_time = sum(int(d.amount or 0) for d in deposits if d.status == 'COMPLETED')
+        pending_deposits = [d for d in deposits if d.status == 'PENDING']
+        pending_deposits_count = len(pending_deposits)
+        pending_deposits_amount = sum(int(d.amount or 0) for d in pending_deposits)
+
+        # 3. Total Payouts All Time, Failed Queue, and Today's Velocity
+        payouts = self.session.query(Payout).all()
+        completed_payouts = [p for p in payouts if p.status == 'COMPLETED']
+        total_disbursed_all_time = sum(int(p.amount or 0) for p in completed_payouts)
+        
+        failed_payouts = [p for p in payouts if p.status == 'FAILED']
+        failed_payouts_count = len(failed_payouts)
+
+        # Today's date in EAT timezone (UTC+3)
+        eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+        today_str = datetime.datetime.now(eat_tz).strftime("%Y-%m-%d")
+        today_completed = [p for p in completed_payouts if p.payout_date == today_str]
+        today_disbursed_amount = sum(int(p.amount or 0) for p in today_completed)
+        today_disbursed_count = len(today_completed)
+
+        # 4. User Counts and Locks
+        users = self.session.query(User).all()
+        total_users = len(users)
+        
+        active_locked_savers = 0
+        unlocked_users = 0
+        locked_out_users = 0
+        now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        
+        for u in users:
+            is_locked = self.is_budget_locked(u.id) or self.is_deposit_locked(u.id)
+            if is_locked:
+                active_locked_savers += 1
+            else:
+                unlocked_users += 1
+            
+            if (u.failed_login_attempts or 0) >= 5 or (u.account_locked_until and u.account_locked_until > now_str):
+                locked_out_users += 1
+
+        return {
+            "float": {
+                "total_user_balance": total_user_balance,
+                "total_locked_funds": 0,
+                "total_platform_float": total_user_balance,
+                "total_deposited_all_time": total_deposited_all_time,
+                "total_disbursed_all_time": total_disbursed_all_time
+            },
+            "users": {
+                "total_registered_users": total_users,
+                "active_locked_savers": active_locked_savers,
+                "unlocked_users": unlocked_users,
+                "locked_out_users": locked_out_users
+            },
+            "queues": {
+                "failed_payouts_count": failed_payouts_count,
+                "pending_deposits_count": pending_deposits_count,
+                "pending_deposits_amount": pending_deposits_amount
+            },
+            "payout_velocity": {
+                "today_disbursed_amount": today_disbursed_amount,
+                "today_disbursed_count": today_disbursed_count
+            }
+        }
+
     def close(self) -> None:
         """Close the database connection and dispose of engine if in pytest mode."""
         if self._session is not None:
