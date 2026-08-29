@@ -1,23 +1,11 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
 
   test('1. Normal user browser flow attaches X-CSRF-Token header on state-mutating requests', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Verify csrf_token cookie exists in browser context
     const cookies = await page.context().cookies();
@@ -48,19 +36,8 @@ test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
   });
 
   test('2. State-mutating request with session cookie but missing X-CSRF-Token header is rejected (403)', async ({ page }) => {
-    // 1. Signup & login via UI
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Execute raw XHR from inside browser page omitting X-CSRF-Token header
     const responseStatus = await page.evaluate(async () => {
@@ -78,19 +55,8 @@ test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
   });
 
   test('3. State-mutating request with mismatched / forged X-CSRF-Token header is rejected (403)', async ({ page }) => {
-    // 1. Signup & login via UI
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Execute raw XHR with forged X-CSRF-Token header
     const responseStatus = await page.evaluate(async () => {
@@ -109,19 +75,8 @@ test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
   });
 
   test('4. CSRF token cookie is cleared on session logout', async ({ page }) => {
-    // 1. Signup & login via UI
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // Verify token exists
     let cookies = await page.context().cookies();
@@ -131,7 +86,7 @@ test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
     const logoutBtn = page.locator('#sidebar-logout-btn');
     await logoutBtn.click({ force: true });
 
-    await page.waitForURL('**/');
+    await page.waitForURL(url => !url.toString().includes('dashboard'));
     await page.waitForLoadState('networkidle');
 
     // Verify csrf_token cookie is deleted / expired (expires: -1)

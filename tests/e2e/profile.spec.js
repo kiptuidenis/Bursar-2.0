@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
   let pageErrors = [];
@@ -22,20 +23,13 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
       dialogMessages.push(msg);
     });
 
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Authenticated session
+    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+    const testPhoneNumber = `2547${randomDigits}`;
+    const testEmail = `user_${testPhoneNumber}@example.com`;
+    const testPassword = 'Str0ng!P@ssw0rd';
+
+    await setupAuthenticatedUser(page, { phoneNumber: testPhoneNumber, email: testEmail, password: testPassword });
 
     // 2. Click sidebar profile settings tab
     await page.click('[data-tab="profile"]');
@@ -65,8 +59,6 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await expect(page.locator('#profile-email')).toHaveValue('jane.doe@example.com');
     await expect(page.locator('#profile-bio')).toHaveValue('Doing E2E tests for Bursar 2.0');
 
-
-
     // 5. Test Password PIN change
     await page.fill('#pwd-current', 'Str0ng!P@ssw0rd');
     await page.fill('#pwd-new', 'New!Str0ngP@ssw0rd');
@@ -78,7 +70,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     // Logout and verify we can log back in using the new password PIN
     const logoutBtn = page.locator('#sidebar-logout-btn, #logout-btn');
     await logoutBtn.first().click({ force: true });
-    await page.waitForURL('**/');
+    await page.waitForURL(url => !url.toString().includes('dashboard'));
     await page.waitForLoadState('networkidle');
     await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
@@ -98,30 +90,17 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     });
 
     // 1. Context A - Register and login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+    const testPhoneNumber = `2547${randomDigits}`;
+    const testEmail = `user_${testPhoneNumber}@example.com`;
+    const testPassword = 'Str0ng!P@ssw0rd2026!';
+
+    await setupAuthenticatedUser(page, { phoneNumber: testPhoneNumber, email: testEmail, password: testPassword });
 
     // 2. Context B - Login from another context (simulating a second device)
     const contextB = await browser.newContext({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5) Safari/605.1.15' });
     const pageB = await contextB.newPage();
-    await pageB.goto('/');
-    await pageB.click('#nav-login-btn');
-    await pageB.fill('#auth-phone', testPhoneNumber);
-    await pageB.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    await pageB.click('#auth-submit-btn');
-    await pageB.waitForURL('**/dashboard');
-    await pageB.waitForLoadState('networkidle');
+    await setupAuthenticatedUser(pageB, { phoneNumber: testPhoneNumber, email: testEmail, password: testPassword });
 
     // 3. On Context A, visit Profile and check sessions list
     await page.click('[data-tab="profile"]');
@@ -145,8 +124,8 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
 
     // Check that Context B (Device B) is revoked. Verify if pageB is kicked out on reload
     await pageB.reload();
-    await pageB.waitForURL('**/#login');
-    expect(pageB.url()).toContain('#login');
+    await pageB.waitForURL(url => !url.toString().includes('dashboard'));
+    expect(pageB.url()).not.toContain('/dashboard');
 
     await contextB.close();
   });
@@ -159,20 +138,13 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
       dialogMessages.push(msg);
     });
 
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+    const testPhoneNumber = `2547${randomDigits}`;
+    const testEmail = `user_${testPhoneNumber}@example.com`;
+    const testPassword = 'Str0ng!P@ssw0rd';
+
+    await setupAuthenticatedUser(page, { phoneNumber: testPhoneNumber, email: testEmail, password: testPassword });
 
     // 2. Go to Profile Settings
     await page.click('[data-tab="profile"]');

@@ -158,6 +158,52 @@ app.include_router(payouts.router)
 app.include_router(callbacks.router)
 app.include_router(notifications.router)
 
+if config.IS_TEST_MODE:
+    from fastapi import Body, Response
+    @app.post("/api/test/setup-session")
+    def setup_test_session(request: Request, response: Response, payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
+        from app.api.dependencies import session_manager
+        phone = payload.get("phone_number") or f"2547{datetime.datetime.now().microsecond:06d}0"
+        email = payload.get("email") or f"user_{phone}@example.com"
+        password = payload.get("password") or "Str0ng!P@ssw0rd2026!"
+        two_factor = payload.get("two_factor_enabled", False)
+        pwd_hash, salt = db._hash_password(password)
+        try:
+            user_id = db.create_user_email(email, pwd_hash, salt, payout_phone=phone, phone_number=phone)
+            user = db.session.query(User).filter(User.id == user_id).first()
+            if user:
+                user.two_factor_enabled = two_factor
+                db._commit()
+        except Exception:
+            user = db.get_user_by_email(email)
+            user_id = user.id if user else 1
+            
+        user_agent = request.headers.get("user-agent", "Unknown Device")
+        ip_address = request.client.host if request.client else "127.0.0.1"
+        token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent=user_agent, ip_address=ip_address)
+        
+        # Set session and CSRF cookies
+        response.set_cookie(
+            key="session_token",
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=86400,
+            path="/"
+        )
+        from app.core.csrf import generate_csrf_token
+        new_csrf = generate_csrf_token()
+        response.set_cookie(
+            key="csrf_token",
+            value=new_csrf,
+            httponly=False,
+            secure=False,
+            samesite="lax",
+            path="/"
+        )
+        return {"status": "success", "user_id": user_id, "session_token": token}
+
 @app.get("/api/diagnostics")
 @limiter.limit("10/minute")
 async def get_diagnostics(request: Request, user_id: int = Depends(get_current_user_id)):

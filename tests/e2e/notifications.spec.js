@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Phase 4: In-App User Notification System E2E Tests', () => {
   let pageErrors = [];
@@ -12,22 +13,7 @@ test.describe('Phase 4: In-App User Notification System E2E Tests', () => {
   });
 
   test('Should support topbar drawer toggle and sidebar flat tab navigation for notifications', async ({ page }) => {
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    await setupAuthenticatedUser(page);
 
     // 1. Verify topbar notification bell button opens slide-over drawer
     const bellBtn = page.locator('#nav-notifications-btn');

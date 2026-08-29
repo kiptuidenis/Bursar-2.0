@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   let pageErrors = [];
@@ -13,34 +14,13 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   });
 
   test('Should perform Signup, auto-login, verify dashboard buttons, and logout without console errors', async ({ page }) => {
-    // 1. Visit signup page directly
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
-    // 2. Generate a random Safaricom phone number to prevent "number already registered" errors
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    
-    // 3. Fill registration details
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-
-    // 4. Click Register button (triggers submit, succeeds, auto-submits login, and redirects)
-    await page.click('#auth-submit-btn');
-
-    // 5. Wait for the URL to change to the dashboard
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
-    expect(page.url()).toContain('/dashboard');
-
-    // 6. Assert that NO runtime JS console TypeErrors occurred during page load / setup
+    // 2. Assert that NO runtime JS console TypeErrors occurred during page load / setup
     expect(pageErrors).toHaveLength(0);
 
-    // 7. Verify "Deposit Funds" button works (opens modal)
+    // 3. Verify "Deposit Funds" button works (opens modal)
     await page.click('#debit-card-container');
     await page.waitForTimeout(600); // Wait for 3D flip transition to finish
     await page.click('#open-deposit-btn');
@@ -54,9 +34,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('#debit-card-container');
     await page.waitForTimeout(600); // Wait for 3D flip back transition to finish
 
-
-
-    // 8. Verify "Create" (Budget Creator Modal) button works (opens modal)
+    // 4. Verify "Create" (Budget Creator Modal) button works (opens modal)
     await page.click('#open-budget-designer-btn');
     await expect(page.locator('#budget-designer-modal')).toHaveClass(/active/);
 
@@ -75,7 +53,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('#close-budget-designer-btn');
     await expect(page.locator('#budget-designer-modal')).not.toHaveClass(/active/);
 
-    // 9. Verify "Settings" Toggle drawer works (opens settings drawer)
+    // 5. Verify "Settings" Toggle drawer works (opens settings drawer)
     await page.click('#toggle-settings-btn');
     await expect(page.locator('#settings-drawer')).toHaveClass(/active/);
 
@@ -83,7 +61,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('#close-settings-btn');
     await expect(page.locator('#settings-drawer')).not.toHaveClass(/active/);
 
-    // 10. Verify "Logout" button works (redirects back to homepage)
+    // 6. Verify "Logout" button works (redirects back to homepage)
     await page.click('#logout-btn');
     await page.waitForURL('**/');
     expect(page.url()).not.toContain('/dashboard');
@@ -93,20 +71,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   });
 
   test('Should toggle sidebar collapse state and switch tabs successfully', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Verify sidebar is visible and collapsed initially by default
     const sidebar = page.locator('#sidebar-nav');
@@ -144,20 +110,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   });
 
   test('Should verify sidebar deposit and logout buttons work correctly when sidebar is expanded', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Expand the sidebar to make buttons interactive/visible
     const sidebar = page.locator('#sidebar-nav');
@@ -200,20 +154,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   });
 
   test('Should show error alert and expand schedule if trying to lock budget without schedule dates', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Open Budget Creator Modal
     await page.click('#open-budget-designer-btn');
@@ -256,20 +198,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
       await dialog.accept();
     });
 
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // Verify initial dashboard breakdown is empty
     await expect(page.locator('#budget-breakdown-list')).toContainText('No categories configured');
@@ -332,20 +262,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   });
 
   test('Run Payout button should NOT be visible on the debit card and should be hidden by default in the Next Payout tile', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Verify debit card does NOT contain any trigger payout button
     await expect(page.locator('#debit-card-container #trigger-payout-btn')).toHaveCount(0);
@@ -355,20 +273,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
   });
 
   test('Run Payout button should appear in the Next Payout tile after a failed payout', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Inject a FAILED payout record for today directly via the API
     const cookies = await page.context().cookies();
@@ -412,20 +318,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     const pageErrors = [];
     page.on('pageerror', err => pageErrors.push(err.message));
 
-    // 1. Signup & auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    const { phone: testPhoneNumber } = await setupAuthenticatedUser(page);
 
     // 2. Verify profile mini-card exists on the dashboard
     await expect(page.locator('#dashboard-profile-card')).toBeVisible();

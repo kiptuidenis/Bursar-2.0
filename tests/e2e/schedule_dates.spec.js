@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
   let pageErrors = [];
@@ -22,24 +23,8 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
       }
     });
 
-    // 1. Visit signup page and register a fresh user
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
-    expect(page.url()).toContain('/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Open Budget Designer Modal
     await page.click('#open-budget-designer-btn');

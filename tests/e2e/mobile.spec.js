@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
   let pageErrors = [];
@@ -13,24 +14,8 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
   test.use({ viewport: { width: 375, height: 667 } }); // Target standard mobile size (iPhone SE)
 
   test('Should support responsive sidebar toggling and stacked profile settings grid', async ({ page }) => {
-    // 1. Visit landing page, sign up to create a session and auto-login
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    await page.waitForTimeout(500); // Wait for modal slide/scale animations to settle
-    
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn', { force: true });
-    
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Verify sidebar toggle button (hamburger menu) is visible on mobile
     const toggleBtn = page.locator('#sidebar-toggle-btn');
@@ -99,18 +84,8 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     await expect(phoneInput).toHaveAttribute('inputmode', 'tel');
     await expect(pwdInput).toHaveAttribute('type', 'password');
 
-    // 4. Log in
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await phoneInput.fill(testPhoneNumber);
-    await pwdInput.fill('Str0ng!P@ssw0rd');
-    if (await page.locator('#auth-confirm-password').isVisible()) {
-      await page.fill('#auth-confirm-password', 'Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn', { force: true });
-    
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 4. Log in via session setup
+    await setupAuthenticatedUser(page);
 
     // 5. Verify email field on Profile Tab
     const toggleBtn = page.locator('#sidebar-toggle-btn');
@@ -136,23 +111,8 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
   });
 
   test('Should verify mobile table-to-card layout rendering (Phase 3)', async ({ page }) => {
-    // 1. Visit page and log in
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    await page.waitForTimeout(500);
-
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn', { force: true });
-    
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Add a session by navigating to profile settings
     const toggleBtn = page.locator('#sidebar-toggle-btn');
@@ -185,30 +145,14 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
   });
 
   test('Should verify mobile quick deposit presets autofill (Phase 4)', async ({ page }) => {
-    // 1. Visit page and log in
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    await page.waitForTimeout(500);
-
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn', { force: true });
-    
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Open Deposit Modal
     await page.click('#debit-card-container');
     await page.waitForTimeout(600); // Wait for 3D flip transition to finish
     await page.click('#open-deposit-btn');
     await expect(page.locator('#deposit-modal')).toHaveClass(/active/);
-
 
     // 3. Verify presets are visible
     const preset1k = page.locator('.quick-amt-btn[data-amount="1000"]');

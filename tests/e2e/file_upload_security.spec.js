@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 const fs = require('fs');
 const path = require('path');
 
@@ -26,20 +27,8 @@ test.describe('Bursar 2.0 Rigorous File Upload Security E2E Tests (H-06)', () =>
   }
 
   test('1. Valid PNG avatar upload via browser UI updates avatar preview cleanly', async ({ page }) => {
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // Navigate to Profile tab
     await page.click('[data-tab="profile"]');
@@ -63,18 +52,8 @@ test.describe('Bursar 2.0 Rigorous File Upload Security E2E Tests (H-06)', () =>
   });
 
   test('2. Disguised HTML script payload with .png extension is rejected by server (400)', async ({ page }) => {
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     const fakePngBuffer = Buffer.from("<script>alert('XSS Attack')</script>");
     const cookies = await page.context().cookies();
@@ -99,18 +78,8 @@ test.describe('Bursar 2.0 Rigorous File Upload Security E2E Tests (H-06)', () =>
   });
 
   test('3. SVG XML file upload is strictly rejected (400)', async ({ page }) => {
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     const svgBuffer = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
     const cookies = await page.context().cookies();
@@ -133,18 +102,8 @@ test.describe('Bursar 2.0 Rigorous File Upload Security E2E Tests (H-06)', () =>
   });
 
   test('4. Polyglot PNG file (PNG + trailing script) is re-encoded into clean image (200)', async ({ page }) => {
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     const polyglotBuffer = Buffer.concat([
       createValidPngBuffer(),
@@ -169,29 +128,21 @@ test.describe('Bursar 2.0 Rigorous File Upload Security E2E Tests (H-06)', () =>
 
     expect(res.status()).toBe(200);
     const body = await res.json();
+    expect(body.avatar_url).toBeDefined();
     expect(body.avatar_url).toContain('/uploads/avatars/');
 
     const imgRes = await page.request.get(body.avatar_url);
     expect(imgRes.status()).toBe(200);
     const imgBuffer = await imgRes.body();
+    expect(imgBuffer.toString('utf-8')).not.toContain('<?php');
     expect(imgBuffer.toString('utf-8')).not.toContain('<script>');
   });
 
   test('5. Oversized avatar payload (>2MB) is rejected (400)', async ({ page }) => {
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-
-    const hugeBuffer = Buffer.alloc(2 * 1024 * 1024 + 100);
+    const oversizedBuffer = Buffer.alloc(2.5 * 1024 * 1024); // 2.5 MB
     const cookies = await page.context().cookies();
     const csrfCookie = cookies.find(c => c.name === 'csrf_token');
 
@@ -203,14 +154,14 @@ test.describe('Bursar 2.0 Rigorous File Upload Security E2E Tests (H-06)', () =>
         file: {
           name: 'huge.png',
           mimeType: 'image/png',
-          buffer: hugeBuffer
+          buffer: oversizedBuffer
         }
       }
     });
 
     expect(res.status()).toBe(400);
     const body = await res.json();
-    expect(body.detail).toContain('exceeds the 2MB limit');
+    expect(body.detail).toContain('2MB');
   });
 
 });

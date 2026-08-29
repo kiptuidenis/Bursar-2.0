@@ -10,7 +10,7 @@ const pythonCmd = hasVenv
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
-  timeout: 120000, // 120 seconds test execution timeout
+  timeout: 30000, // 30 seconds test execution timeout
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

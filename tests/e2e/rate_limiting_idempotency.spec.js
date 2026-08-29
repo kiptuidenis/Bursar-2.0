@@ -1,27 +1,13 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () => {
   
   test('Should attach Idempotency-Key header on deposit initiation request', async ({ page }) => {
-    // 1. Visit signup & complete user registration
-    await page.goto('/#signup');
-    await page.waitForLoadState('networkidle');
+    page.on('dialog', async dialog => await dialog.accept());
 
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254711${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    // Wait for redirect to dashboard
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
-    expect(page.url()).toContain('/dashboard');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Intercept the deposit initiate fetch request
     let capturedIdempotencyHeader = null;
@@ -42,10 +28,9 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     await page.click('#deposit-modal form button[type="submit"]');
 
     // Wait for request to complete
-    await page.waitForTimeout(1000);
+    await expect.poll(() => capturedIdempotencyHeader).not.toBeNull();
 
     // CRITICAL E2E IDEMPOTENCY ASSERTION
-    expect(capturedIdempotencyHeader).not.toBeNull();
     expect(capturedIdempotencyHeader.length).toBeGreaterThan(10);
   });
 
@@ -234,20 +219,8 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
   });
 
   test('Should enforce settings response credential masking and secret preservation in browser (H-01 & H-02)', async ({ page }) => {
-    // 1. Signup user
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254788${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. POST settings with sensitive credentials from page context
     const saveResponse = await page.evaluate(async () => {
@@ -283,19 +256,8 @@ test.describe('Bursar 2.0 Rate Limiting & Financial Idempotency E2E Tests', () =
     });
     expect(unauthStatus).toBe(401);
 
-    // 2. Signup / Login user
-    await page.click('#nav-signup-btn');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254799${randomDigits}`;
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 2. Authenticated session
+    await setupAuthenticatedUser(page);
 
     // 3. Authenticated call returns 200 with sanitized metadata
     const authData = await page.evaluate(async () => {

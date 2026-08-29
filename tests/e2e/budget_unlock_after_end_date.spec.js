@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
   let pageErrors = [];
@@ -12,36 +13,26 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
   });
 
   test('Should allow locking budget during active schedule and unlock when schedule ends', async ({ page }) => {
-    // 1. Register dialog handler first
+    // 1. Register dialog handler first to auto-accept confirm & alert dialogs
     page.on('dialog', async dialog => {
-      if (dialog.type() === 'confirm') await dialog.accept();
-      else await dialog.dismiss();
+      await dialog.accept();
     });
 
-    await page.goto('/');
-    await page.click('#nav-signup-btn');
-
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    await setupAuthenticatedUser(page);
 
     // 2. Add budget item & lock budget with future dates
     await page.click('#open-budget-designer-btn');
-    await page.waitForTimeout(300);
+    await expect(page.locator('#budget-designer-modal')).toHaveClass(/active/);
+
     await page.fill('#new-category-name', 'Food');
     await page.fill('#new-category-amount', '200');
-    await page.click('#add-category-form button[type="submit"]');
-    await page.waitForTimeout(500);
+
+    await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/budget/items') && res.request().method() === 'POST'),
+      page.click('#add-category-form button[type="submit"]')
+    ]);
+
+    await expect(page.locator('#designer-category-list')).toContainText('Food');
 
     // Expand schedule dates and lock with dates
     await page.evaluate(() => {
@@ -61,8 +52,11 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
     await page.fill('#lock-start-date', future3Str);
     await page.fill('#lock-end-date', future10Str);
 
-    await page.click('#lock-budget-btn');
-    await page.waitForTimeout(1000);
+    const [lockRes] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/budget/lock') && res.request().method() === 'POST'),
+      page.click('#lock-budget-btn')
+    ]);
+    expect(lockRes.status()).toBe(200);
 
     // 3. Verify budget lock badge is visible on the dashboard card
     const lockBadge = page.locator('#budget-lock-badge');
@@ -70,7 +64,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
 
     // 4. Re-open budget modal and verify lock notice is visible inside modal
     await page.click('#open-budget-designer-btn');
-    await page.waitForTimeout(300);
+    await expect(page.locator('#budget-designer-modal')).toHaveClass(/active/);
 
     const lockNotice = page.locator('#budget-creator-lock-notice');
     await expect(lockNotice).toBeVisible();

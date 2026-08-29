@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Bursar 2.0 Password Visibility Toggle E2E Tests', () => {
 
@@ -41,21 +42,8 @@ test.describe('Bursar 2.0 Password Visibility Toggle E2E Tests', () => {
   });
 
   test('Should toggle current, new, and confirm password visibility on profile settings page', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Navigate to Profile Settings tab
     await page.click('[data-tab="profile"]');
@@ -91,21 +79,8 @@ test.describe('Bursar 2.0 Password Visibility Toggle E2E Tests', () => {
   });
 
   test('Should toggle password visibility in account deactivation modal', async ({ page }) => {
-    // 1. Signup & auto-login
-    await page.goto('/#signup');
-    const randomDigits = Math.floor(100000 + Math.random() * 900000);
-    const testPhoneNumber = `254700${randomDigits}`;
-    
-    await page.fill('#auth-phone', testPhoneNumber);
-    await page.fill('#auth-password', 'Str0ng!P@ssw0rd');
-    const confirmInput = page.locator('#auth-confirm-password');
-    if (await confirmInput.count() > 0) {
-      await confirmInput.fill('Str0ng!P@ssw0rd');
-    }
-    await page.click('#auth-submit-btn');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
 
     // 2. Open Profile Settings and Deactivation modal
     await page.click('[data-tab="profile"]');
