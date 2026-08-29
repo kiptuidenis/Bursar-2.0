@@ -8,9 +8,11 @@ from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
 from sqlalchemy.orm import sessionmaker
-from app.db.models import Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session, IdempotencyRecord, Notification, OtpCode, Wallet, Budget
-
-logger = logging.getLogger(__name__)
+from app.db.models import (
+    Base, User, Settings, Payout, Log, BudgetItem, Deposit, Session,
+    IdempotencyRecord, Notification, OtpCode, Wallet, Budget,
+    AdminUser, AdminSession, AdminAuditLog
+)
 
 
 
@@ -1077,6 +1079,197 @@ class DatabaseManager:
             {Notification.is_read: True}, synchronize_session=False
         )
         self._commit()
+
+    # Admin Management Operations
+    def create_admin_user(self, email: str, password_hash: str, salt: str = "argon2", role: str = "support") -> int:
+        """Register a new administrator account with a specific RBAC role."""
+        email_clean = email.strip().lower()
+        existing = self.session.query(AdminUser).filter(AdminUser.email == email_clean).first()
+        if existing:
+            raise ValueError(f"An admin account with email '{email_clean}' already exists.")
+
+        admin = AdminUser(
+            email=email_clean,
+            password_hash=password_hash,
+            salt=salt,
+            role=role,
+            is_active=True,
+            failed_login_attempts=0,
+            account_locked_until=""
+        )
+        self.session.add(admin)
+        self._commit()
+        return admin.id
+
+    def get_admin_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Fetch admin record by email address."""
+        if not email:
+            return None
+        admin = self.session.query(AdminUser).filter(AdminUser.email == email.strip().lower()).first()
+        return _row_to_dict(admin) if admin else None
+
+    def get_admin_by_id(self, admin_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch admin record by ID."""
+        admin = self.session.query(AdminUser).filter(AdminUser.id == admin_id).first()
+        return _row_to_dict(admin) if admin else None
+
+    def get_all_admins(self) -> List[Dict[str, Any]]:
+        """Fetch all administrator profiles."""
+        admins = self.session.query(AdminUser).order_by(AdminUser.id.asc()).all()
+        return [_row_to_dict(a) for a in admins]
+
+    def update_admin_role(self, admin_id: int, role: str) -> bool:
+        """Update the RBAC role for an administrator."""
+        admin = self.session.query(AdminUser).filter(AdminUser.id == admin_id).first()
+        if not admin:
+            return False
+        admin.role = role
+        self._commit()
+        return True
+
+    def set_admin_active_status(self, admin_id: int, is_active: bool) -> bool:
+        """Enable or disable an administrator account."""
+        admin = self.session.query(AdminUser).filter(AdminUser.id == admin_id).first()
+        if not admin:
+            return False
+        admin.is_active = is_active
+        self._commit()
+        return True
+
+    def is_admin_account_locked(self, email: str) -> tuple[bool, int]:
+        """Check if an admin account is locked due to failed attempts. Returns (is_locked, remaining_seconds)."""
+        admin = self.session.query(AdminUser).filter(AdminUser.email == email.strip().lower()).first()
+        if not admin or not admin.account_locked_until:
+            return False, 0
+
+        try:
+            locked_until_dt = datetime.datetime.strptime(admin.account_locked_until, "%Y-%m-%d %H:%M:%S")
+            now_dt = datetime.datetime.utcnow()
+            if now_dt < locked_until_dt:
+                remaining = int((locked_until_dt - now_dt).total_seconds())
+                return True, max(remaining, 1)
+            else:
+                admin.account_locked_until = ""
+                admin.failed_login_attempts = 0
+                self._commit()
+                return False, 0
+        except Exception:
+            return False, 0
+
+    def record_failed_admin_login(self, email: str) -> tuple[int, bool]:
+        """Increment failed login attempts for admin. Locks for 15 mins after 5 attempts."""
+        admin = self.session.query(AdminUser).filter(AdminUser.email == email.strip().lower()).first()
+        if not admin:
+            return 0, False
+
+        current = (admin.failed_login_attempts or 0) + 1
+        admin.failed_login_attempts = current
+        is_locked = False
+        if current >= 5:
+            is_locked = True
+            lock_duration = datetime.timedelta(minutes=15)
+            admin.account_locked_until = (datetime.datetime.utcnow() + lock_duration).strftime("%Y-%m-%d %H:%M:%S")
+
+        self._commit()
+        return current, is_locked
+
+    def reset_failed_admin_login(self, email: str) -> None:
+        """Reset failed login attempts and clear lockout for admin."""
+        admin = self.session.query(AdminUser).filter(AdminUser.email == email.strip().lower()).first()
+        if admin and (admin.failed_login_attempts > 0 or admin.account_locked_until):
+            admin.failed_login_attempts = 0
+            admin.account_locked_until = ""
+            self._commit()
+
+    def create_admin_session(self, admin_id: int, token: str, ip_address: str, user_agent: str, expires_at: int) -> None:
+        """Insert an administrative session record."""
+        current_time = int(time.time())
+        session = AdminSession(
+            admin_id=admin_id,
+            session_token=token,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            expires_at=expires_at,
+            last_activity=current_time
+        )
+        self.session.add(session)
+        self._commit()
+
+    def verify_admin_session(self, token: str, inactivity_timeout_seconds: int = 900) -> Optional[int]:
+        """Verify admin session token exists, is not expired, and passes 15-minute inactivity check."""
+        now = int(time.time())
+        session = self.session.query(AdminSession).filter(
+            AdminSession.session_token == token,
+            AdminSession.expires_at > now
+        ).first()
+        if not session:
+            return None
+
+        admin_id = session.admin_id
+        last_act = session.last_activity if session.last_activity is not None else (session.expires_at - 86400)
+
+        # Inactivity check (default 15 minutes = 900 seconds)
+        if now - last_act > inactivity_timeout_seconds:
+            self.session.delete(session)
+            self._commit()
+            return None
+
+        session.last_activity = now
+        self._commit()
+        return admin_id
+
+    def revoke_admin_session(self, token: str) -> bool:
+        """Revoke a specific admin session token."""
+        session = self.session.query(AdminSession).filter(AdminSession.session_token == token).first()
+        if session:
+            self.session.delete(session)
+            self._commit()
+            return True
+        return False
+
+    def create_admin_audit_log(
+        self,
+        admin_id: Optional[int],
+        action: str,
+        target_type: str = "",
+        target_id: Optional[int] = None,
+        before_state: str = "",
+        after_state: str = "",
+        reason: str = "",
+        ip_address: str = ""
+    ) -> int:
+        """Create an immutable admin audit trail entry."""
+        log_entry = AdminAuditLog(
+            admin_id=admin_id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            before_state=before_state,
+            after_state=after_state,
+            reason=reason,
+            ip_address=ip_address
+        )
+        self.session.add(log_entry)
+        self._commit()
+        return log_entry.id
+
+    def get_admin_audit_logs(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        admin_id: Optional[int] = None,
+        action: Optional[str] = None
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Retrieve paginated admin audit trail entries with total count."""
+        query = self.session.query(AdminAuditLog)
+        if admin_id is not None:
+            query = query.filter(AdminAuditLog.admin_id == admin_id)
+        if action:
+            query = query.filter(AdminAuditLog.action == action)
+
+        total = query.count()
+        records = query.order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc()).offset(offset).limit(limit).all()
+        return [_row_to_dict(r) for r in records], total
 
     def close(self) -> None:
         """Close the database connection and dispose of engine if in pytest mode."""
