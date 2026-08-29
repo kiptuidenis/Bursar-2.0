@@ -84,3 +84,26 @@ def test_budget_unlocked_after_end_date_passed(client_and_db):
     add_res = client.post("/api/budget/items", json={"category": "Entertainment", "amount": 150.0})
     assert add_res.status_code == 200
     assert add_res.json()["status"] == "success"
+
+def test_budget_unlock_with_settings_table_fallback(client_and_db):
+    client, db, user_id = client_and_db
+    db.add_or_update_budget_item(user_id, "Food", 200.0)
+    db.lock_budget(user_id)
+    
+    # Simulate legacy state: settings table has expired end_date but budget table is empty
+    from app.db.models import Settings, Budget
+    today_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    past_end = (today_dt - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    settings = db.session.query(Settings).filter(Settings.user_id == user_id).first()
+    if settings:
+        settings.end_date = past_end
+        
+    budget = db.session.query(Budget).filter(Budget.user_id == user_id).first()
+    if budget:
+        budget.end_date = ""
+        
+    db._commit()
+    
+    # Should resolve end_date from Settings table and unlock
+    assert db.is_budget_locked(user_id) is False

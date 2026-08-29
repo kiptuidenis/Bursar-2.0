@@ -681,9 +681,9 @@ class DatabaseManager:
         data["balance"] = wallet.available_balance
         data["daily_budget"] = budget.daily_budget
         data["payout_time"] = budget.payout_time
-        data["start_date"] = budget.start_date
-        data["end_date"] = budget.end_date
-        data["budget_locked_until"] = budget.locked_until
+        data["start_date"] = budget.start_date or (settings.start_date if settings else "")
+        data["end_date"] = budget.end_date or (settings.end_date if settings else "")
+        data["budget_locked_until"] = budget.locked_until or (settings.budget_locked_until if settings else "")
         data["is_budget_locked"] = self.is_budget_locked(user_id)
         
         if decrypt_secrets and data:
@@ -781,21 +781,24 @@ class DatabaseManager:
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if user's budget allocations are locked for the current calendar month or active schedule."""
         budget = self.get_user_budget(user_id)
-        if not budget:
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if not budget and not settings:
             return False
-            
+
         import datetime
-        ref_date = today or datetime.date.today()
+        ref_date = today or datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
         ref_str = ref_date.strftime("%Y-%m-%d")
         
-        # If an explicit payout schedule end_date exists and ref_str > end_date, budget schedule has ended & budget is unlocked
-        end_date = budget.end_date
+        # 1. Check end_date across both Budget and Settings tables
+        end_date = (budget.end_date if budget and budget.end_date else "") or (settings.end_date if settings and settings.end_date else "")
         if end_date and ref_str > end_date:
             return False
 
-        locked_until = budget.locked_until
+        # 2. Check locked_until across both Budget and Settings tables
+        locked_until = (budget.locked_until if budget and budget.locked_until else "") or (settings.budget_locked_until if settings and settings.budget_locked_until else "")
         if not locked_until:
             return False
+            
         try:
             lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
             return ref_date <= lock_date
