@@ -126,4 +126,22 @@ class AdminLoginPayload(BaseModel):
     email: str = Field(..., description="Administrator email address")
     password: str = Field(..., min_length=1, description="Administrator password")
 
+class AdminUserUnlockPayload(BaseModel):
+    reason: Optional[str] = Field("Admin manual account unlock", description="Reason for unlocking account")
+
+class AdminUser2FATogglePayload(BaseModel):
+    enabled: bool = Field(..., description="Enable (true) or disable (false) 2FA")
+    reason: Optional[str] = Field("Admin 2FA state modification", description="Reason for changing 2FA state")
+
+class AdminUserRevokeSessionsPayload(BaseModel):
+    reason: Optional[str] = Field("Admin emergency session revocation", description="Reason for session revocation")
+
+class AdminUserImpersonatePayload(BaseModel):
+    reason: Optional[str] = Field("Customer support troubleshooting", description="Reason for impersonating user")
+
+class AdminUserUpdatePayoutPhonePayload(BaseModel):
+    phone_number: str = Field(..., description="New Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    reason: Optional[str] = Field("Admin manual phone correction", description="Reason for updating payout phone")
+
+
 

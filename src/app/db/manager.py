@@ -1343,6 +1343,204 @@ class DatabaseManager:
             }
         }
 
+    def get_admin_users_list(
+        self,
+        page: int = 1,
+        limit: int = 20,
+        search: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        sort_by: str = "created_at",
+        order: str = "desc"
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Fetch paginated users with financial health, locks, and search capabilities."""
+        query = self.session.query(User)
+
+        if search:
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                (User.email.ilike(search_pattern)) |
+                (User.phone_number.ilike(search_pattern)) |
+                (User.payout_phone_number.ilike(search_pattern)) |
+                (User.first_name.ilike(search_pattern)) |
+                (User.last_name.ilike(search_pattern))
+            )
+
+        now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        if status_filter == "locked_out":
+            query = query.filter((User.failed_login_attempts >= 5) | (User.account_locked_until > now_str))
+
+        total = query.count()
+        offset = (page - 1) * limit
+        users = query.order_by(User.created_at.desc(), User.id.desc()).offset(offset).limit(limit).all()
+
+        results = []
+        for u in users:
+            settings = self.get_settings(u.id, decrypt_secrets=False)
+            is_locked_out = (u.failed_login_attempts or 0) >= 5 or bool(u.account_locked_until and u.account_locked_until > now_str)
+            is_b_locked = self.is_budget_locked(u.id)
+            is_d_locked = self.is_deposit_locked(u.id)
+
+            if status_filter == "locked" and not (is_b_locked or is_d_locked):
+                continue
+            if status_filter == "active" and (is_locked_out or not u.email_verified):
+                continue
+
+            prof = self.get_profile(u.id)
+            results.append({
+                "id": u.id,
+                "email": u.email or "",
+                "phone_number": u.phone_number or "",
+                "payout_phone_number": u.payout_phone_number or u.phone_number or "",
+                "first_name": prof.get("first_name", "") if prof else "",
+                "last_name": prof.get("last_name", "") if prof else "",
+                "balance": settings.get("balance", 0),
+                "daily_budget": settings.get("daily_budget", 0),
+                "is_budget_locked": is_b_locked,
+                "is_deposit_locked": is_d_locked,
+                "failed_login_attempts": u.failed_login_attempts or 0,
+                "is_locked_out": is_locked_out,
+                "two_factor_enabled": getattr(u, "two_factor_enabled", False),
+                "created_at": getattr(u, "created_at", "")
+            })
+
+        return results, total
+
+    def get_user_360(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Retrieve full 360° user overview including profile, wallet, deposits, payouts, and sessions."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+
+        profile = self.get_profile(user_id) or {}
+        settings = self.get_settings(user_id, decrypt_secrets=False) or {}
+        draft_items = self.get_budget_items(user_id)
+        
+        deposits = self.session.query(Deposit).filter(Deposit.user_id == user_id).order_by(Deposit.created_at.desc(), Deposit.id.desc()).limit(10).all()
+        payouts = self.session.query(Payout).filter(Payout.user_id == user_id).order_by(Payout.created_at.desc(), Payout.id.desc()).limit(10).all()
+        
+        active_sessions = self.session.query(Session).filter(Session.user_id == user_id, Session.expires_at > int(time.time())).count()
+        events = self.session.query(Log).filter(Log.user_id == user_id).order_by(Log.created_at.desc(), Log.id.desc()).limit(10).all()
+
+        return {
+            "profile": profile,
+            "wallet": {
+                "balance": settings.get("balance", 0),
+                "daily_budget": settings.get("daily_budget", 0),
+                "payout_time": settings.get("payout_time", "12:00"),
+                "start_date": settings.get("start_date", ""),
+                "end_date": settings.get("end_date", ""),
+                "budget_locked_until": settings.get("budget_locked_until", ""),
+                "deposit_locked_until": settings.get("deposit_locked_until", ""),
+                "is_budget_locked": settings.get("is_budget_locked", False),
+                "is_deposit_locked": self.is_deposit_locked(user_id)
+            },
+            "draft_items": draft_items,
+            "deposits": [_row_to_dict(d) for d in deposits],
+            "payouts": [_row_to_dict(p) for p in payouts],
+            "active_sessions_count": active_sessions,
+            "security_logs": [_row_to_dict(e) for e in events]
+        }
+
+    def admin_unlock_user(self, user_id: int, admin_id: Optional[int], reason: str, ip_address: str) -> bool:
+        """Unlock a customer account locked due to consecutive failed attempts."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+        user.failed_login_attempts = 0
+        user.account_locked_until = ""
+        self._commit()
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_USER_UNLOCK",
+            target_type="User",
+            target_id=user_id,
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
+    def admin_toggle_user_2fa(self, user_id: int, enabled: bool, admin_id: Optional[int], reason: str, ip_address: str) -> bool:
+        """Toggle 2FA requirement for a customer."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+        user.two_factor_enabled = enabled
+        self._commit()
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_USER_2FA_TOGGLE",
+            target_type="User",
+            target_id=user_id,
+            after_state=f'{{"two_factor_enabled": {str(enabled).lower()}}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
+    def admin_revoke_all_user_sessions(self, user_id: int, admin_id: Optional[int], reason: str, ip_address: str) -> int:
+        """Revoke all active sessions for a customer."""
+        count = self.session.query(Session).filter(Session.user_id == user_id).delete(synchronize_session=False)
+        self._commit()
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_USER_REVOKE_SESSIONS",
+            target_type="User",
+            target_id=user_id,
+            reason=reason,
+            ip_address=ip_address
+        )
+        return count
+
+    def admin_impersonate_user(self, user_id: int, admin_id: Optional[int], reason: str, ip_address: str) -> tuple[str, Dict[str, Any]]:
+        """Issue a temporary read-only customer session for support assistance."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("User not found")
+        token = f"imp_{secrets.token_urlsafe(32)}"
+        expires_at = int(time.time()) + 3600
+        self.create_session_db(
+            user_id=user_id,
+            token=token,
+            user_agent="Support Impersonation",
+            ip_address=ip_address,
+            expires_at=expires_at
+        )
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_USER_IMPERSONATE",
+            target_type="User",
+            target_id=user_id,
+            reason=reason,
+            ip_address=ip_address
+        )
+        return token, _row_to_dict(user)
+
+    def admin_update_user_payout_phone(self, user_id: int, phone_number: str, admin_id: Optional[int], reason: str, ip_address: str) -> bool:
+        """Update a customer's payout phone number with compliance audit logging."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+        before_phone = user.payout_phone_number or user.phone_number or ""
+        user.payout_phone_number = phone_number
+        user.phone_number = phone_number
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.phone_number = phone_number
+        self._commit()
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_USER_UPDATE_PAYOUT_PHONE",
+            target_type="User",
+            target_id=user_id,
+            before_state=f'{{"phone_number": "{before_phone}"}}',
+            after_state=f'{{"phone_number": "{phone_number}"}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
+
     def close(self) -> None:
         """Close the database connection and dispose of engine if in pytest mode."""
         if self._session is not None:
