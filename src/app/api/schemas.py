@@ -161,6 +161,11 @@ class AdminBalanceAdjustmentPayload(BaseModel):
 class AdminLockOverridePayload(BaseModel):
     reason: str = Field(..., min_length=3, description="Mandatory audit explanation for emergency lock override")
 
+class AdminDepositManualSettlePayload(BaseModel):
+    mpesa_receipt: str = Field(..., min_length=5, description="Safaricom M-Pesa transaction reference (e.g. QWE123RTY)")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for manual reconciliation")
+
+
 
 
 

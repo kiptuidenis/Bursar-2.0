@@ -1687,6 +1687,119 @@ class DatabaseManager:
         )
         return True
 
+    def get_admin_deposits_list(
+        self,
+        page: int = 1,
+        limit: int = 20,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> tuple[List[Dict[str, Any]], int, int]:
+        """Retrieve paginated deposits with filtering and total deposit metrics."""
+        query = self.session.query(Deposit).join(User, Deposit.user_id == User.id)
+
+        if status:
+            query = query.filter(Deposit.status == status.upper())
+
+        if search:
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                (Deposit.checkout_request_id.ilike(search_pattern)) |
+                (Deposit.mpesa_receipt.ilike(search_pattern)) |
+                (User.email.ilike(search_pattern)) |
+                (User.phone_number.ilike(search_pattern)) |
+                (User.first_name.ilike(search_pattern)) |
+                (User.last_name.ilike(search_pattern))
+            )
+
+        if date_from:
+            query = query.filter(Deposit.created_at >= date_from)
+        if date_to:
+            query = query.filter(Deposit.created_at <= date_to)
+
+        total = query.count()
+        total_amount = sum(int(d[0] or 0) for d in query.with_entities(Deposit.amount).all())
+
+        offset = (page - 1) * limit
+        deposits = query.order_by(Deposit.created_at.desc(), Deposit.id.desc()).offset(offset).limit(limit).all()
+
+        results = []
+        for d in deposits:
+            user = self.session.query(User).filter(User.id == d.user_id).first()
+            results.append({
+                "id": d.id,
+                "user_id": d.user_id,
+                "user_email": user.email if user else "",
+                "user_phone": user.phone_number if user else "",
+                "user_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() if user else "",
+                "checkout_request_id": d.checkout_request_id,
+                "amount": int(d.amount or 0),
+                "status": d.status,
+                "mpesa_receipt": d.mpesa_receipt or "",
+                "created_at": d.created_at.isoformat() if hasattr(d.created_at, "isoformat") else str(d.created_at)
+            })
+
+        return results, total, total_amount
+
+    def admin_manual_settle_deposit(
+        self,
+        checkout_request_id: str,
+        mpesa_receipt: str,
+        admin_id: Optional[int],
+        reason: str,
+        ip_address: str
+    ) -> Dict[str, Any]:
+        """Manually settle a stuck pending/failed deposit, credit wallet balance, and audit log."""
+        deposit = self.session.query(Deposit).filter(Deposit.checkout_request_id == checkout_request_id).first()
+        if not deposit:
+            raise ValueError(f"Deposit with checkout request ID {checkout_request_id} not found.")
+
+        if deposit.status == "COMPLETED":
+            raise ValueError("Deposit transaction is already completed.")
+
+        prev_status = deposit.status
+        deposit.status = "COMPLETED"
+        deposit.mpesa_receipt = mpesa_receipt.strip().upper()
+
+        user_id = deposit.user_id
+        amount = int(deposit.amount or 0)
+
+        # Credit wallet and settings balance
+        wallet = self.get_user_wallet(user_id)
+        prev_balance = int(wallet.available_balance or 0)
+        new_balance = prev_balance + amount
+        wallet.available_balance = new_balance
+
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.balance = new_balance
+
+        self._commit()
+
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_DEPOSIT_MANUAL_SETTLE",
+            target_type="Deposit",
+            target_id=deposit.id,
+            before_state=f'{{"status": "{prev_status}", "balance": {prev_balance}}}',
+            after_state=f'{{"status": "COMPLETED", "mpesa_receipt": "{deposit.mpesa_receipt}", "balance": {new_balance}, "amount": {amount}}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+
+        self.resolve_low_balance_warnings(user_id)
+
+        return {
+            "status": "success",
+            "deposit_id": deposit.id,
+            "checkout_request_id": checkout_request_id,
+            "amount": amount,
+            "mpesa_receipt": deposit.mpesa_receipt,
+            "new_balance": new_balance
+        }
+
+
 
 
     def close(self) -> None:
