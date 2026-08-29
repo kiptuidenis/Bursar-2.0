@@ -1799,6 +1799,153 @@ class DatabaseManager:
             "new_balance": new_balance
         }
 
+    def get_admin_payouts_list(
+        self,
+        page: int = 1,
+        limit: int = 20,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        payout_date: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> tuple[List[Dict[str, Any]], int, int]:
+        """Retrieve paginated payouts with filtering and total disbursement metrics."""
+        query = self.session.query(Payout).join(User, Payout.user_id == User.id)
+
+        if status:
+            status_clean = status.upper()
+            if status_clean in ("SUCCESS", "COMPLETED"):
+                query = query.filter(Payout.status.in_(["SUCCESS", "COMPLETED"]))
+            else:
+                query = query.filter(Payout.status == status_clean)
+
+        if payout_date:
+            query = query.filter(Payout.payout_date == payout_date)
+
+        if search:
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                (Payout.conversation_id.ilike(search_pattern)) |
+                (Payout.originator_conversation_id.ilike(search_pattern)) |
+                (Payout.transaction_id.ilike(search_pattern)) |
+                (Payout.phone_number.ilike(search_pattern)) |
+                (User.email.ilike(search_pattern)) |
+                (User.first_name.ilike(search_pattern)) |
+                (User.last_name.ilike(search_pattern))
+            )
+
+        if date_from:
+            query = query.filter(Payout.created_at >= date_from)
+        if date_to:
+            query = query.filter(Payout.created_at <= date_to)
+
+        total = query.count()
+        total_disbursed = sum(
+            int(p[0] or 0) for p in query.filter(Payout.status.in_(["SUCCESS", "COMPLETED"])).with_entities(Payout.amount).all()
+        )
+
+        offset = (page - 1) * limit
+        payouts = query.order_by(Payout.created_at.desc(), Payout.id.desc()).offset(offset).limit(limit).all()
+
+        results = []
+        for p in payouts:
+            user = self.session.query(User).filter(User.id == p.user_id).first()
+            results.append({
+                "id": p.id,
+                "user_id": p.user_id,
+                "user_email": user.email if user else "",
+                "user_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() if user else "",
+                "payout_date": p.payout_date,
+                "amount": int(p.amount or 0),
+                "phone_number": p.phone_number,
+                "status": p.status,
+                "conversation_id": p.conversation_id or "",
+                "originator_conversation_id": p.originator_conversation_id or "",
+                "transaction_id": p.transaction_id or "",
+                "error_message": p.error_message or "",
+                "created_at": p.created_at.isoformat() if hasattr(p.created_at, "isoformat") else str(p.created_at)
+            })
+
+        return results, total, total_disbursed
+
+    def admin_retry_failed_payout(
+        self,
+        payout_id: int,
+        admin_id: Optional[int],
+        reason: str,
+        ip_address: str
+    ) -> Optional[Dict[str, Any]]:
+        """Reset a failed payout to PENDING to permit immediate re-execution."""
+        payout = self.session.query(Payout).filter(Payout.id == payout_id).first()
+        if not payout:
+            return None
+
+        if payout.status not in ("FAILED", "PENDING"):
+            raise ValueError(f"Cannot retry payout with status {payout.status}.")
+
+        prev_status = payout.status
+        payout.status = "PENDING"
+        payout.error_message = ""
+        payout.failed_at = ""
+        self._commit()
+
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_PAYOUT_RETRY",
+            target_type="Payout",
+            target_id=payout.id,
+            before_state=f'{{"status": "{prev_status}"}}',
+            after_state='{"status": "PENDING"}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return _row_to_dict(payout)
+
+    def admin_manual_settle_payout(
+        self,
+        payout_id: int,
+        transaction_id: str,
+        admin_id: Optional[int],
+        reason: str,
+        ip_address: str
+    ) -> Dict[str, Any]:
+        """Manually mark a pending/failed payout as completed with external transaction ref."""
+        payout = self.session.query(Payout).filter(Payout.id == payout_id).first()
+        if not payout:
+            raise ValueError(f"Payout with ID {payout_id} not found.")
+
+        if payout.status in ("SUCCESS", "COMPLETED"):
+            raise ValueError("Payout transaction is already completed.")
+
+        prev_status = payout.status
+        eat_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
+        completed_ts = eat_now.strftime("%Y-%m-%d %H:%M:%S")
+
+        payout.status = "COMPLETED"
+        payout.transaction_id = transaction_id.strip().upper()
+        payout.completed_at = completed_ts
+        payout.error_message = ""
+        self._commit()
+
+        self.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_PAYOUT_MANUAL_SETTLE",
+            target_type="Payout",
+            target_id=payout.id,
+            before_state=f'{{"status": "{prev_status}"}}',
+            after_state=f'{{"status": "COMPLETED", "transaction_id": "{payout.transaction_id}"}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+
+        return {
+            "status": "success",
+            "payout_id": payout.id,
+            "transaction_id": payout.transaction_id,
+            "completed_at": completed_ts
+        }
+
+
 
 
 

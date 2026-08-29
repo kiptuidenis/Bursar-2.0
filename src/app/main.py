@@ -18,7 +18,7 @@ from app.core import config
 
 # Import sub-routers
 from app.api.routers import auth, settings, budget, deposits, payouts, callbacks, profile, notifications
-from app.api.routers.admin import admin_auth_router, admin_overview_router, admin_users_router, admin_finances_router, admin_deposits_router
+from app.api.routers.admin import admin_auth_router, admin_overview_router, admin_users_router, admin_finances_router, admin_deposits_router, admin_payouts_router
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
@@ -164,6 +164,7 @@ app.include_router(admin_overview_router)
 app.include_router(admin_users_router)
 app.include_router(admin_finances_router)
 app.include_router(admin_deposits_router)
+app.include_router(admin_payouts_router)
 
 if config.IS_TEST_MODE:
     from fastapi import Body, Response

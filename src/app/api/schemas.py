@@ -165,6 +165,14 @@ class AdminDepositManualSettlePayload(BaseModel):
     mpesa_receipt: str = Field(..., min_length=5, description="Safaricom M-Pesa transaction reference (e.g. QWE123RTY)")
     reason: str = Field(..., min_length=3, description="Mandatory audit justification for manual reconciliation")
 
+class AdminPayoutRetryPayload(BaseModel):
+    reason: Optional[str] = Field("Manual administrative B2C payout retry", description="Reason for retrying failed payout")
+
+class AdminPayoutMarkSettledPayload(BaseModel):
+    transaction_id: str = Field(..., min_length=5, description="External banking or M-Pesa B2C transaction ID")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for manual settlement")
+
+
 
 
 
