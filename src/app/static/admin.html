@@ -746,6 +746,54 @@
         </div>
     </div>
 
+    <!-- Modal: Send In-App Notification to Customer -->
+    <div class="modal-overlay hidden" id="modal-send-notification">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="bell"></i>
+                    <h3>Send Customer In-App Notification</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-send-notification"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-send-notification" class="modal-body">
+                <input type="hidden" id="notif-user-id" name="user_id">
+                <div class="form-group">
+                    <label for="notif-user-display">Recipient Account</label>
+                    <input type="text" id="notif-user-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="notif-title">Notification Title</label>
+                    <input type="text" id="notif-title" name="title" class="form-input" placeholder="e.g. Account Security Update" required>
+                </div>
+                <div class="form-group">
+                    <label for="notif-type">Severity / Visual Style</label>
+                    <select id="notif-type" name="type" class="form-select" required>
+                        <option value="INFO">INFO (Standard Informational Notice)</option>
+                        <option value="SUCCESS">SUCCESS (Positive Confirmation / Result)</option>
+                        <option value="WARNING">WARNING (Important Caution / Action Required)</option>
+                        <option value="DANGER">DANGER (Urgent / Security Alert)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="notif-message">Notification Message</label>
+                    <textarea id="notif-message" name="message" rows="4" class="form-textarea" placeholder="Enter message text that will be shown in customer dashboard inbox..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="notif-reason">Compliance Audit Justification</label>
+                    <textarea id="notif-reason" name="reason" rows="2" class="form-textarea" placeholder="Explain why support is issuing this direct customer notice..." required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-send-notification">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-send-notif">
+                        <i data-lucide="send"></i>
+                        <span>Dispatch Notification</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Alerts Container -->
     <div class="toast-container" id="toast-container"></div>
 
