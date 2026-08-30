@@ -12,7 +12,8 @@ async function setupAuthenticatedUser(page, options = {}) {
     data: {
       phone_number: phone,
       email: email,
-      password: password
+      password: password,
+      seed_notifications: options.seedNotifications || false
     }
   });
 
