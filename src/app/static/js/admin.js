@@ -813,7 +813,8 @@
         const tbody = document.getElementById("wallets-table-body");
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-8">Loading customer ledger...</td></tr>`;
 
-        const search = document.getElementById("wallets-search-input").value.trim();
+        const searchInput = document.getElementById("wallets-search-input");
+        const search = searchInput ? searchInput.value.trim() : "";
         const page = state.pagination.finances.page;
 
         let query = `/api/admin/finances/wallets?page=${page}&limit=${state.pagination.finances.limit}`;
@@ -821,37 +822,147 @@
 
         try {
             const data = await apiRequest(query);
-            state.pagination.finances.total = data.total;
+            state.pagination.finances.total = data.total || 0;
+
+            const totalBalanceEl = document.getElementById("finances-total-balance");
+            if (totalBalanceEl) {
+                totalBalanceEl.textContent = formatCurrency(data.total_platform_balance || 0);
+            }
 
             if (!data.wallets || data.wallets.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-8">No wallet records found.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = data.wallets.map(w => `
-                <tr>
-                    <td>
-                        <strong>${escapeHtml(w.name || w.email)}</strong>
-                        <div class="text-dim text-xs">${escapeHtml(w.phone_number)}</div>
-                    </td>
-                    <td class="text-emerald font-mono font-bold">${formatCurrency(w.wallet.available_balance)}</td>
-                    <td class="text-purple font-mono">${formatCurrency(w.wallet.locked_balance)}</td>
-                    <td>${formatCurrency(w.settings.daily_budget)}</td>
-                    <td><span class="badge-neutral">${w.wallet.currency}</span></td>
-                    <td>
-                        <div class="btn-group rbac-finops">
-                            <button class="btn btn-secondary btn-sm btn-action-adjust" data-user-id="${w.user_id}" data-name="${escapeHtml(w.email)}">
-                                Adjust
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `).join("");
+            tbody.innerHTML = data.wallets.map(w => {
+                const displayName = [w.first_name, w.last_name].filter(Boolean).join(" ") || w.email || `User #${w.user_id}`;
+                const hasDepLock = !!w.is_deposit_locked;
+                const hasBudLock = !!w.is_budget_locked;
+
+                let lockBadges = "";
+                if (hasDepLock) {
+                    lockBadges += `<span class="badge badge-warning text-xs mr-1"><i data-lucide="lock"></i> Deposit Lock</span>`;
+                }
+                if (hasBudLock) {
+                    lockBadges += `<span class="badge badge-purple text-xs"><i data-lucide="shield-alert"></i> Budget Lock</span>`;
+                }
+                if (!hasDepLock && !hasBudLock) {
+                    lockBadges = `<span class="text-xs text-muted">No Locks</span>`;
+                }
+
+                let overrideButtons = "";
+                if (hasDepLock) {
+                    overrideButtons += `
+                        <button class="btn btn-warning btn-xs btn-override-dep-lock mr-1" data-user-id="${w.user_id}" data-name="${escapeHtml(displayName)}">
+                            Release Deposit
+                        </button>
+                    `;
+                }
+                if (hasBudLock) {
+                    overrideButtons += `
+                        <button class="btn btn-danger btn-xs btn-override-bud-lock" data-user-id="${w.user_id}" data-name="${escapeHtml(displayName)}">
+                            Release Budget
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td>
+                            <strong>${escapeHtml(displayName)}</strong>
+                            <div class="text-dim text-xs font-mono">${escapeHtml(w.phone_number || w.email)}</div>
+                            <div class="mt-1">${lockBadges}</div>
+                        </td>
+                        <td class="text-emerald font-mono font-bold">${formatCurrency(w.balance)}</td>
+                        <td class="text-purple font-mono">${formatCurrency(w.locked_balance)}</td>
+                        <td>${formatCurrency(w.daily_budget)}</td>
+                        <td><span class="badge-neutral">${escapeHtml(w.currency || 'KES')}</span></td>
+                        <td>
+                            <div class="btn-group rbac-finops">
+                                <button class="btn btn-primary btn-sm btn-adjust-wallet mr-1" data-user-id="${w.user_id}" data-name="${escapeHtml(displayName)}" data-balance="${w.balance}">
+                                    <i data-lucide="sliders"></i> Adjust
+                                </button>
+                                ${overrideButtons}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+
+            // Attach row button listeners
+            tbody.querySelectorAll(".btn-adjust-wallet").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const userId = btn.getAttribute("data-user-id");
+                    const name = btn.getAttribute("data-name");
+                    openBalanceAdjustModal(userId, name);
+                });
+            });
+
+            tbody.querySelectorAll(".btn-override-dep-lock").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const userId = btn.getAttribute("data-user-id");
+                    const name = btn.getAttribute("data-name");
+                    handleOverrideDepositLock(userId, name);
+                });
+            });
+
+            tbody.querySelectorAll(".btn-override-bud-lock").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const userId = btn.getAttribute("data-user-id");
+                    const name = btn.getAttribute("data-name");
+                    handleOverrideBudgetLock(userId, name);
+                });
+            });
 
             updatePaginationInfo("finances");
+            applyRbacGuards();
             if (window.lucide) window.lucide.createIcons();
-        } catch {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-8">Error loading platform finances.</td></tr>`;
+        } catch (err) {
+            console.error("loadWalletsData error:", err);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-8">Error loading platform finances: ${escapeHtml(err.message || '')}</td></tr>`;
+        }
+    }
+
+    function openBalanceAdjustModal(userId, userDisplay) {
+        const modal = document.getElementById("modal-adjust-balance");
+        if (!modal) return;
+        document.getElementById("adj-user-id").value = userId || "";
+        document.getElementById("adj-user-display").value = userId ? `User #${userId} (${userDisplay})` : "";
+        document.getElementById("adj-type").value = "CREDIT";
+        document.getElementById("adj-amount").value = "";
+        document.getElementById("adj-reference").value = "";
+        document.getElementById("adj-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("adj-amount").focus();
+    }
+
+    async function handleOverrideDepositLock(userId, userDisplay) {
+        const reason = prompt(`Enter compliance reason for releasing Deposit Lock for ${userDisplay}:`, "Customer emergency withdrawal request");
+        if (reason === null || !reason.trim()) return;
+        try {
+            await apiRequest(`/api/admin/finances/${userId}/override-deposit-lock`, {
+                method: "POST",
+                body: JSON.stringify({ reason: reason.trim() })
+            });
+            showToast(`Deposit lock released for User #${userId}`, "success");
+            loadWalletsData();
+        } catch (err) {
+            showToast(err.message || "Failed to release deposit lock", "error");
+        }
+    }
+
+    async function handleOverrideBudgetLock(userId, userDisplay) {
+        const reason = prompt(`Enter compliance reason for releasing Budget Lock for ${userDisplay}:`, "Customer requested savings plan restructuring");
+        if (reason === null || !reason.trim()) return;
+        try {
+            await apiRequest(`/api/admin/finances/${userId}/override-budget-lock`, {
+                method: "POST",
+                body: JSON.stringify({ reason: reason.trim() })
+            });
+            showToast(`Budget lock released for User #${userId}`, "success");
+            loadWalletsData();
+        } catch (err) {
+            showToast(err.message || "Failed to release budget lock", "error");
         }
     }
 
@@ -1235,7 +1346,95 @@
             });
         }
 
-        // 10. Send In-App Notification Form Submit
+        // 10. Finances & Wallets Table Search & Pagination
+        let walletsSearchDebounceTimer = null;
+        const walletsSearch = document.getElementById("wallets-search-input");
+        if (walletsSearch) {
+            walletsSearch.addEventListener("input", () => {
+                clearTimeout(walletsSearchDebounceTimer);
+                walletsSearchDebounceTimer = setTimeout(() => {
+                    state.pagination.finances.page = 1;
+                    loadWalletsData();
+                }, 300);
+            });
+        }
+
+        const btnWalletsPrev = document.getElementById("btn-wallets-prev");
+        if (btnWalletsPrev) {
+            btnWalletsPrev.addEventListener("click", () => {
+                if (state.pagination.finances.page > 1) {
+                    state.pagination.finances.page--;
+                    loadWalletsData();
+                }
+            });
+        }
+
+        const btnWalletsNext = document.getElementById("btn-wallets-next");
+        if (btnWalletsNext) {
+            btnWalletsNext.addEventListener("click", () => {
+                const p = state.pagination.finances;
+                if (p.page * p.limit < p.total) {
+                    p.page++;
+                    loadWalletsData();
+                }
+            });
+        }
+
+        const btnOpenAdjust = document.getElementById("btn-open-balance-adjust");
+        if (btnOpenAdjust) {
+            btnOpenAdjust.addEventListener("click", () => {
+                const promptUserId = prompt("Enter Target User ID for balance adjustment:");
+                if (!promptUserId) return;
+                const uid = parseInt(promptUserId, 10);
+                if (isNaN(uid) || uid <= 0) {
+                    showToast("Please enter a valid numeric User ID", "error");
+                    return;
+                }
+                openBalanceAdjustModal(uid, `User #${uid}`);
+            });
+        }
+
+        // 11. Balance Adjustment Form Submit
+        const formAdjustBalance = document.getElementById("form-adjust-balance");
+        if (formAdjustBalance) {
+            formAdjustBalance.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const userId = parseInt(document.getElementById("adj-user-id").value, 10);
+                const adjustment_type = document.getElementById("adj-type").value;
+                const amount = parseInt(document.getElementById("adj-amount").value, 10);
+                const reference_id = document.getElementById("adj-reference").value.trim() || undefined;
+                const reason = document.getElementById("adj-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-adjust");
+
+                if (isNaN(userId) || userId <= 0) {
+                    showToast("Invalid User ID for adjustment", "error");
+                    return;
+                }
+                if (isNaN(amount) || amount <= 0) {
+                    showToast("Please enter a positive adjustment amount", "error");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest("/api/admin/finances/adjust-balance", {
+                        method: "POST",
+                        body: JSON.stringify({ user_id: userId, amount, adjustment_type, reference_id, reason })
+                    });
+                    showToast(res.message || `Successfully adjusted balance for User #${userId}`, "success");
+                    const modal = document.getElementById("modal-adjust-balance");
+                    if (modal) modal.classList.add("hidden");
+                    formAdjustBalance.reset();
+                    loadWalletsData();
+                } catch (err) {
+                    showToast(err.message || "Balance adjustment failed", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 12. Send In-App Notification Form Submit
         const formSendNotif = document.getElementById("form-send-notification");
         if (formSendNotif) {
             formSendNotif.addEventListener("submit", async (e) => {
@@ -1265,7 +1464,7 @@
             });
         }
 
-        // 11. Export CSV Download Button
+        // 13. Export CSV Download Button
         const btnExportCsv = document.getElementById("btn-export-audit-csv");
         if (btnExportCsv) {
             btnExportCsv.addEventListener("click", () => {

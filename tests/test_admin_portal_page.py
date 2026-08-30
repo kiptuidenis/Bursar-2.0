@@ -52,3 +52,31 @@ def test_admin_portal_user_360_and_notification_modals_present():
         assert 'id="notif-reason"' in html
         assert 'id="btn-submit-send-notif"' in html
 
+def test_admin_portal_finances_and_adjust_balance_modal_present():
+    """Verify that Finances ledger pane, live total balance chip, and Balance Adjustment modal are mounted in HTML."""
+    with TestClient(app) as client:
+        res = client.get("/admin")
+        assert res.status_code == 200
+        html = res.text
+
+        # Verify Finances Pane & Table
+        assert 'id="pane-finances"' in html
+        assert 'id="finances-total-balance"' in html
+        assert 'id="wallets-table"' in html
+        assert 'id="wallets-table-body"' in html
+        assert 'id="wallets-search-input"' in html
+        assert 'id="btn-open-balance-adjust"' in html
+        assert 'id="wallets-pagination"' in html
+
+        # Verify Adjust Balance Modal & Form Fields
+        assert 'id="modal-adjust-balance"' in html
+        assert 'id="form-adjust-balance"' in html
+        assert 'id="adj-user-id"' in html
+        assert 'id="adj-user-display"' in html
+        assert 'id="adj-type"' in html
+        assert 'id="adj-amount"' in html
+        assert 'id="adj-reference"' in html
+        assert 'id="adj-reason"' in html
+        assert 'id="btn-submit-adjust"' in html
+
+

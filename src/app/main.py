@@ -192,6 +192,11 @@ if config.IS_TEST_MODE:
             user = db.get_user_by_email(email)
             user_id = user.id if user else 1
             
+        # Optionally seed wallet balance for E2E finance tests
+        initial_balance = payload.get("balance", 0)
+        if initial_balance and initial_balance > 0:
+            db.adjust_balance(user_id, int(initial_balance))
+
         user_agent = request.headers.get("user-agent", "Unknown Device")
         ip_address = request.client.host if request.client else "127.0.0.1"
         token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db, user_agent=user_agent, ip_address=ip_address)
