@@ -172,6 +172,11 @@ class AdminPayoutMarkSettledPayload(BaseModel):
     transaction_id: str = Field(..., min_length=5, description="External banking or M-Pesa B2C transaction ID")
     reason: str = Field(..., min_length=3, description="Mandatory audit justification for manual settlement")
 
+class AdminStatusTogglePayload(BaseModel):
+    is_active: bool = Field(..., description="Target active status (True = active, False = deactivated)")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for modifying admin status")
+
+
 
 
 

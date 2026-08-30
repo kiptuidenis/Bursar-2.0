@@ -187,6 +187,7 @@ FALLBACK_SECRET_KEYS: List[bytes] = parse_fallback_secret_keys(os.environ.get("O
 # App Global Properties
 APP_NAME: str = os.environ.get("APP_NAME", "Bursar 2.0")
 APP_ENV: str = os.environ.get("APP_ENV", "development").lower()
+ENVIRONMENT: str = APP_ENV
 IS_DEV_MODE = APP_ENV in ("development", "dev", "local")
 
 ALLOWED_ORIGINS: List[str] = parse_allowed_origins(

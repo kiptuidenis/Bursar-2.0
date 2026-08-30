@@ -4,6 +4,8 @@ import time
 import os
 import datetime
 import logging
+import io
+import csv
 from typing import Dict, List, Any, Optional
 
 from sqlalchemy import create_engine, func, event
@@ -1944,6 +1946,143 @@ class DatabaseManager:
             "transaction_id": payout.transaction_id,
             "completed_at": completed_ts
         }
+
+    def get_admin_audit_logs_list(
+        self,
+        page: int = 1,
+        limit: int = 20,
+        action: Optional[str] = None,
+        admin_id: Optional[int] = None,
+        target_type: Optional[str] = None,
+        target_id: Optional[int] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Retrieve paginated admin compliance audit logs with filtering and search."""
+        query = self.session.query(AdminAuditLog).outerjoin(AdminUser, AdminAuditLog.admin_id == AdminUser.id)
+
+        if action:
+            query = query.filter(AdminAuditLog.action == action)
+        if admin_id:
+            query = query.filter(AdminAuditLog.admin_id == admin_id)
+        if target_type:
+            query = query.filter(AdminAuditLog.target_type == target_type)
+        if target_id is not None:
+            query = query.filter(AdminAuditLog.target_id == target_id)
+        if date_from:
+            query = query.filter(AdminAuditLog.created_at >= date_from)
+        if date_to:
+            query = query.filter(AdminAuditLog.created_at <= date_to)
+
+        if search:
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                (AdminAuditLog.action.ilike(search_pattern)) |
+                (AdminAuditLog.reason.ilike(search_pattern)) |
+                (AdminAuditLog.target_type.ilike(search_pattern)) |
+                (AdminAuditLog.ip_address.ilike(search_pattern)) |
+                (AdminUser.email.ilike(search_pattern))
+            )
+
+        total = query.count()
+        offset = (page - 1) * limit
+        logs = query.order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc()).offset(offset).limit(limit).all()
+
+        results = []
+        for l in logs:
+            admin = self.session.query(AdminUser).filter(AdminUser.id == l.admin_id).first() if l.admin_id else None
+            results.append({
+                "id": l.id,
+                "admin_id": l.admin_id,
+                "admin_email": admin.email if admin else "System / Automated",
+                "action": l.action,
+                "target_type": l.target_type,
+                "target_id": l.target_id,
+                "before_state": l.before_state or "",
+                "after_state": l.after_state or "",
+                "reason": l.reason or "",
+                "ip_address": l.ip_address or "",
+                "created_at": l.created_at.isoformat() if hasattr(l.created_at, "isoformat") else str(l.created_at)
+            })
+
+        return results, total
+
+    def export_admin_audit_logs_csv(
+        self,
+        action: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> str:
+        """Export audit logs as CSV string formatted for regulatory / internal compliance."""
+        logs, _ = self.get_admin_audit_logs_list(page=1, limit=10000, action=action, date_from=date_from, date_to=date_to)
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Log ID", "Timestamp", "Admin Email", "Action", "Target Type", "Target ID", "Reason", "IP Address", "Before State", "After State"])
+        for l in logs:
+            writer.writerow([
+                l["id"],
+                l["created_at"],
+                l["admin_email"],
+                l["action"],
+                l["target_type"],
+                l["target_id"],
+                l["reason"],
+                l["ip_address"],
+                l["before_state"],
+                l["after_state"]
+            ])
+        return output.getvalue()
+
+    def get_admin_users_directory(self) -> List[Dict[str, Any]]:
+        """Retrieve all staff administrative accounts."""
+        admins = self.session.query(AdminUser).order_by(AdminUser.id.asc()).all()
+        return [
+            {
+                "id": a.id,
+                "email": a.email,
+                "role": a.role,
+                "is_active": bool(a.is_active),
+                "failed_login_attempts": a.failed_login_attempts or 0,
+                "account_locked_until": a.account_locked_until or "",
+                "created_at": a.created_at.isoformat() if hasattr(a.created_at, "isoformat") else str(a.created_at)
+            }
+            for a in admins
+        ]
+
+
+    def admin_toggle_admin_active_status(
+        self,
+        target_admin_id: int,
+        is_active: bool,
+        actor_admin_id: int,
+        reason: str,
+        ip_address: str
+    ) -> bool:
+        """Activate or deactivate another staff administrator."""
+        if target_admin_id == actor_admin_id and not is_active:
+            raise ValueError("You cannot deactivate your own administrative account.")
+
+        admin = self.session.query(AdminUser).filter(AdminUser.id == target_admin_id).first()
+        if not admin:
+            raise ValueError(f"Admin with ID {target_admin_id} not found.")
+
+        prev_status = bool(admin.is_active)
+        admin.is_active = is_active
+        self._commit()
+
+        self.create_admin_audit_log(
+            admin_id=actor_admin_id,
+            action="ADMIN_ACCOUNT_STATUS_TOGGLE",
+            target_type="AdminUser",
+            target_id=target_admin_id,
+            before_state=f'{{"is_active": {prev_status}}}',
+            after_state=f'{{"is_active": {is_active}}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
 
 
 
