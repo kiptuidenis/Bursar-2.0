@@ -68,10 +68,87 @@ If you did not request this verification code, please ignore this email.
 
 Bursar Financial Systems (Support: {config.SUPPORT_EMAIL})"""
 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formataddr
+
+def send_via_smtp(recipient_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    """Send transactional email via standard SMTP relay (e.g. Zoho ZeptoMail)."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = formataddr((config.APP_NAME, config.SES_SENDER_EMAIL))
+    msg["To"] = recipient_email
+
+    part1 = MIMEText(text_body, "plain", "utf-8")
+    part2 = MIMEText(html_body, "html", "utf-8")
+    msg.attach(part1)
+    msg.attach(part2)
+
+    try:
+        if config.SMTP_USE_SSL or config.SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=10)
+        else:
+            server = smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=10)
+            if config.SMTP_USE_TLS:
+                server.starttls()
+
+        if config.SMTP_USER and config.SMTP_PASSWORD:
+            server.login(config.SMTP_USER, config.SMTP_PASSWORD)
+
+        server.sendmail(config.SES_SENDER_EMAIL, [recipient_email], msg.as_string())
+        server.quit()
+        logger.info(f"Transactional email sent successfully to '{recipient_email}' via SMTP ({config.SMTP_HOST}).")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to '{recipient_email}' via SMTP ({config.SMTP_HOST}): {str(e)}")
+        return False
+
+def send_via_ses(recipient_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    """Send transactional email via AWS SES SDK."""
+    try:
+        ses_client = boto3.client(
+            "ses",
+            region_name=config.AWS_REGION,
+            aws_access_key_id=config.AWS_ACCESS_KEY_ID or None,
+            aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY or None
+        )
+        
+        response = ses_client.send_email(
+            Source=config.SES_SENDER_EMAIL,
+            Destination={
+                "ToAddresses": [recipient_email]
+            },
+            Message={
+                "Subject": {
+                    "Data": subject,
+                    "Charset": "UTF-8"
+                },
+                "Body": {
+                    "Html": {
+                        "Data": html_body,
+                        "Charset": "UTF-8"
+                    },
+                    "Text": {
+                        "Data": text_body,
+                        "Charset": "UTF-8"
+                    }
+                }
+            }
+        )
+        logger.info(f"AWS SES email sent successfully to '{recipient_email}'. MessageId: {response.get('MessageId')}")
+        return True
+    except ClientError as e:
+        logger.error(f"Failed to send AWS SES email to '{recipient_email}': {e.response['Error']['Message']}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error sending email to '{recipient_email}' via AWS SES: {str(e)}")
+        return False
+
 def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "login_2fa") -> bool:
     """
-    Send transactional 6-digit OTP verification email via Amazon SES.
-    Falls back to mock console/logger delivery in test mode or when AWS credentials are not set.
+    Send transactional 6-digit OTP verification email via Zoho ZeptoMail SMTP or AWS SES.
+    Falls back to mock console/logger delivery in test mode or when credentials are not set.
     """
     recipient_clean = recipient_email.strip().lower()
     html_body = format_otp_email_html(otp_code, purpose)
@@ -92,41 +169,8 @@ def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "login_2f
         logger.info(f"[MOCK EMAIL] OTP '{otp_code}' sent to '{recipient_clean}' (Purpose: {purpose})")
         return True
 
-    try:
-        ses_client = boto3.client(
-            "ses",
-            region_name=config.AWS_REGION,
-            aws_access_key_id=config.AWS_ACCESS_KEY_ID or None,
-            aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY or None
-        )
-        
-        response = ses_client.send_email(
-            Source=config.SES_SENDER_EMAIL,
-            Destination={
-                "ToAddresses": [recipient_clean]
-            },
-            Message={
-                "Subject": {
-                    "Data": subject,
-                    "Charset": "UTF-8"
-                },
-                "Body": {
-                    "Html": {
-                        "Data": html_body,
-                        "Charset": "UTF-8"
-                    },
-                    "Text": {
-                        "Data": text_body,
-                        "Charset": "UTF-8"
-                    }
-                }
-            }
-        )
-        logger.info(f"AWS SES email sent successfully to '{recipient_clean}'. MessageId: {response.get('MessageId')}")
-        return True
-    except ClientError as e:
-        logger.error(f"Failed to send AWS SES email to '{recipient_clean}': {e.response['Error']['Message']}")
-        return False
-    except Exception as e:
-        logger.error(f"Unexpected error sending email to '{recipient_clean}': {str(e)}")
-        return False
+    # Use SMTP (Zoho ZeptoMail) if SMTP_PASSWORD is provided or provider is smtp
+    if config.EMAIL_PROVIDER == "smtp" or config.SMTP_PASSWORD:
+        return send_via_smtp(recipient_clean, subject, html_body, text_body)
+    else:
+        return send_via_ses(recipient_clean, subject, html_body, text_body)

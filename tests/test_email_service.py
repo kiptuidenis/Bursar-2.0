@@ -78,3 +78,42 @@ def test_send_otp_email_aws_ses_client_error(mocker):
     email = "unverified@bursar.co.ke"
     success = send_otp_email(email, "111222")
     assert success is False
+
+def test_send_otp_email_smtp_success(mocker):
+    """Verify SMTP email dispatch for Zoho ZeptoMail."""
+    mocker.patch.object(config, "EMAIL_MOCK_MODE", False)
+    mocker.patch.object(config, "IS_TEST_MODE", False)
+    mocker.patch.object(config, "EMAIL_PROVIDER", "smtp")
+    mocker.patch.object(config, "SMTP_HOST", "smtp.zeptomail.com")
+    mocker.patch.object(config, "SMTP_PORT", 587)
+    mocker.patch.object(config, "SMTP_USER", "emailapikey")
+    mocker.patch.object(config, "SMTP_PASSWORD", "mock_zepto_password")
+    mocker.patch.object(config, "SMTP_USE_TLS", True)
+
+    mock_smtp_instance = mocker.MagicMock()
+    mocker.patch("smtplib.SMTP", return_value=mock_smtp_instance)
+
+    email = "zeptouser@bursar.co.ke"
+    success = send_otp_email(email, "888999", purpose="login_2fa")
+    assert success is True
+
+    mock_smtp_instance.starttls.assert_called_once()
+    mock_smtp_instance.login.assert_called_once_with("emailapikey", "mock_zepto_password")
+    mock_smtp_instance.sendmail.assert_called_once()
+    mock_smtp_instance.quit.assert_called_once()
+
+def test_send_otp_email_smtp_failure(mocker):
+    """Verify SMTP exceptions return False gracefully."""
+    mocker.patch.object(config, "EMAIL_MOCK_MODE", False)
+    mocker.patch.object(config, "IS_TEST_MODE", False)
+    mocker.patch.object(config, "EMAIL_PROVIDER", "smtp")
+    mocker.patch.object(config, "SMTP_PASSWORD", "bad_password")
+
+    mock_smtp_instance = mocker.MagicMock()
+    mock_smtp_instance.login.side_effect = Exception("SMTP Authentication Error")
+    mocker.patch("smtplib.SMTP", return_value=mock_smtp_instance)
+
+    email = "erroruser@bursar.co.ke"
+    success = send_otp_email(email, "000111")
+    assert success is False
+

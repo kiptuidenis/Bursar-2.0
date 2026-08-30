@@ -222,11 +222,23 @@ if _raw_allowed_hosts:
 else:
     ALLOWED_HOSTS = ["*"] if (IS_DEV_MODE or IS_TEST_MODE) else ["bursar.co.ke", "*.bursar.co.ke", "localhost", "127.0.0.1"]
 
+# Email & SMTP Configuration Properties (Zoho ZeptoMail / Standard SMTP / AWS SES)
+EMAIL_PROVIDER: str = os.environ.get("EMAIL_PROVIDER", "smtp" if os.environ.get("SMTP_PASSWORD") or os.environ.get("SMTP_HOST") else "ses").lower()
+SMTP_HOST: str = os.environ.get("SMTP_HOST", "smtp.zeptomail.com")
+try:
+    SMTP_PORT: int = int(os.environ.get("SMTP_PORT", "587"))
+except ValueError:
+    SMTP_PORT = 587
+SMTP_USER: str = os.environ.get("SMTP_USER", "emailapikey")
+SMTP_PASSWORD: str = os.environ.get("SMTP_PASSWORD", "")
+SMTP_USE_TLS: bool = os.environ.get("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes")
+SMTP_USE_SSL: bool = os.environ.get("SMTP_USE_SSL", "false").lower() in ("true", "1", "yes")
+
 # AWS SES Configuration Properties
 AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
 AWS_ACCESS_KEY_ID: str = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY: str = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
-SES_SENDER_EMAIL: str = os.environ.get("SES_SENDER_EMAIL", "noreply@bursar.co.ke")
+SES_SENDER_EMAIL: str = os.environ.get("SES_SENDER_EMAIL", os.environ.get("EMAIL_SENDER", "noreply@bursar.co.ke"))
 SUPPORT_EMAIL: str = os.environ.get("SUPPORT_EMAIL", "support@bursar.co.ke")
 _email_mock_env = os.environ.get("EMAIL_MOCK_MODE", "").strip().lower()
 if IS_TEST_MODE:
@@ -234,8 +246,9 @@ if IS_TEST_MODE:
 elif _email_mock_env in ("false", "0", "no"):
     EMAIL_MOCK_MODE = False
 else:
-    # Default to Mock Mode if AWS credentials are not configured
-    EMAIL_MOCK_MODE = not bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)
+    # Default to Mock Mode only if neither SMTP nor AWS credentials are configured
+    EMAIL_MOCK_MODE = not bool(SMTP_PASSWORD or (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY))
+
 
 
 
