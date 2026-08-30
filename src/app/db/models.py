@@ -200,3 +200,53 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="notifications")
+
+
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    salt = Column(String(255), default="argon2", nullable=False)
+    role = Column(String(50), default="support", nullable=False)  # "superadmin", "finops", "support", "auditor"
+    is_active = Column(Boolean, default=True, nullable=False)
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    account_locked_until = Column(String(50), default="", nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    sessions = relationship("AdminSession", back_populates="admin", cascade="all, delete-orphan")
+    audit_logs = relationship("AdminAuditLog", back_populates="admin", cascade="all, delete-orphan")
+
+
+class AdminSession(Base):
+    __tablename__ = "admin_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    admin_id = Column(Integer, ForeignKey("admin_users.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_token = Column(String(255), unique=True, nullable=False)
+    ip_address = Column(String(100), default="")
+    user_agent = Column(String(255), default="")
+    expires_at = Column(Integer, nullable=False)
+    last_activity = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    admin = relationship("AdminUser", back_populates="sessions")
+
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    admin_id = Column(Integer, ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(100), nullable=False, index=True)  # e.g. "UNLOCK_USER", "WALLET_ADJUSTMENT", "RETRY_PAYOUT"
+    target_type = Column(String(50), default="")              # e.g. "User", "Payout", "Deposit", "Budget"
+    target_id = Column(Integer, nullable=True)
+    before_state = Column(Text, default="")                   # JSON serialized
+    after_state = Column(Text, default="")                    # JSON serialized
+    reason = Column(String(500), default="")
+    ip_address = Column(String(100), default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    admin = relationship("AdminUser", back_populates="audit_logs")
+

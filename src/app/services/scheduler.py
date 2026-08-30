@@ -208,6 +208,27 @@ async def check_and_trigger_payout(db: DatabaseManager, current_time: datetime.d
 
 
 
+async def process_daily_payouts_batch(db: DatabaseManager) -> dict:
+    """Manually process daily payouts batch across all eligible registered users."""
+    users = db.get_all_users()
+    processed = 0
+    succeeded = 0
+    failed = 0
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).replace(tzinfo=None)
+    for user in users:
+        user_id = user["id"]
+        try:
+            res = await check_and_trigger_payout(db, now, user_id=user_id)
+            processed += 1
+            if res:
+                succeeded += 1
+        except Exception as e:
+            logger.warning(f"Batch payout processing failed for user {user_id}: {e}")
+            failed += 1
+    return {"processed": processed, "succeeded": succeeded, "failed": failed}
+
+
+
 async def poll_pending_deposits(db: DatabaseManager) -> None:
     """
     Polls IntaSend for all PENDING deposit transactions older than 30 seconds.

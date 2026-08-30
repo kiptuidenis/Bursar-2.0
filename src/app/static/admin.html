@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bursar Admin Portal - Operations & Financial Control</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-body">
+
+    <!-- 1. LOGIN VIEW -->
+    <div id="view-login" class="admin-login-wrapper">
+        <div class="login-backdrop-glow"></div>
+        <div class="login-card">
+            <div class="login-header">
+                <div class="brand-badge">
+                    <i data-lucide="shield-check" class="brand-icon"></i>
+                    <span class="brand-text">BURSAR <span>OPS</span></span>
+                </div>
+                <h2>Staff Authentication</h2>
+                <p>Enterprise Management & Operational Control Portal</p>
+            </div>
+
+            <form id="admin-login-form" class="login-form">
+                <div id="login-error-banner" class="alert-banner alert-danger hidden">
+                    <i data-lucide="alert-triangle"></i>
+                    <span id="login-error-text">Invalid administrator credentials.</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="admin-email">Staff Email Address</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="mail"></i>
+                        <input type="email" id="admin-email" name="email" placeholder="admin@bursar.co.ke" required autocomplete="email">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="admin-password">Secure Password</label>
+                    <div class="input-icon-wrapper">
+                        <i data-lucide="lock"></i>
+                        <input type="password" id="admin-password" name="password" placeholder="••••••••••••" required autocomplete="current-password">
+                        <button type="button" class="btn-toggle-pwd" id="btn-toggle-login-pwd" tabindex="-1">
+                            <i data-lucide="eye" id="login-eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-admin-login" class="btn btn-primary btn-block btn-lg">
+                    <span class="btn-text">Authenticate Session</span>
+                    <i data-lucide="arrow-right" class="btn-icon"></i>
+                </button>
+            </form>
+
+            <div class="login-footer">
+                <div class="security-chip">
+                    <i data-lucide="lock" class="chip-icon"></i>
+                    <span>Argon2id Encrypted • 15m Inactivity Lockout • RBAC Enforced</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. AUTHENTICATED APP SHELL -->
+    <div id="view-app" class="admin-app-layout hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-badge">
+                    <i data-lucide="shield-check" class="brand-icon"></i>
+                    <span class="brand-text">BURSAR <span>OPS</span></span>
+                </div>
+                <button class="btn-icon-only sidebar-toggle-btn" id="btn-collapse-sidebar" title="Collapse Sidebar">
+                    <i data-lucide="panel-left-close"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">EXECUTIVE & CONTROL</div>
+                <a href="#/overview" class="nav-item active" data-route="overview">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span class="nav-label">Executive Overview</span>
+                </a>
+                <a href="#/users" class="nav-item" data-route="users">
+                    <i data-lucide="users"></i>
+                    <span class="nav-label">User 360 Explorer</span>
+                    <span class="nav-badge" id="badge-users-count">-</span>
+                </a>
+                <a href="#/finances" class="nav-item" data-route="finances">
+                    <i data-lucide="wallet"></i>
+                    <span class="nav-label">Finances & Float</span>
+                </a>
+
+                <div class="nav-section-label">PAYMENT PIPELINE</div>
+                <a href="#/deposits" class="nav-item" data-route="deposits">
+                    <i data-lucide="arrow-down-left"></i>
+                    <span class="nav-label">STK Deposits</span>
+                    <span class="nav-badge badge-warning" id="badge-pending-deposits" style="display:none">0</span>
+                </a>
+                <a href="#/payouts" class="nav-item" data-route="payouts">
+                    <i data-lucide="arrow-up-right"></i>
+                    <span class="nav-label">B2C Disbursements</span>
+                    <span class="nav-badge badge-danger" id="badge-failed-payouts" style="display:none">0</span>
+                </a>
+
+                <div class="nav-section-label">COMPLIANCE & SYSTEM</div>
+                <a href="#/audit" class="nav-item" data-route="audit">
+                    <i data-lucide="file-text"></i>
+                    <span class="nav-label">Audit Logs</span>
+                </a>
+                <a href="#/system" class="nav-item" data-route="system">
+                    <i data-lucide="server"></i>
+                    <span class="nav-label">System Health</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-user-profile">
+                    <div class="admin-avatar" id="current-admin-avatar">A</div>
+                    <div class="admin-info">
+                        <div class="admin-name" id="current-admin-email">Loading...</div>
+                        <div class="admin-role-badge badge-superadmin" id="current-admin-role">ROLE</div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm btn-block btn-logout" id="btn-admin-logout">
+                    <i data-lucide="log-out"></i>
+                    <span>Log Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="admin-main">
+            <!-- Top Navbar Header -->
+            <header class="admin-topbar">
+                <div class="topbar-left">
+                    <button class="btn-icon-only mobile-menu-btn" id="btn-mobile-menu">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <div class="topbar-title-group">
+                        <h1 id="topbar-page-title">Executive Overview</h1>
+                        <span class="topbar-breadcrumb" id="topbar-breadcrumb">Dashboard / Overview</span>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Session Countdown Badge -->
+                    <div class="session-timer-chip" id="session-timer-chip" title="Session automatically expires after 15 minutes of inactivity">
+                        <i data-lucide="clock" class="timer-icon"></i>
+                        <span>Session: <strong id="session-countdown-text">15:00</strong></span>
+                    </div>
+
+                    <!-- Environment Pill -->
+                    <div class="env-pill" id="topbar-env-pill">
+                        <span class="pulse-dot"></span>
+                        <span id="topbar-env-text">LIVE</span>
+                    </div>
+
+                    <!-- Live Refresh Button -->
+                    <button class="btn btn-secondary btn-sm" id="btn-global-refresh" title="Refresh Data">
+                        <i data-lucide="refresh-cw" id="refresh-icon"></i>
+                        <span class="hide-mobile">Refresh</span>
+                    </button>
+
+                    <!-- Theme Toggle -->
+                    <button class="btn-icon-only theme-toggle-btn" id="btn-theme-toggle" title="Toggle Dark/Light Mode">
+                        <i data-lucide="sun" id="theme-icon-sun" class="hidden"></i>
+                        <i data-lucide="moon" id="theme-icon-moon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Views / Panes Container -->
+            <div class="admin-content-container">
+
+                <!-- 1. OVERVIEW PANE -->
+                <section id="pane-overview" class="view-pane active">
+                    <!-- KPI Cards Grid -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card glass-panel">
+                            <div class="kpi-icon-box bg-blue-glow">
+                                <i data-lucide="users"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Active Customer Accounts</span>
+                                <h3 class="kpi-value" id="kpi-active-users">-</h3>
+                                <span class="kpi-subtext" id="kpi-total-users">- total registered</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card glass-panel">
+                            <div class="kpi-icon-box bg-emerald-glow">
+                                <i data-lucide="vault"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Total Platform Float (KES)</span>
+                                <h3 class="kpi-value text-emerald" id="kpi-platform-float">KES 0</h3>
+                                <span class="kpi-subtext" id="kpi-locked-deposits">- locked in active savings</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card glass-panel">
+                            <div class="kpi-icon-box bg-purple-glow">
+                                <i data-lucide="arrow-down-circle"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Today's Deposit Inflow</span>
+                                <h3 class="kpi-value text-purple" id="kpi-today-deposits">KES 0</h3>
+                                <span class="kpi-subtext" id="kpi-today-deposit-count">- successful STK pushes</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card glass-panel">
+                            <div class="kpi-icon-box bg-amber-glow">
+                                <i data-lucide="send"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Today's B2C Disbursements</span>
+                                <h3 class="kpi-value text-amber" id="kpi-today-disbursed">KES 0</h3>
+                                <span class="kpi-subtext" id="kpi-today-payout-count">- daily budget payouts</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts & Operations Row -->
+                    <div class="grid-2col mt-6">
+                        <!-- Chart 1: Platform Float Allocation -->
+                        <div class="card glass-panel">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i data-lucide="pie-chart"></i>
+                                    <h3>Platform Float Breakdown</h3>
+                                </div>
+                                <span class="badge-neutral">Live Liquidity</span>
+                            </div>
+                            <div class="card-body chart-wrapper">
+                                <canvas id="chart-float-distribution" height="260"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart 2: 7-Day Inflow vs Outflow Velocity -->
+                        <div class="card glass-panel">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i data-lucide="trending-up"></i>
+                                    <h3>7-Day Cash Flow Velocity</h3>
+                                </div>
+                                <span class="badge-neutral">Deposits vs Payouts</span>
+                            </div>
+                            <div class="card-body chart-wrapper">
+                                <canvas id="chart-cashflow-velocity" height="260"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Control Actions & Summary -->
+                    <div class="grid-2col mt-6">
+                        <div class="card glass-panel">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i data-lucide="zap"></i>
+                                    <h3>Operational Quick Actions</h3>
+                                </div>
+                            </div>
+                            <div class="card-body quick-actions-grid">
+                                <button class="action-tile rbac-finops" id="btn-qa-trigger-batch">
+                                    <div class="tile-icon bg-amber-glow"><i data-lucide="play"></i></div>
+                                    <div class="tile-details">
+                                        <h4>Trigger Daily Payout Batch</h4>
+                                        <p>Run immediate scheduled payout dispatch across all active users.</p>
+                                    </div>
+                                </button>
+                                <button class="action-tile rbac-finops" id="btn-qa-adjust-balance">
+                                    <div class="tile-icon bg-blue-glow"><i data-lucide="sliders"></i></div>
+                                    <div class="tile-details">
+                                        <h4>Adjust Customer Balance</h4>
+                                        <p>Execute atomic credit or debit ledger adjustment.</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card glass-panel">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i data-lucide="alert-octagon"></i>
+                                    <h3>Critical Pipeline Alerts</h3>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert-list">
+                                    <div class="alert-item" id="alert-failed-payouts-row">
+                                        <div class="alert-icon bg-danger-glow"><i data-lucide="alert-circle"></i></div>
+                                        <div class="alert-info">
+                                            <h4 id="alert-failed-payouts-title">Failed Payouts: 0</h4>
+                                            <p>Transactions requiring FinOps inspection or retry.</p>
+                                        </div>
+                                        <a href="#/payouts" class="btn btn-secondary btn-sm">Inspect</a>
+                                    </div>
+                                    <div class="alert-item" id="alert-lockouts-row">
+                                        <div class="alert-icon bg-purple-glow"><i data-lucide="shield-alert"></i></div>
+                                        <div class="alert-info">
+                                            <h4 id="alert-locked-users-title">Locked Out Users: 0</h4>
+                                            <p>Accounts locked due to 5+ failed password attempts.</p>
+                                        </div>
+                                        <a href="#/users" class="btn btn-secondary btn-sm">Review</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. USER 360 EXPLORER PANE -->
+                <section id="pane-users" class="view-pane">
+                    <div class="card glass-panel">
+                        <div class="card-header flex-wrap-mobile">
+                            <div class="card-title-group">
+                                <i data-lucide="users"></i>
+                                <h3>User 360° Directory & Support Console</h3>
+                            </div>
+                            <div class="table-controls">
+                                <div class="search-input-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="text" id="users-search-input" placeholder="Search by email, phone, name...">
+                                </div>
+                                <select id="users-status-filter" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    <option value="active">Active & Verified</option>
+                                    <option value="locked_out">Locked Out (5+ attempts)</option>
+                                    <option value="locked">Active Savings Lock</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>User / Identity</th>
+                                        <th>Phone Number</th>
+                                        <th>Balance (KES)</th>
+                                        <th>Daily Budget</th>
+                                        <th>Locks & Security</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-8">Loading customer directory...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-pagination" id="users-pagination">
+                            <span class="pagination-info" id="users-pagination-info">Showing 0-0 of 0 users</span>
+                            <div class="pagination-buttons">
+                                <button class="btn btn-secondary btn-sm" id="btn-users-prev" disabled><i data-lucide="chevron-left"></i> Previous</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-users-next" disabled>Next <i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. FINANCES & LEDGER PANE -->
+                <section id="pane-finances" class="view-pane">
+                    <div class="card glass-panel">
+                        <div class="card-header flex-wrap-mobile">
+                            <div class="card-title-group">
+                                <i data-lucide="wallet"></i>
+                                <div>
+                                    <h3>Platform Wallets & Liquidity Distribution</h3>
+                                    <div class="text-xs text-muted" id="finances-platform-float-stat">Total Platform Float: <strong class="text-primary" id="finances-total-balance">KES -</strong></div>
+                                </div>
+                            </div>
+                            <div class="table-controls">
+                                <div class="search-input-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="text" id="wallets-search-input" placeholder="Search customer wallet...">
+                                </div>
+                                <button class="btn btn-primary btn-sm rbac-finops" id="btn-open-balance-adjust">
+                                    <i data-lucide="sliders"></i>
+                                    <span>Adjust Balance</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="wallets-table">
+                                <thead>
+                                    <tr>
+                                        <th>User Account</th>
+                                        <th>Available Balance</th>
+                                        <th>Locked Balance</th>
+                                        <th>Daily Budget</th>
+                                        <th>Currency</th>
+                                        <th>Emergency Overrides</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="wallets-table-body">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-8">Loading wallet balances...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-pagination" id="wallets-pagination">
+                            <span class="pagination-info" id="wallets-pagination-info">Showing 0-0 of 0 wallets</span>
+                            <div class="pagination-buttons">
+                                <button class="btn btn-secondary btn-sm" id="btn-wallets-prev" disabled><i data-lucide="chevron-left"></i> Previous</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-wallets-next" disabled>Next <i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. STK DEPOSITS PANE -->
+                <section id="pane-deposits" class="view-pane">
+                    <div class="card glass-panel">
+                        <div class="card-header flex-wrap-mobile">
+                            <div class="card-title-group">
+                                <i data-lucide="arrow-down-left"></i>
+                                <div>
+                                    <h3>STK Push Deposits & Reconciliation</h3>
+                                    <div class="text-xs text-muted" id="deposits-total-volume-stat">Total Collected: <strong class="text-primary" id="deposits-total-volume">KES -</strong></div>
+                                </div>
+                            </div>
+                            <div class="table-controls">
+                                <div class="search-input-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="text" id="deposits-search-input" placeholder="Receipt, checkout ID, phone...">
+                                </div>
+                                <select id="deposits-status-filter" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    <option value="PENDING">PENDING</option>
+                                    <option value="COMPLETED">COMPLETED</option>
+                                    <option value="FAILED">FAILED</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="deposits-table">
+                                <thead>
+                                    <tr>
+                                        <th>Checkout Request ID</th>
+                                        <th>Customer</th>
+                                        <th>Amount (KES)</th>
+                                        <th>Status</th>
+                                        <th>M-Pesa Receipt</th>
+                                        <th>Created At</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="deposits-table-body">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-8">Loading deposit records...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-pagination" id="deposits-pagination">
+                            <span class="pagination-info" id="deposits-pagination-info">Showing 0-0 of 0 deposits</span>
+                            <div class="pagination-buttons">
+                                <button class="btn btn-secondary btn-sm" id="btn-deposits-prev" disabled><i data-lucide="chevron-left"></i> Previous</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-deposits-next" disabled>Next <i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. B2C DISBURSEMENTS PANE -->
+                <section id="pane-payouts" class="view-pane">
+                    <div class="card glass-panel">
+                        <div class="card-header flex-wrap-mobile">
+                            <div class="card-title-group">
+                                <i data-lucide="arrow-up-right"></i>
+                                <div>
+                                    <h3>Daily B2C Disbursements & Pipeline</h3>
+                                    <div class="text-xs text-muted" id="payouts-total-disbursed-stat">Total Disbursed: <strong class="text-primary" id="payouts-total-disbursed">KES -</strong></div>
+                                </div>
+                            </div>
+                            <div class="table-controls">
+                                <div class="search-input-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="text" id="payouts-search-input" placeholder="Conversation ID, phone, email...">
+                                </div>
+                                <select id="payouts-status-filter" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    <option value="PENDING">PENDING</option>
+                                    <option value="COMPLETED">COMPLETED / SUCCESS</option>
+                                    <option value="FAILED">FAILED</option>
+                                </select>
+                                <button class="btn btn-primary btn-sm rbac-finops" id="btn-open-trigger-batch">
+                                    <i data-lucide="play"></i>
+                                    <span>Trigger Batch</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="payouts-table">
+                                <thead>
+                                    <tr>
+                                        <th>Payout Date</th>
+                                        <th>Customer</th>
+                                        <th>Disbursement Phone</th>
+                                        <th>Amount (KES)</th>
+                                        <th>Status</th>
+                                        <th>Transaction / Tracking</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="payouts-table-body">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-8">Loading payout records...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-pagination" id="payouts-pagination">
+                            <span class="pagination-info" id="payouts-pagination-info">Showing 0-0 of 0 payouts</span>
+                            <div class="pagination-buttons">
+                                <button class="btn btn-secondary btn-sm" id="btn-payouts-prev" disabled><i data-lucide="chevron-left"></i> Previous</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-payouts-next" disabled>Next <i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. AUDIT LOGS PANE -->
+                <section id="pane-audit" class="view-pane">
+                    <div class="card glass-panel">
+                        <div class="card-header flex-wrap-mobile">
+                            <div class="card-title-group">
+                                <i data-lucide="file-text"></i>
+                                <h3>Regulatory Compliance Audit Trail</h3>
+                            </div>
+                            <div class="table-controls">
+                                <div class="search-input-box">
+                                    <i data-lucide="search"></i>
+                                    <input type="text" id="audit-search-input" placeholder="Search action, reason, IP...">
+                                </div>
+                                <select id="audit-action-filter" class="form-select">
+                                    <option value="">All Actions</option>
+                                    <option value="ADMIN_FINANCIAL_ADJUSTMENT">Financial Adjustment</option>
+                                    <option value="ADMIN_USER_UNLOCK">User Unlock</option>
+                                    <option value="ADMIN_USER_2FA_TOGGLE">2FA Toggle</option>
+                                    <option value="ADMIN_DEPOSIT_MANUAL_SETTLE">Deposit Settle</option>
+                                    <option value="ADMIN_PAYOUT_RETRY">Payout Retry</option>
+                                    <option value="ADMIN_OVERRIDE_BUDGET_LOCK">Budget Lock Override</option>
+                                    <option value="ADMIN_OVERRIDE_DEPOSIT_LOCK">Deposit Lock Override</option>
+                                </select>
+                                <button class="btn btn-secondary btn-sm" id="btn-export-audit-csv">
+                                    <i data-lucide="download"></i>
+                                    <span>Export CSV</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="audit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Staff Administrator</th>
+                                        <th>Action Taken</th>
+                                        <th>Target</th>
+                                        <th>Justification Reason</th>
+                                        <th>IP Address</th>
+                                        <th>Audit Payload</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-table-body">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-8">Loading audit logs...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-pagination" id="audit-pagination">
+                            <span class="pagination-info" id="audit-pagination-info">Showing 0-0 of 0 audit logs</span>
+                            <div class="pagination-buttons">
+                                <button class="btn btn-secondary btn-sm" id="btn-audit-prev" disabled><i data-lucide="chevron-left"></i> Previous</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-audit-next" disabled>Next <i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. SYSTEM HEALTH PANE -->
+                <section id="pane-system" class="view-pane">
+                    <div class="grid-2col">
+                        <!-- Health Status Card -->
+                        <div class="card glass-panel">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i data-lucide="activity"></i>
+                                    <h3>Platform Runtime Health</h3>
+                                </div>
+                                <span class="badge-success" id="system-overall-badge">HEALTHY</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="health-item-list">
+                                    <div class="health-row">
+                                        <span class="health-label">Database Connection</span>
+                                        <span class="health-status text-emerald" id="health-db-status"><i data-lucide="check-circle"></i> Connected</span>
+                                    </div>
+                                    <div class="health-row">
+                                        <span class="health-label">Background Scheduler</span>
+                                        <span class="health-status text-emerald" id="health-scheduler-status"><i data-lucide="check-circle"></i> Active (60s loop)</span>
+                                    </div>
+                                    <div class="health-row">
+                                        <span class="health-label">IntaSend Gateway Mode</span>
+                                        <span class="health-status text-blue" id="health-gateway-status"><i data-lucide="radio"></i> Simulation</span>
+                                    </div>
+                                    <div class="health-row">
+                                        <span class="health-label">Server Environment</span>
+                                        <span class="health-status" id="health-env-status">Development</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Admin Management (SuperAdmin Only) -->
+                        <div class="card glass-panel" id="superadmin-management-card">
+                            <div class="card-header flex-wrap-mobile">
+                                <div class="card-title-group">
+                                    <i data-lucide="shield"></i>
+                                    <h3>Staff Administrators Directory</h3>
+                                </div>
+                                <div class="table-controls">
+                                    <button class="btn btn-primary btn-sm" id="btn-open-create-admin">
+                                        <i data-lucide="user-plus"></i>
+                                        <span>New Admin</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="admins-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admins-table-body">
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-4">Loading admin directory...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. REUSABLE MODALS -->
+
+    <!-- Modal: User 360 Drawer -->
+    <div class="modal-overlay hidden" id="modal-user-360">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="user-check"></i>
+                    <h3 id="u360-modal-title">Customer 360° Inspection</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-user-360"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" id="u360-modal-body">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Balance Adjustment -->
+    <div class="modal-overlay hidden" id="modal-adjust-balance">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="sliders"></i>
+                    <h3>Adjust Customer Balance</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-adjust-balance"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-adjust-balance" class="modal-body">
+                <input type="hidden" id="adj-user-id" name="user_id">
+                <div class="form-group">
+                    <label for="adj-user-display">Customer Account</label>
+                    <input type="text" id="adj-user-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="adj-type">Adjustment Type</label>
+                    <select id="adj-type" name="adjustment_type" class="form-select" required>
+                        <option value="CREDIT">CREDIT (Add funds to customer wallet)</option>
+                        <option value="DEBIT">DEBIT (Deduct funds from customer wallet)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="adj-amount">Adjustment Amount (KES)</label>
+                    <input type="number" id="adj-amount" name="amount" min="1" step="1" class="form-input" placeholder="e.g. 1000" required>
+                </div>
+                <div class="form-group">
+                    <label for="adj-reference">External Banking / M-Pesa Reference (Optional)</label>
+                    <input type="text" id="adj-reference" name="reference_id" class="form-input" placeholder="e.g. MPESA_REF_1234">
+                </div>
+                <div class="form-group">
+                    <label for="adj-reason">Mandatory Audit Justification</label>
+                    <textarea id="adj-reason" name="reason" rows="3" class="form-textarea" placeholder="Provide clear business or support reason for this ledger entry..." required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-adjust-balance">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-adjust">Confirm & Execute</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Manual Settle Deposit -->
+    <div class="modal-overlay hidden" id="modal-manual-settle-deposit">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="check-circle-2"></i>
+                    <h3>Manual Deposit Settlement</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-manual-settle-deposit"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-manual-settle-deposit" class="modal-body">
+                <input type="hidden" id="settle-checkout-id" name="checkout_id">
+                <div class="form-group">
+                    <label for="settle-checkout-display">Checkout Request ID</label>
+                    <input type="text" id="settle-checkout-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="settle-mpesa-receipt">Safaricom M-Pesa Receipt Number</label>
+                    <input type="text" id="settle-mpesa-receipt" name="mpesa_receipt" class="form-input" placeholder="e.g. QWE123RTY8" required minlength="5">
+                </div>
+                <div class="form-group">
+                    <label for="settle-reason">Mandatory Audit Justification</label>
+                    <textarea id="settle-reason" name="reason" rows="3" class="form-textarea" placeholder="Explain why this deposit is being manually reconciled..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-manual-settle-deposit">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-settle-deposit">Confirm & Settle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Retry Failed Payout -->
+    <div class="modal-overlay hidden" id="modal-retry-payout">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="refresh-cw"></i>
+                    <h3>Retry Failed Disbursement</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-retry-payout"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-retry-payout" class="modal-body">
+                <input type="hidden" id="retry-payout-id" name="payout_id">
+                <div class="form-group">
+                    <label for="retry-payout-display">Disbursement Transaction</label>
+                    <input type="text" id="retry-payout-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="retry-payout-reason">Mandatory Audit Justification</label>
+                    <textarea id="retry-payout-reason" name="reason" rows="3" class="form-textarea" placeholder="Explain why this failed payout is being retried..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-retry-payout">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-retry-payout">Confirm & Retry Disbursement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Manual Settle Payout -->
+    <div class="modal-overlay hidden" id="modal-manual-settle-payout">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="check-circle-2"></i>
+                    <h3>Reconcile External Payout</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-manual-settle-payout"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-manual-settle-payout" class="modal-body">
+                <input type="hidden" id="settle-payout-id" name="payout_id">
+                <div class="form-group">
+                    <label for="settle-payout-display">Disbursement Record</label>
+                    <input type="text" id="settle-payout-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="settle-payout-tx">External Transaction Reference</label>
+                    <input type="text" id="settle-payout-tx" name="transaction_id" class="form-input" placeholder="e.g. MPESA_B2C_REF99" required minlength="4">
+                </div>
+                <div class="form-group">
+                    <label for="settle-payout-reason">Mandatory Audit Justification</label>
+                    <textarea id="settle-payout-reason" name="reason" rows="3" class="form-textarea" placeholder="Explain how/where this payout was reconciled..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-manual-settle-payout">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-settle-payout">Confirm & Reconcile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Audit Log Payload Inspector -->
+    <div class="modal-overlay hidden" id="modal-audit-payload">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="code"></i>
+                    <h3 id="audit-payload-title">State Transformation Inspector</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-audit-payload"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="font-bold text-xs text-muted mb-1 block">Before State</label>
+                        <pre id="audit-before-state" class="payload-pre font-mono text-xs bg-dark p-3 rounded overflow-auto max-h-48 border border-subtle">{}</pre>
+                    </div>
+                    <div>
+                        <label class="font-bold text-xs text-muted mb-1 block">After State</label>
+                        <pre id="audit-after-state" class="payload-pre font-mono text-xs bg-dark p-3 rounded overflow-auto max-h-48 border border-subtle">{}</pre>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="font-bold text-xs text-muted mb-1 block">Reason & Justification</label>
+                    <p id="audit-payload-reason" class="text-sm text-dim bg-panel p-3 rounded border border-subtle"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-audit-payload">Close Inspector</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create New Staff Administrator -->
+    <div class="modal-overlay hidden" id="modal-create-admin">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="user-plus"></i>
+                    <h3>Provision Staff Administrator</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-create-admin"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-create-admin" class="modal-body">
+                <div class="form-group">
+                    <label for="create-admin-email">Staff Corporate Email</label>
+                    <input type="email" id="create-admin-email" name="email" class="form-input" placeholder="e.g. j.doe@bursar.co.ke" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-admin-password">Initial Password (Min 8 characters)</label>
+                    <input type="password" id="create-admin-password" name="password" class="form-input" placeholder="••••••••" minlength="8" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-admin-role">Assigned RBAC Role</label>
+                    <select id="create-admin-role" name="role" class="form-select" required>
+                        <option value="support">Customer Support (Read Only / 2FA Reset / In-App Messaging)</option>
+                        <option value="finops">FinOps Officer (Balance Adjustment / Deposits & Payouts Settlement)</option>
+                        <option value="auditor">Compliance Auditor (Read-Only Forensic & Financial Audit Logs)</option>
+                        <option value="superadmin">Super Administrator (Unrestricted Full Platform Governance)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="create-admin-reason">Mandatory Audit Justification</label>
+                    <textarea id="create-admin-reason" name="reason" rows="2" class="form-textarea" placeholder="Explain the business reason for provisioning this staff account..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-create-admin">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-create-admin">Create Staff Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Update Staff Administrator Role -->
+    <div class="modal-overlay hidden" id="modal-update-admin-role">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="shield"></i>
+                    <h3>Modify Administrator Role</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-update-admin-role"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-update-admin-role" class="modal-body">
+                <input type="hidden" id="edit-admin-id" name="admin_id">
+                <div class="form-group">
+                    <label for="edit-admin-email">Staff Email</label>
+                    <input type="text" id="edit-admin-email" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="edit-admin-role">New Assigned RBAC Role</label>
+                    <select id="edit-admin-role" name="role" class="form-select" required>
+                        <option value="support">Customer Support</option>
+                        <option value="finops">FinOps Officer</option>
+                        <option value="auditor">Compliance Auditor</option>
+                        <option value="superadmin">Super Administrator</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-admin-reason">Mandatory Audit Justification</label>
+                    <textarea id="edit-admin-reason" name="reason" rows="2" class="form-textarea" placeholder="Explain the reason for modifying this staff role..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-update-admin-role">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-update-admin-role">Save Role Change</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Generic Action Prompt (Manual Settle / Retry / Lock Override) -->
+    <div class="modal-overlay hidden" id="modal-generic-action">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="alert-circle" id="generic-modal-icon"></i>
+                    <h3 id="generic-modal-title">Action Confirmation</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-generic-action"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-generic-action" class="modal-body">
+                <div id="generic-modal-prompt" class="mb-4 text-muted"></div>
+                <div class="form-group" id="generic-field-custom-group" style="display:none">
+                    <label id="generic-field-custom-label">Reference ID</label>
+                    <input type="text" id="generic-field-custom" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="generic-reason">Mandatory Justification Reason</label>
+                    <textarea id="generic-reason" rows="3" class="form-textarea" placeholder="Explain the operational reason..." required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-generic-action">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-generic">Confirm Action</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Send In-App Notification to Customer -->
+    <div class="modal-overlay hidden" id="modal-send-notification">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="bell"></i>
+                    <h3>Send Customer In-App Notification</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-send-notification"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-send-notification" class="modal-body">
+                <input type="hidden" id="notif-user-id" name="user_id">
+                <div class="form-group">
+                    <label for="notif-user-display">Recipient Account</label>
+                    <input type="text" id="notif-user-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="notif-title">Notification Title</label>
+                    <input type="text" id="notif-title" name="title" class="form-input" placeholder="e.g. Account Security Update" required>
+                </div>
+                <div class="form-group">
+                    <label for="notif-type">Severity / Visual Style</label>
+                    <select id="notif-type" name="type" class="form-select" required>
+                        <option value="INFO">INFO (Standard Informational Notice)</option>
+                        <option value="SUCCESS">SUCCESS (Positive Confirmation / Result)</option>
+                        <option value="WARNING">WARNING (Important Caution / Action Required)</option>
+                        <option value="DANGER">DANGER (Urgent / Security Alert)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="notif-message">Notification Message</label>
+                    <textarea id="notif-message" name="message" rows="4" class="form-textarea" placeholder="Enter message text that will be shown in customer dashboard inbox..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="notif-reason">Compliance Audit Justification</label>
+                    <textarea id="notif-reason" name="reason" rows="2" class="form-textarea" placeholder="Explain why support is issuing this direct customer notice..." required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-send-notification">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-send-notif">
+                        <i data-lucide="send"></i>
+                        <span>Dispatch Notification</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Alerts Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Vendor Libraries & App Logic -->
+    <script src="/js/vendor/lucide.min.js"></script>
+    <script src="/js/vendor/chart.umd.min.js"></script>
+    <script src="/js/admin.js"></script>
+</body>
+</html>

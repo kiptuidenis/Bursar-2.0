@@ -45,7 +45,6 @@ Bursar acts as an **automated digital allowance dispenser**:
 - **Freelancers & Gig Workers** smoothing out irregular bulk payouts.
 - **Mobile Money Users** aiming to overcome impulse digital transactions.
 
-
 ---
 
 ## System Architecture
@@ -91,18 +90,39 @@ graph TD
 
 ---
 
+## Admin Portal & Operational Governance
+
+Bursar 2.0 features an enterprise-grade, secure, and glassmorphic **Admin Operations Portal** accessible at `/admin`.
+
+### 🛡️ Administrative Role-Based Access Control (RBAC) Matrix
+
+Administrative credentials and sessions are strictly segregated from consumer accounts via dedicated `AdminUser`, `AdminSession`, and immutable `AdminAuditLog` models with Argon2 password hashing.
+
+| Capability / Section | SuperAdmin | FinOps Officer | Customer Support | Compliance Auditor |
+|---|:---:|:---:|:---:|:---:|
+| **Executive Overview & Float KPIs** | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
+| **Customer 360 Explorer** | ✅ Full | ✅ View + Adjust | ✅ View + 2FA Reset + Message | 👁️ Read-Only |
+| **Ledger & Wallet Balance Adjustment** | ✅ Full | ✅ Full | ❌ Restricted | 👁️ Read-Only |
+| **STK Deposits Manual Settle & Requery** | ✅ Full | ✅ Full | ❌ Restricted | 👁️ Read-Only |
+| **B2C Disbursements & Retry Pipeline** | ✅ Full | ✅ Full | ❌ Restricted | 👁️ Read-Only |
+| **Compliance Audit Logs & CSV Export** | ✅ Full | 👁️ View + Export | 👁️ View + Export | ✅ Full + Export |
+| **System Diagnostics & Health Checks** | ✅ Full | 👁️ View | 👁️ View | 👁️ View |
+| **Staff Admin Provisioning & Role Updates** | ✅ Exclusive | ❌ Forbidden | ❌ Forbidden | ❌ Forbidden |
+
+---
+
 ## Technology Stack
 
 | Layer | Technologies |
 |---|---|
 | **Cloud & Hosting** | **AWS EC2** (Ubuntu Linux, Systemd daemon), **AWS RDS** (Managed MySQL/PostgreSQL), **Nginx** |
 | **Backend Framework** | **Python 3.10+**, **FastAPI**, **Uvicorn** (ASGI server), **Pydantic v2** |
-| **Database & ORM** | **SQLAlchemy ORM**, **SQLite** (Local Dev/Testing with WAL mode), **AWS RDS** (Production) |
-| **Security & Cryptography** | **PBKDF2-HMAC-SHA256**, **AES-GCM / HKDF**, **SlowAPI** (Rate Limiter), **Google reCAPTCHA v3**, **CSRF Tokens** |
+| **Database & ORM** | **SQLAlchemy ORM**, **SQLite** (Local Dev/Testing with WAL mode), **AWS RDS** (Production Connection Pooling with pre-ping & recycle) |
+| **Security & Cryptography** | **Argon2 / PBKDF2**, **AES-GCM / HKDF**, **SlowAPI** (Rate Limiter), **Google reCAPTCHA v3**, **CSRF Tokens**, **HTTP-Only Strict Cookies** |
 | **Payment Integrations** | **Safaricom Daraja API** (STK Push, B2C), **IntaSend Payments** (STK Push, B2C, Webhooks) |
 | **AI & Search Engine** | **Google Gemini API** (`gemini-2.5-flash`), **Rank-BM25** (Local RAG Indexer) |
-| **Frontend** | **HTML5**, **Modern CSS3 Glassmorphism**, **Vanilla JavaScript (ES6+)**, **Chart.js** |
-| **Testing & CI/CD** | **Pytest** (Unit & Integration), **Playwright** (E2E Browser Tests), **GitHub Actions** |
+| **Frontend** | **HTML5**, **Modern CSS3 Glassmorphism**, **Vanilla JavaScript (ES6+ SPA Hash Router)**, **Chart.js**, **Lucide Icons** |
+| **Testing & CI/CD** | **Pytest** (310+ Unit & Integration Tests), **Playwright** (90+ E2E Browser Tests), **GitHub Actions** |
 
 ---
 
@@ -113,14 +133,25 @@ Bursar-2.0/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml              # Multi-stage CI/CD pipeline (Test, Audit, Deploy to EC2)
+├── scripts/
+│   └── create_admin.py             # Administrative CLI account provisioning & role management
 ├── src/
 │   └── app/                        # Core application package
 │       ├── main.py                 # FastAPI app entry point, middleware & lifespan
 │       ├── api/
-│       │   ├── dependencies.py     # Dependency injection (DB, Session manager)
+│       │   ├── dependencies.py     # Dependency injection (DB, Session manager, Admin RBAC)
 │       │   ├── schemas.py          # Pydantic request/response validation schemas
 │       │   └── routers/
-│       │       ├── auth.py         # Registration, login, logout, password reset, 2FA
+│       │       ├── admin/          # Admin Portal API Sub-Routers
+│       │       │   ├── auth.py     # Admin login, logout, me endpoint
+│       │       │   ├── overview.py # Executive float KPIs, queues, velocity
+│       │       │   ├── users.py    # User 360 explorer, lockout unlock, notify
+│       │       │   ├── finances.py # Ledger float, emergency lock override, balance adjustments
+│       │       │   ├── deposits.py # STK push manual settlement & requery
+│       │       │   ├── payouts.py  # B2C disbursement retry pipeline & batch triggers
+│       │       │   ├── audit.py    # Immutable forensic audit logs & CSV export
+│       │       │   └── system.py   # Runtime health diagnostics & staff admin directory
+│       │       ├── auth.py         # Customer registration, login, logout, password reset, 2FA
 │       │       ├── budget.py       # Budget category CRUD & lock status
 │       │       ├── callbacks.py    # Daraja & IntaSend payment webhook handlers
 │       │       ├── deposits.py     # STK push initiation & polling status
@@ -133,31 +164,36 @@ Bursar-2.0/
 │       │   ├── csrf.py             # CSRF token validation middleware
 │       │   ├── encryption.py       # HKDF key derivation & AES credential encryption
 │       │   ├── limiter.py          # SlowAPI rate limiting configuration
-│       │   ├── password.py         # PBKDF2 password hashing & verification
+│       │   ├── password.py         # Argon2 & PBKDF2 password hashing & verification
 │       │   ├── security.py         # Session token generation & constant-time auth
 │       │   └── security_headers.py # HTTP security headers (CSP, HSTS, X-Frame)
 │       ├── db/
-│       │   ├── manager.py          # Database operations, transactions & state guards
+│       │   ├── manager.py          # Database operations, transactions, connection pool & state guards
 │       │   └── models.py           # SQLAlchemy declarative ORM models
 │       ├── services/
-│       │   ├── email.py            # SMTP / transactional email notification service
+│       │   ├── email.py            # SMTP / AWS SES transactional email notification service
 │       │   ├── intasend.py         # IntaSend STK Push & B2C payout client
 │       │   ├── mpesa.py            # Safaricom Daraja STK Push & B2C client
 │       │   ├── payment_gateway.py  # Unified payment provider abstraction layer
 │       │   ├── recaptcha.py        # Google reCAPTCHA v3 score verification
 │       │   └── scheduler.py        # Background payout daemon & retry worker
 │       └── static/                 # Frontend assets (HTML5, Glassmorphism CSS, JS)
+│           ├── admin.html          # Admin Operations Portal Single Page Application
 │           ├── dashboard.html      # Authenticated user dashboard
 │           ├── index.html          # Public landing & login/registration portal
-│           ├── css/style.css       # Design system & responsive styles
-│           └── js/app.js           # Client-side API interactions & chart renderers
-├── tests/                          # Automated test suite (50+ unit/integration tests)
-│   ├── test_auth.py                # Authentication, sessions & hashing tests
-│   ├── test_concurrency_race_conditions.py # Webhook vs. polling race condition tests
-│   ├── test_idempotency.py         # Idempotency key verification tests
-│   ├── test_rate_limiting.py       # SlowAPI rate limiting tests
+│           ├── css/
+│           │   ├── admin.css       # Admin Portal Glassmorphic Design System
+│           │   └── style.css       # Consumer App responsive styles
+│           └── js/
+│               ├── admin.js        # Admin SPA client router, chart controllers & modals
+│               └── app.js          # Consumer client-side API interactions & charts
+├── tests/                          # Automated test suite (310+ unit/integration tests)
+│   ├── test_admin_*.py             # Admin RBAC, finance, deposit, payout, audit & system tests
+│   ├── test_auth.py                # Customer authentication, sessions & hashing tests
 │   ├── test_scheduler.py           # Daily payout schedule & lock evaluation tests
-│   └── e2e/                        # Playwright browser integration tests
+│   └── e2e/                        # Playwright browser integration tests (90+ scenarios)
+│       ├── admin_*.spec.js         # Admin portal end-to-end browser suites
+│       └── *.spec.js               # Consumer app end-to-end browser suites
 ├── CONTRIBUTING.md                 # Open-source contribution guidelines
 ├── requirements.txt                # Python backend dependencies
 ├── package.json                    # Node dependencies for Playwright testing
@@ -236,7 +272,28 @@ SESSION_COOKIE_SECURE=false # Set to true in HTTPS production
 ```bash
 python -m uvicorn src.app.main:app --reload --port 8000
 ```
-Open your browser and navigate to **`http://127.0.0.1:8000`**.
+- **Consumer Web App**: Open **`http://127.0.0.1:8000`**
+- **Admin Portal**: Open **`http://127.0.0.1:8000/admin`**
+
+---
+
+## Administrative CLI Tools
+
+Bursar 2.0 provides an automated CLI bootstrapping utility to provision, update, or reset staff administrator accounts directly on AWS EC2 or local environments without needing raw database queries:
+
+```bash
+# 1. Provision a Primary SuperAdministrator
+python scripts/create_admin.py --email admin@bursar.co.ke --role superadmin --password "SuperStrong!Pass2026"
+
+# 2. Provision a FinOps or Customer Support Officer
+python scripts/create_admin.py --email support@bursar.co.ke --role support --password "Support!Pass2026"
+
+# 3. Update the Role of an Existing Administrator
+python scripts/create_admin.py --email support@bursar.co.ke --role finops --update-role
+
+# 4. Reset an Administrator's Password
+python scripts/create_admin.py --email admin@bursar.co.ke --password "NewSuperStrong!Pass2026" --reset-password
+```
 
 ---
 

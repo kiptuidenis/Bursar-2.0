@@ -122,3 +122,112 @@ class DeactivateRequest(BaseModel):
     password: str
     confirmation: str
 
+class AdminLoginPayload(BaseModel):
+    email: str = Field(..., description="Administrator email address")
+    password: str = Field(..., min_length=1, description="Administrator password")
+
+class AdminUserUnlockPayload(BaseModel):
+    reason: Optional[str] = Field("Admin manual account unlock", description="Reason for unlocking account")
+
+class AdminUser2FATogglePayload(BaseModel):
+    enabled: bool = Field(..., description="Enable (true) or disable (false) 2FA")
+    reason: Optional[str] = Field("Admin 2FA state modification", description="Reason for changing 2FA state")
+
+class AdminUserRevokeSessionsPayload(BaseModel):
+    reason: Optional[str] = Field("Admin emergency session revocation", description="Reason for session revocation")
+
+class AdminUserImpersonatePayload(BaseModel):
+    reason: Optional[str] = Field("Customer support troubleshooting", description="Reason for impersonating user")
+
+class AdminUserUpdatePayoutPhonePayload(BaseModel):
+    phone_number: str = Field(..., description="New Safaricom phone number (e.g. 254712345678 or 0712345678)")
+    reason: Optional[str] = Field("Admin manual phone correction", description="Reason for updating payout phone")
+
+class AdminBalanceAdjustmentPayload(BaseModel):
+    user_id: int = Field(..., description="Target customer user ID")
+    amount: int = Field(..., gt=0, description="Positive integer amount to adjust in KES")
+    adjustment_type: str = Field("CREDIT", description="'CREDIT' or 'DEBIT'")
+    reason: str = Field(..., min_length=3, description="Mandatory audit explanation for financial modification")
+    reference_id: Optional[str] = Field(None, description="External banking or M-Pesa transaction reference")
+
+    @field_validator("adjustment_type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        upper = v.strip().upper()
+        if upper not in ("CREDIT", "DEBIT"):
+            raise ValueError("Adjustment type must be either 'CREDIT' or 'DEBIT'")
+        return upper
+
+class AdminLockOverridePayload(BaseModel):
+    reason: str = Field(..., min_length=3, description="Mandatory audit explanation for emergency lock override")
+
+class AdminDepositManualSettlePayload(BaseModel):
+    mpesa_receipt: str = Field(..., min_length=5, description="Safaricom M-Pesa transaction reference (e.g. QWE123RTY)")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for manual reconciliation")
+
+class AdminPayoutRetryPayload(BaseModel):
+    reason: Optional[str] = Field("Manual administrative B2C payout retry", description="Reason for retrying failed payout")
+
+class AdminPayoutMarkSettledPayload(BaseModel):
+    transaction_id: str = Field(..., min_length=5, description="External banking or M-Pesa B2C transaction ID")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for manual settlement")
+
+class AdminStatusTogglePayload(BaseModel):
+    is_active: bool = Field(..., description="Target active status (True = active, False = deactivated)")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for modifying admin status")
+
+class AdminUserNotificationPayload(BaseModel):
+    title: str = Field(..., min_length=2, max_length=200, description="Title of the in-app notification")
+    message: str = Field(..., min_length=3, description="Body content of the notification")
+    type: str = Field("INFO", description="Notification severity / style ('INFO', 'WARNING', 'SUCCESS', 'DANGER')")
+    reason: Optional[str] = Field("Customer support notification", description="Audit justification for sending notification")
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        upper = v.strip().upper()
+        if upper not in ("INFO", "WARNING", "SUCCESS", "DANGER"):
+            return "INFO"
+        return upper
+
+class AdminCreateAccountPayload(BaseModel):
+    email: str = Field(..., min_length=5, description="Staff admin email address")
+    password: str = Field(..., min_length=8, description="Strong password for admin account")
+    role: str = Field(..., description="Role: 'superadmin', 'finops', 'support', 'auditor'")
+    reason: Optional[str] = Field("Admin account provisioning", description="Audit justification")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if "@" not in clean or "." not in clean:
+            raise ValueError("Invalid email format")
+        return clean
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if clean not in ("superadmin", "finops", "support", "auditor"):
+            raise ValueError("Role must be one of: superadmin, finops, support, auditor")
+        return clean
+
+class AdminRoleUpdatePayload(BaseModel):
+    role: str = Field(..., description="New role: 'superadmin', 'finops', 'support', 'auditor'")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for role update")
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if clean not in ("superadmin", "finops", "support", "auditor"):
+            raise ValueError("Role must be one of: superadmin, finops, support, auditor")
+        return clean
+
+
+
+
+
+
+
+
