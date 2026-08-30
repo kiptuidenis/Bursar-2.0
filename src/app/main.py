@@ -203,10 +203,6 @@ if config.IS_TEST_MODE:
             samesite="lax",
             path="/"
         )
-        if payload.get("seed_notifications"):
-            db.create_notification(user_id, "Test Alert 1", "This is unread alert 1", "INFO")
-            db.create_notification(user_id, "Test Alert 2", "This is unread alert 2", "WARNING")
-
         return {"status": "success", "user_id": user_id, "session_token": token}
 
 @app.get("/api/diagnostics")
