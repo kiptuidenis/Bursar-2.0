@@ -160,6 +160,45 @@ def test_admin_portal_audit_logs_and_payload_modal_present():
         assert 'id="audit-after-state"' in html
         assert 'id="audit-payload-reason"' in html
 
+def test_admin_portal_system_health_and_admin_management_modals_present():
+    """Verify that System Health pane, staff admin directory table, create admin modal, and edit role modal are mounted in HTML."""
+    with TestClient(app) as client:
+        res = client.get("/admin")
+        assert res.status_code == 200
+        html = res.text
+
+        # Verify System Health Pane & Cards
+        assert 'id="pane-system"' in html
+        assert 'id="health-db-status"' in html
+        assert 'id="health-scheduler-status"' in html
+        assert 'id="health-gateway-status"' in html
+        assert 'id="health-env-status"' in html
+
+        # Verify SuperAdmin Staff Directory Table
+        assert 'id="superadmin-management-card"' in html
+        assert 'id="admins-table"' in html
+        assert 'id="admins-table-body"' in html
+        assert 'id="btn-open-create-admin"' in html
+
+        # Verify Create Staff Admin Modal
+        assert 'id="modal-create-admin"' in html
+        assert 'id="form-create-admin"' in html
+        assert 'id="create-admin-email"' in html
+        assert 'id="create-admin-password"' in html
+        assert 'id="create-admin-role"' in html
+        assert 'id="create-admin-reason"' in html
+        assert 'id="btn-submit-create-admin"' in html
+
+        # Verify Update Staff Role Modal
+        assert 'id="modal-update-admin-role"' in html
+        assert 'id="form-update-admin-role"' in html
+        assert 'id="edit-admin-id"' in html
+        assert 'id="edit-admin-email"' in html
+        assert 'id="edit-admin-role"' in html
+        assert 'id="edit-admin-reason"' in html
+        assert 'id="btn-submit-update-admin-role"' in html
+
+
 
 
 

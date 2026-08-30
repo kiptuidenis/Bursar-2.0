@@ -1312,10 +1312,11 @@
             document.getElementById("health-env-status").textContent = data.environment.toUpperCase();
 
             // If SuperAdmin, load admin user directory
+            const superCard = document.getElementById("superadmin-management-card");
             if (state.adminUser && state.adminUser.role === "superadmin") {
-                loadAdminDirectory();
+                if (superCard) superCard.style.display = "";
+                await loadAdminDirectory();
             } else {
-                const superCard = document.getElementById("superadmin-management-card");
                 if (superCard) superCard.style.display = "none";
             }
 
@@ -1325,12 +1326,16 @@
         }
     }
 
+    let currentAdminsCache = [];
+
     async function loadAdminDirectory() {
         const tbody = document.getElementById("admins-table-body");
         try {
             const data = await apiRequest("/api/admin/system/admins");
+            currentAdminsCache = data.admins || [];
+
             if (!data.admins || data.admins.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No other administrators found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No staff administrators found.</td></tr>`;
                 return;
             }
 
@@ -1344,17 +1349,80 @@
                             : `<span class="status-pill pill-danger">Deactivated</span>`}
                     </td>
                     <td>
-                        ${a.id !== state.adminUser.id ? `
-                            <button class="btn btn-secondary btn-sm btn-toggle-admin-status" data-admin-id="${a.id}" data-active="${a.is_active}">
-                                ${a.is_active ? "Deactivate" : "Activate"}
-                            </button>
+                        ${a.id !== (state.adminUser ? state.adminUser.id : null) ? `
+                            <div class="btn-group">
+                                <button class="btn btn-secondary btn-xs btn-edit-admin-role mr-1" data-admin-id="${a.id}">
+                                    <i data-lucide="edit-3"></i> Role
+                                </button>
+                                <button class="btn btn-secondary btn-xs btn-toggle-admin-status" data-admin-id="${a.id}" data-active="${a.is_active}">
+                                    ${a.is_active ? "Deactivate" : "Activate"}
+                                </button>
+                            </div>
                         ` : `<span class="text-dim text-xs">(Current Account)</span>`}
                     </td>
                 </tr>
             `).join("");
+
+            tbody.querySelectorAll(".btn-edit-admin-role").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const id = parseInt(btn.getAttribute("data-admin-id"), 10);
+                    const admin = currentAdminsCache.find(item => item.id === id);
+                    if (admin) openUpdateAdminRoleModal(admin);
+                });
+            });
+
+            tbody.querySelectorAll(".btn-toggle-admin-status").forEach(btn => {
+                btn.addEventListener("click", async () => {
+                    const id = parseInt(btn.getAttribute("data-admin-id"), 10);
+                    const isActive = btn.getAttribute("data-active") === "true";
+                    const newStatus = !isActive;
+                    const actionName = newStatus ? "activate" : "deactivate";
+
+                    const reason = prompt(`Please enter mandatory audit reason to ${actionName} this administrator account:`);
+                    if (!reason || reason.trim().length < 3) {
+                        showToast("Action cancelled. Audit reason required.", "warning");
+                        return;
+                    }
+
+                    try {
+                        const res = await apiRequest(`/api/admin/system/admins/${id}/toggle-active`, {
+                            method: "POST",
+                            body: JSON.stringify({ is_active: newStatus, reason: reason.trim() })
+                        });
+                        showToast(res.message || `Account ${actionName}d successfully`, "success");
+                        loadAdminDirectory();
+                    } catch (err) {
+                        showToast(err.message || `Failed to ${actionName} account`, "error");
+                    }
+                });
+            });
+
+            if (window.lucide) window.lucide.createIcons();
         } catch {
             tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">Failed to load admin directory.</td></tr>`;
         }
+    }
+
+    function openCreateAdminModal() {
+        const modal = document.getElementById("modal-create-admin");
+        if (!modal) return;
+        document.getElementById("create-admin-email").value = "";
+        document.getElementById("create-admin-password").value = "";
+        document.getElementById("create-admin-role").value = "support";
+        document.getElementById("create-admin-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("create-admin-email").focus();
+    }
+
+    function openUpdateAdminRoleModal(admin) {
+        const modal = document.getElementById("modal-update-admin-role");
+        if (!modal) return;
+        document.getElementById("edit-admin-id").value = admin.id;
+        document.getElementById("edit-admin-email").value = admin.email;
+        document.getElementById("edit-admin-role").value = admin.role.toLowerCase();
+        document.getElementById("edit-admin-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("edit-admin-reason").focus();
     }
 
     function updatePaginationInfo(section) {
@@ -1911,7 +1979,87 @@
             });
         }
 
-        // 21. Lucide Icons Initial Call
+        // 21. Staff Admin Provisioning Button & Modal Form
+        const btnOpenCreateAdmin = document.getElementById("btn-open-create-admin");
+        if (btnOpenCreateAdmin) {
+            btnOpenCreateAdmin.addEventListener("click", () => {
+                openCreateAdminModal();
+            });
+        }
+
+        const formCreateAdmin = document.getElementById("form-create-admin");
+        if (formCreateAdmin) {
+            formCreateAdmin.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const email = document.getElementById("create-admin-email").value.trim().toLowerCase();
+                const password = document.getElementById("create-admin-password").value;
+                const role = document.getElementById("create-admin-role").value;
+                const reason = document.getElementById("create-admin-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-create-admin");
+
+                if (!email || !password || password.length < 8) {
+                    showToast("Please provide valid corporate email and minimum 8-character password", "error");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest("/api/admin/system/admins", {
+                        method: "POST",
+                        body: JSON.stringify({ email, password, role, reason })
+                    });
+                    showToast(`Administrator account for ${email} provisioned successfully!`, "success");
+                    const modal = document.getElementById("modal-create-admin");
+                    if (modal) modal.classList.add("hidden");
+                    formCreateAdmin.reset();
+                    loadAdminDirectory();
+                } catch (err) {
+                    showToast(err.message || "Failed to provision administrator account", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 22. Update Staff Admin Role Modal Form
+        const formUpdateAdminRole = document.getElementById("form-update-admin-role");
+        if (formUpdateAdminRole) {
+            formUpdateAdminRole.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const adminId = document.getElementById("edit-admin-id").value;
+                const role = document.getElementById("edit-admin-role").value;
+                const reason = document.getElementById("edit-admin-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-update-admin-role");
+
+                if (!adminId || !role) {
+                    showToast("Missing administrator reference or role", "error");
+                    return;
+                }
+                if (!reason || reason.length < 3) {
+                    showToast("Please provide mandatory audit justification", "error");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest(`/api/admin/system/admins/${adminId}/role`, {
+                        method: "PUT",
+                        body: JSON.stringify({ role, reason })
+                    });
+                    showToast(`Administrator role updated to ${role.toUpperCase()} successfully!`, "success");
+                    const modal = document.getElementById("modal-update-admin-role");
+                    if (modal) modal.classList.add("hidden");
+                    formUpdateAdminRole.reset();
+                    loadAdminDirectory();
+                } catch (err) {
+                    showToast(err.message || "Failed to update administrator role", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 23. Lucide Icons Initial Call
         if (window.lucide) {
             window.lucide.createIcons();
         }

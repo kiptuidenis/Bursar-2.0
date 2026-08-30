@@ -634,12 +634,17 @@
 
                         <!-- Admin Management (SuperAdmin Only) -->
                         <div class="card glass-panel" id="superadmin-management-card">
-                            <div class="card-header">
+                            <div class="card-header flex-wrap-mobile">
                                 <div class="card-title-group">
                                     <i data-lucide="shield"></i>
                                     <h3>Staff Administrators Directory</h3>
                                 </div>
-                                <span class="badge-superadmin">SuperAdmin Only</span>
+                                <div class="table-controls">
+                                    <button class="btn btn-primary btn-sm" id="btn-open-create-admin">
+                                        <i data-lucide="user-plus"></i>
+                                        <span>New Admin</span>
+                                    </button>
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table class="data-table" id="admins-table">
@@ -848,6 +853,83 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-audit-payload">Close Inspector</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create New Staff Administrator -->
+    <div class="modal-overlay hidden" id="modal-create-admin">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="user-plus"></i>
+                    <h3>Provision Staff Administrator</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-create-admin"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-create-admin" class="modal-body">
+                <div class="form-group">
+                    <label for="create-admin-email">Staff Corporate Email</label>
+                    <input type="email" id="create-admin-email" name="email" class="form-input" placeholder="e.g. j.doe@bursar.co.ke" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-admin-password">Initial Password (Min 8 characters)</label>
+                    <input type="password" id="create-admin-password" name="password" class="form-input" placeholder="••••••••" minlength="8" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-admin-role">Assigned RBAC Role</label>
+                    <select id="create-admin-role" name="role" class="form-select" required>
+                        <option value="support">Customer Support (Read Only / 2FA Reset / In-App Messaging)</option>
+                        <option value="finops">FinOps Officer (Balance Adjustment / Deposits & Payouts Settlement)</option>
+                        <option value="auditor">Compliance Auditor (Read-Only Forensic & Financial Audit Logs)</option>
+                        <option value="superadmin">Super Administrator (Unrestricted Full Platform Governance)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="create-admin-reason">Mandatory Audit Justification</label>
+                    <textarea id="create-admin-reason" name="reason" rows="2" class="form-textarea" placeholder="Explain the business reason for provisioning this staff account..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-create-admin">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-create-admin">Create Staff Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Update Staff Administrator Role -->
+    <div class="modal-overlay hidden" id="modal-update-admin-role">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="shield"></i>
+                    <h3>Modify Administrator Role</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-update-admin-role"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-update-admin-role" class="modal-body">
+                <input type="hidden" id="edit-admin-id" name="admin_id">
+                <div class="form-group">
+                    <label for="edit-admin-email">Staff Email</label>
+                    <input type="text" id="edit-admin-email" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="edit-admin-role">New Assigned RBAC Role</label>
+                    <select id="edit-admin-role" name="role" class="form-select" required>
+                        <option value="support">Customer Support</option>
+                        <option value="finops">FinOps Officer</option>
+                        <option value="auditor">Compliance Auditor</option>
+                        <option value="superadmin">Super Administrator</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-admin-reason">Mandatory Audit Justification</label>
+                    <textarea id="edit-admin-reason" name="reason" rows="2" class="form-textarea" placeholder="Explain the reason for modifying this staff role..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-update-admin-role">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-update-admin-role">Save Role Change</button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -38,6 +38,13 @@ def get_system_health(
         }
     }
 
+from app.api.schemas import (
+    AdminStatusTogglePayload,
+    AdminCreateAccountPayload,
+    AdminRoleUpdatePayload
+)
+from app.core.password import hash_password_argon2
+
 @router.get("/admins")
 def list_admin_accounts(
     admin: dict = Depends(require_admin_roles(["superadmin"])),
@@ -46,6 +53,52 @@ def list_admin_accounts(
     """List all staff administrative users (SuperAdmin only)."""
     admins = db.get_admin_users_directory()
     return {"admins": admins, "total": len(admins)}
+
+@router.post("/admins")
+def create_admin_account(
+    request: Request,
+    payload: AdminCreateAccountPayload,
+    admin: dict = Depends(require_admin_roles(["superadmin"])),
+    db: DatabaseManager = Depends(get_db)
+):
+    """Provision a new administrative staff account (SuperAdmin only)."""
+    ip_address = request.client.host if request.client else "127.0.0.1"
+    pwd_hash = hash_password_argon2(payload.password)
+    try:
+        new_admin = db.admin_create_staff_account(
+            email=payload.email,
+            password_hash=pwd_hash,
+            salt="argon2",
+            role=payload.role,
+            actor_admin_id=admin["id"],
+            reason=payload.reason or "Admin staff provisioning",
+            ip_address=ip_address
+        )
+        return {"status": "success", "admin": new_admin}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/admins/{admin_id}/role")
+def update_admin_role(
+    request: Request,
+    admin_id: int,
+    payload: AdminRoleUpdatePayload,
+    admin: dict = Depends(require_admin_roles(["superadmin"])),
+    db: DatabaseManager = Depends(get_db)
+):
+    """Update administrative staff role (SuperAdmin only)."""
+    ip_address = request.client.host if request.client else "127.0.0.1"
+    try:
+        db.admin_update_staff_role(
+            target_admin_id=admin_id,
+            new_role=payload.role,
+            actor_admin_id=admin["id"],
+            reason=payload.reason,
+            ip_address=ip_address
+        )
+        return {"status": "success", "admin_id": admin_id, "role": payload.role}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/admins/{admin_id}/toggle-active")
 def toggle_admin_active_status(

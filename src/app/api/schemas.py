@@ -190,6 +190,41 @@ class AdminUserNotificationPayload(BaseModel):
             return "INFO"
         return upper
 
+class AdminCreateAccountPayload(BaseModel):
+    email: str = Field(..., min_length=5, description="Staff admin email address")
+    password: str = Field(..., min_length=8, description="Strong password for admin account")
+    role: str = Field(..., description="Role: 'superadmin', 'finops', 'support', 'auditor'")
+    reason: Optional[str] = Field("Admin account provisioning", description="Audit justification")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if "@" not in clean or "." not in clean:
+            raise ValueError("Invalid email format")
+        return clean
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if clean not in ("superadmin", "finops", "support", "auditor"):
+            raise ValueError("Role must be one of: superadmin, finops, support, auditor")
+        return clean
+
+class AdminRoleUpdatePayload(BaseModel):
+    role: str = Field(..., description="New role: 'superadmin', 'finops', 'support', 'auditor'")
+    reason: str = Field(..., min_length=3, description="Mandatory audit justification for role update")
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if clean not in ("superadmin", "finops", "support", "auditor"):
+            raise ValueError("Role must be one of: superadmin, finops, support, auditor")
+        return clean
+
+
 
 
 

@@ -2092,6 +2092,76 @@ class DatabaseManager:
         )
         return True
 
+    def admin_create_staff_account(
+        self,
+        email: str,
+        password_hash: str,
+        salt: str,
+        role: str,
+        actor_admin_id: int,
+        reason: str,
+        ip_address: str
+    ) -> Dict[str, Any]:
+        """Provision a new staff administrative user with role and audit trail."""
+        existing = self.session.query(AdminUser).filter(AdminUser.email == email.strip().lower()).first()
+        if existing:
+            raise ValueError(f"Admin account with email {email} already exists.")
+
+        admin_id = self.create_admin_user(
+            email=email.strip().lower(),
+            password_hash=password_hash,
+            salt=salt,
+            role=role.strip().lower()
+        )
+
+        self.create_admin_audit_log(
+            admin_id=actor_admin_id,
+            action="ADMIN_ACCOUNT_CREATE",
+            target_type="AdminUser",
+            target_id=admin_id,
+            before_state="{}",
+            after_state=f'{{"email": "{email}", "role": "{role}"}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+
+        return {
+            "id": admin_id,
+            "email": email.strip().lower(),
+            "role": role.strip().lower(),
+            "is_active": True
+        }
+
+    def admin_update_staff_role(
+        self,
+        target_admin_id: int,
+        new_role: str,
+        actor_admin_id: int,
+        reason: str,
+        ip_address: str
+    ) -> bool:
+        """Update the RBAC role of a staff administrator."""
+        admin = self.session.query(AdminUser).filter(AdminUser.id == target_admin_id).first()
+        if not admin:
+            raise ValueError(f"Admin with ID {target_admin_id} not found.")
+
+        prev_role = admin.role
+        admin.role = new_role.strip().lower()
+        self._commit()
+
+        self.create_admin_audit_log(
+            admin_id=actor_admin_id,
+            action="ADMIN_ROLE_UPDATE",
+            target_type="AdminUser",
+            target_id=target_admin_id,
+            before_state=f'{{"role": "{prev_role}"}}',
+            after_state=f'{{"role": "{admin.role}"}}',
+            reason=reason,
+            ip_address=ip_address
+        )
+        return True
+
+
 
 
 
