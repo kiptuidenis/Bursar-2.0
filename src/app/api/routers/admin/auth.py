@@ -139,8 +139,16 @@ def get_current_admin_profile(
         raise HTTPException(status_code=401, detail="Admin account is inactive or not found.")
 
     return {
+        "status": "success",
         "id": admin["id"],
         "email": admin["email"],
         "role": admin["role"],
-        "created_at": admin.get("created_at", "")
+        "created_at": admin.get("created_at", ""),
+        "admin": {
+            "id": admin["id"],
+            "email": admin["email"],
+            "role": admin["role"],
+            "created_at": admin.get("created_at", "")
+        }
     }
+

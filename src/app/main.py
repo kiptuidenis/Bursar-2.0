@@ -218,6 +218,52 @@ if config.IS_TEST_MODE:
         )
         return {"status": "success", "user_id": user_id, "session_token": token}
 
+    @app.post("/api/test/setup-admin-session")
+    def setup_test_admin_session(request: Request, response: Response, payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
+        import time
+        import secrets
+        email = payload.get("email") or f"admin_{datetime.datetime.now().microsecond:06d}@bursar.co.ke"
+        password = payload.get("password") or "Admin!Pass2026Secure"
+        role = payload.get("role") or "superadmin"
+        pwd_hash, salt = db._hash_password(password)
+        
+        admin = db.get_admin_by_email(email)
+        if not admin:
+            admin_id = db.create_admin_user(email=email, password_hash=pwd_hash, salt=salt, role=role)
+        else:
+            admin_id = admin["id"]
+            from app.db.models import AdminUser
+            admin_obj = db.session.query(AdminUser).filter(AdminUser.id == admin_id).first()
+            if admin_obj:
+                admin_obj.role = role
+                db._commit()
+            
+        user_agent = request.headers.get("user-agent", "Playwright Test")
+        ip_address = request.client.host if request.client else "127.0.0.1"
+        token = f"adm_{secrets.token_urlsafe(32)}"
+        expires_at = int(time.time()) + 86400
+        
+        db.create_admin_session(
+            admin_id=admin_id,
+            token=token,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            expires_at=expires_at
+        )
+        
+        response.set_cookie(
+            key="admin_session_token",
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=86400,
+            path="/"
+        )
+        return {"status": "success", "admin_id": admin_id, "email": email, "role": role, "admin_session_token": token}
+
+
+
 @app.get("/api/diagnostics")
 @limiter.limit("10/minute")
 async def get_diagnostics(request: Request, user_id: int = Depends(get_current_user_id)):
@@ -252,7 +298,20 @@ def get_dashboard_page(request: Request, db = Depends(get_db)):
         return response
     raise HTTPException(status_code=404, detail="Dashboard not found")
 
+@app.get("/admin")
+def get_admin_page(request: Request):
+    from fastapi.responses import FileResponse
+    admin_path = os.path.join(os.path.dirname(__file__), "static", "admin.html")
+    if os.path.exists(admin_path):
+        response = FileResponse(admin_path)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+    raise HTTPException(status_code=404, detail="Admin portal page not found")
+
 # Mount static assets
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
