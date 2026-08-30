@@ -3566,6 +3566,13 @@ button[disabled]:hover,
 .notification-item.unread {
     background: rgba(139, 92, 246, 0.08);
     border-color: rgba(139, 92, 246, 0.25);
+    cursor: pointer;
+}
+
+.notification-item.unread:hover {
+    background: rgba(139, 92, 246, 0.14);
+    border-color: rgba(139, 92, 246, 0.4);
+    transform: translateY(-1px);
 }
 
 .notification-item-header {
