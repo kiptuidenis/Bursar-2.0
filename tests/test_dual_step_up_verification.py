@@ -127,9 +127,7 @@ def test_budget_lock_with_stepup_otp_and_payout_phone():
     eat_tz = datetime.timezone(datetime.timedelta(hours=3))
     today_dt = datetime.datetime.now(eat_tz)
     start_str = (today_dt + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    import calendar
-    _, last_day = calendar.monthrange(today_dt.year, today_dt.month)
-    end_str = today_dt.replace(day=last_day).strftime("%Y-%m-%d")
+    end_str = (today_dt + datetime.timedelta(days=15)).strftime("%Y-%m-%d")
 
     # 4. Lock budget with Dual Step-Up Verification
     res_lock = client.post("/api/budget/lock", json={

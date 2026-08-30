@@ -1,7 +1,12 @@
-name: Deploy to EC2 Production
+name: CI Checks and EC2 Deployment
 
 on:
   push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
     branches:
       - main
 
@@ -56,6 +61,7 @@ jobs:
 
   deploy:
     needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2 via SSH
