@@ -1055,8 +1055,6 @@ class DatabaseManager:
             .all()
         )
         notifications = [_row_to_dict(n) for n in records]
-        for n in notifications:
-            n["is_read"] = bool(n.get("is_read"))
         unread_count = sum(1 for n in notifications if not n.get("is_read"))
         return notifications, unread_count
 
@@ -1075,7 +1073,7 @@ class DatabaseManager:
 
     def mark_all_notifications_as_read(self, user_id: int) -> None:
         """Mark all notifications as read for a given user."""
-        self.session.query(Notification).filter(Notification.user_id == user_id).update(
+        self.session.query(Notification).filter(Notification.user_id == user_id, Notification.is_read == False).update(
             {Notification.is_read: True}, synchronize_session=False
         )
         self._commit()

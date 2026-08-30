@@ -1178,39 +1178,14 @@ function updateNotificationUI(notifications, unreadCount) {
                 </div>
             `).join("");
 
-            // Attach whole-card click listener on unread items
-            listEl.querySelectorAll(".notification-item.unread").forEach(card => {
-                card.addEventListener("click", async (e) => {
-                    if (e.target.closest(".mark-single-read-btn")) return;
-                    const notifId = card.getAttribute("data-id");
-                    if (notifId) {
-                        await markNotificationAsRead(notifId);
-                    }
-                });
-            });
-
-            // Attach inline button click listener
             listEl.querySelectorAll(".mark-single-read-btn").forEach(btn => {
                 btn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     const notifId = btn.getAttribute("data-id");
-                    if (notifId) {
-                        await markNotificationAsRead(notifId);
-                    }
+                    await markNotificationAsRead(notifId);
                 });
             });
         }
-    }
-
-    // Ensure mark-all-read button in header always has listener
-    const markAllBtn = document.getElementById("mark-all-read-btn");
-    if (markAllBtn && !markAllBtn._bound) {
-        markAllBtn._bound = true;
-        markAllBtn.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            markAllNotificationsAsRead();
-        });
     }
 
     const banner = document.getElementById("insufficient-balance-alert-banner");
@@ -1229,67 +1204,20 @@ function updateNotificationUI(notifications, unreadCount) {
 }
 
 async function markNotificationAsRead(id) {
-    if (!id) return;
-    
-    // Optimistic UI Update
-    const itemEl = document.querySelector(`.notification-item[data-id="${id}"]`);
-    if (itemEl && itemEl.classList.contains("unread")) {
-        itemEl.classList.remove("unread");
-        const btn = itemEl.querySelector(".mark-single-read-btn");
-        if (btn) btn.remove();
-        
-        // Decrement badges
-        [document.getElementById("nav-notifications-badge"), document.getElementById("sidebar-notifications-badge")].forEach(badge => {
-            if (badge && badge.style.display !== "none") {
-                let count = parseInt(badge.innerText, 10) || 0;
-                count = Math.max(0, count - 1);
-                if (count > 0) {
-                    badge.innerText = count > 99 ? "99+" : String(count);
-                } else {
-                    badge.style.display = "none";
-                }
-            }
-        });
-    }
-
     try {
-        const res = await fetch(`/api/notifications/${id}/read`, { 
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-        });
-        if (!res.ok) {
-            console.warn(`Mark notification ${id} as read failed: HTTP ${res.status}`);
-        }
-        await fetchNotifications();
+        const res = await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+        if (res.ok) fetchNotifications();
     } catch (err) {
         console.error("Error marking notification as read:", err);
-        await fetchNotifications();
     }
 }
 
 async function markAllNotificationsAsRead() {
-    // Optimistic UI Update
-    document.querySelectorAll(".notification-item.unread").forEach(item => {
-        item.classList.remove("unread");
-        const btn = item.querySelector(".mark-single-read-btn");
-        if (btn) btn.remove();
-    });
-    [document.getElementById("nav-notifications-badge"), document.getElementById("sidebar-notifications-badge")].forEach(badge => {
-        if (badge) badge.style.display = "none";
-    });
-
     try {
-        const res = await fetch("/api/notifications/read-all", { 
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-        });
-        if (!res.ok) {
-            console.warn(`Mark all notifications as read failed: HTTP ${res.status}`);
-        }
-        await fetchNotifications();
+        const res = await fetch("/api/notifications/read-all", { method: "POST" });
+        if (res.ok) fetchNotifications();
     } catch (err) {
         console.error("Error marking all notifications as read:", err);
-        await fetchNotifications();
     }
 }
 
