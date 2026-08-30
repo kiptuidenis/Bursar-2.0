@@ -119,7 +119,7 @@
 
     function formatCurrency(amount) {
         const val = parseFloat(amount) || 0;
-        return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 0 }).format(val);
+        return "KES " + new Intl.NumberFormat("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val);
     }
 
     function formatDate(dateStr) {
@@ -323,44 +323,57 @@
             const data = await apiRequest("/api/admin/overview");
             if (!data) return;
 
-            // KPIs
-            document.getElementById("kpi-active-users").textContent = data.users.active_users.toLocaleString();
-            document.getElementById("kpi-total-users").textContent = `${data.users.total_users.toLocaleString()} total registered`;
+            const u = data.users || {};
+            const fl = data.float || {};
+            const q = data.queues || {};
+            const pv = data.payout_velocity || {};
+
+            // 1. KPIs
+            const totalUsersCount = (u.total_registered_users || 0);
+            document.getElementById("kpi-active-users").textContent = totalUsersCount.toLocaleString();
+            document.getElementById("kpi-total-users").textContent = `${totalUsersCount.toLocaleString()} total registered (${u.active_locked_savers || 0} active savers)`;
             
-            document.getElementById("kpi-platform-float").textContent = formatCurrency(data.finances.platform_float);
-            document.getElementById("kpi-locked-deposits").textContent = `${formatCurrency(data.finances.total_locked_balance)} in savings locks`;
+            const platformFloat = fl.total_platform_float || fl.total_user_balance || 0;
+            const lockedBalance = fl.total_locked_funds || 0;
+            document.getElementById("kpi-platform-float").textContent = formatCurrency(platformFloat);
+            document.getElementById("kpi-locked-deposits").textContent = `${formatCurrency(lockedBalance)} locked in active savings`;
 
-            document.getElementById("kpi-today-deposits").textContent = formatCurrency(data.deposits.today_amount);
-            document.getElementById("kpi-today-deposit-count").textContent = `${data.deposits.today_count} successful STK pushes`;
+            const todayDepAmount = fl.total_deposited_all_time || 0;
+            document.getElementById("kpi-today-deposits").textContent = formatCurrency(todayDepAmount);
+            document.getElementById("kpi-today-deposit-count").textContent = `${q.pending_deposits_count || 0} pending STK reconciliation`;
 
-            document.getElementById("kpi-today-disbursed").textContent = formatCurrency(data.payouts.today_disbursed);
-            document.getElementById("kpi-today-payout-count").textContent = `${data.payouts.today_count} daily budget payouts`;
+            const todayDisbAmount = pv.today_disbursed_amount || 0;
+            document.getElementById("kpi-today-disbursed").textContent = formatCurrency(todayDisbAmount);
+            document.getElementById("kpi-today-payout-count").textContent = `${pv.today_disbursed_count || 0} daily budget disbursements today`;
 
-            // Alerts
-            document.getElementById("alert-failed-payouts-title").textContent = `Failed Payouts: ${data.payouts.failed_count}`;
-            document.getElementById("alert-locked-users-title").textContent = `Locked Out Users: ${data.users.locked_users_count}`;
+            // 2. Alerts
+            const failedPayouts = q.failed_payouts_count || 0;
+            const lockedUsers = u.locked_out_users || 0;
+            document.getElementById("alert-failed-payouts-title").textContent = `Failed Payouts: ${failedPayouts}`;
+            document.getElementById("alert-locked-users-title").textContent = `Locked Out Users: ${lockedUsers}`;
 
-            // Sidebar Badges
-            document.getElementById("badge-users-count").textContent = data.users.total_users;
+            // 3. Sidebar Badges
+            document.getElementById("badge-users-count").textContent = totalUsersCount;
             const depBadge = document.getElementById("badge-pending-deposits");
-            if (data.deposits.pending_count > 0) {
-                depBadge.textContent = data.deposits.pending_count;
+            if (q.pending_deposits_count > 0) {
+                depBadge.textContent = q.pending_deposits_count;
                 depBadge.style.display = "";
             } else {
                 depBadge.style.display = "none";
             }
 
             const payBadge = document.getElementById("badge-failed-payouts");
-            if (data.payouts.failed_count > 0) {
-                payBadge.textContent = data.payouts.failed_count;
+            if (failedPayouts > 0) {
+                payBadge.textContent = failedPayouts;
                 payBadge.style.display = "";
             } else {
                 payBadge.style.display = "none";
             }
 
-            // Render Charts
+            // 4. Render Charts
             renderOverviewCharts(data);
         } catch (err) {
+            console.error("Failed to load overview metrics:", err);
             showToast("Failed to load overview metrics", "error");
         }
     }
@@ -368,26 +381,44 @@
     function renderOverviewCharts(data) {
         if (!window.Chart) return;
 
-        // Chart 1: Platform Float Allocation
+        const fl = data.float || {};
+        const q = data.queues || {};
+        const pv = data.payout_velocity || {};
+
+        // Chart 1: Platform Float Allocation (Donut Chart)
         const ctxFloat = document.getElementById("chart-float-distribution");
         if (ctxFloat) {
             if (state.charts.float) state.charts.float.destroy();
+            const avail = fl.total_user_balance || 0;
+            const locked = fl.total_locked_funds || 0;
+            const hasData = (avail + locked) > 0;
+
             state.charts.float = new window.Chart(ctxFloat, {
                 type: "doughnut",
                 data: {
-                    labels: ["Available Liquidity", "Locked Savings"],
+                    labels: hasData ? ["Available Liquidity", "Locked Savings"] : ["No Platform Float"],
                     datasets: [{
-                        data: [data.finances.total_available_balance, data.finances.total_locked_balance],
-                        backgroundColor: ["#3b82f6", "#8b5cf6"],
-                        borderWidth: 0
+                        data: hasData ? [avail, locked] : [1],
+                        backgroundColor: hasData ? ["#3b82f6", "#8b5cf6"] : ["rgba(255, 255, 255, 0.1)"],
+                        borderWidth: 0,
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: "bottom", labels: { color: "#9ca3af" } }
-                    }
+                        legend: { position: "bottom", labels: { color: "#9ca3af", font: { family: "Inter", size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (!hasData) return " No platform float recorded yet";
+                                    return ` ${context.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: "68%"
                 }
             });
         }
@@ -396,7 +427,10 @@
         const ctxVelocity = document.getElementById("chart-cashflow-velocity");
         if (ctxVelocity) {
             if (state.charts.velocity) state.charts.velocity.destroy();
-            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            const todayDep = fl.total_deposited_all_time || 0;
+            const todayDisb = pv.today_disbursed_amount || 0;
+            const days = ["6d ago", "5d ago", "4d ago", "3d ago", "2d ago", "Yesterday", "Today"];
+
             state.charts.velocity = new window.Chart(ctxVelocity, {
                 type: "line",
                 data: {
@@ -404,19 +438,23 @@
                     datasets: [
                         {
                             label: "Deposits (Inflow)",
-                            data: [12000, 19000, 15000, 25000, 22000, 30000, data.deposits.today_amount || 28000],
+                            data: [0, 0, 0, 0, 0, 0, todayDep],
                             borderColor: "#10b981",
-                            backgroundColor: "rgba(16, 185, 129, 0.1)",
+                            backgroundColor: "rgba(16, 185, 129, 0.12)",
                             fill: true,
-                            tension: 0.3
+                            tension: 0.35,
+                            pointBackgroundColor: "#10b981",
+                            pointRadius: 4
                         },
                         {
                             label: "Disbursements (Outflow)",
-                            data: [8000, 11000, 10000, 14000, 16000, 18000, data.payouts.today_disbursed || 15000],
+                            data: [0, 0, 0, 0, 0, 0, todayDisb],
                             borderColor: "#f59e0b",
-                            backgroundColor: "rgba(245, 158, 11, 0.1)",
+                            backgroundColor: "rgba(245, 158, 11, 0.12)",
                             fill: true,
-                            tension: 0.3
+                            tension: 0.35,
+                            pointBackgroundColor: "#f59e0b",
+                            pointRadius: 4
                         }
                     ]
                 },
@@ -424,11 +462,24 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: "bottom", labels: { color: "#9ca3af" } }
+                        legend: { position: "bottom", labels: { color: "#9ca3af", font: { family: "Inter", size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         x: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,0.05)" } },
-                        y: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,0.05)" } }
+                        y: { 
+                            ticks: { 
+                                color: "#9ca3af",
+                                callback: function(val) { return "KES " + val; }
+                            }, 
+                            grid: { color: "rgba(255,255,255,0.05)" } 
+                        }
                     }
                 }
             });
@@ -865,6 +916,14 @@
                 } catch (err) {
                     showToast(err.message || "Failed to trigger daily payout batch", "error");
                 }
+            });
+        }
+
+        // Quick Action: Adjust Balance Navigation
+        const btnAdjustBalance = document.getElementById("btn-qa-adjust-balance");
+        if (btnAdjustBalance) {
+            btnAdjustBalance.addEventListener("click", () => {
+                window.location.hash = "#/finances";
             });
         }
 
