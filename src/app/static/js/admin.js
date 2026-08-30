@@ -65,7 +65,9 @@
 
             return await response.json();
         } catch (err) {
-            console.error(`[API Error] ${endpoint}:`, err);
+            if (endpoint !== "/api/admin/auth/me" || state.adminUser) {
+                console.error(`[API Error] ${endpoint}:`, err);
+            }
             throw err;
         }
     }
@@ -487,17 +489,19 @@
     }
 
     // --- VIEW: USERS 360 ---
+    let usersSearchDebounceTimer = null;
+
     async function loadUsersData() {
         const tbody = document.getElementById("users-table-body");
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-8">Fetching customer records...</td></tr>`;
 
-        const search = document.getElementById("users-search-input").value.trim();
-        const status = document.getElementById("users-status-filter").value;
+        const search = document.getElementById("users-search-input") ? document.getElementById("users-search-input").value.trim() : "";
+        const status = document.getElementById("users-status-filter") ? document.getElementById("users-status-filter").value : "";
         const page = state.pagination.users.page;
 
         let query = `/api/admin/users?page=${page}&limit=${state.pagination.users.limit}`;
         if (search) query += `&search=${encodeURIComponent(search)}`;
-        if (status) query += `&status=${encodeURIComponent(status)}`;
+        if (status) query += `&status_filter=${encodeURIComponent(status)}`;
 
         try {
             const data = await apiRequest(query);
@@ -505,39 +509,302 @@
 
             if (!data.users || data.users.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-8">No customer accounts match your filter criteria.</td></tr>`;
+                updatePaginationInfo("users");
                 return;
             }
 
-            tbody.innerHTML = data.users.map(u => `
-                <tr>
+            tbody.innerHTML = data.users.map(u => {
+                const displayName = (u.first_name || u.last_name) 
+                    ? `${u.first_name || ''} ${u.last_name || ''}`.trim()
+                    : (u.email || `User #${u.id}`);
+                const isLockedOut = u.is_locked_out || (u.failed_login_attempts >= 5);
+                const isDepositLocked = u.is_deposit_locked;
+                const isBudgetLocked = u.is_budget_locked;
+
+                return `
+                <tr data-user-id="${u.id}">
                     <td>
                         <div class="user-cell">
-                            <strong>${escapeHtml(u.name || u.email)}</strong>
-                            <div class="text-dim text-xs">${escapeHtml(u.email)}</div>
+                            <strong>${escapeHtml(displayName)}</strong>
+                            <div class="text-dim text-xs">${escapeHtml(u.email || '')} <span class="badge-neutral text-xs">#${u.id}</span></div>
                         </div>
                     </td>
-                    <td><span class="font-mono">${escapeHtml(u.phone_number)}</span></td>
-                    <td><strong>${formatCurrency(u.wallet.available_balance)}</strong></td>
-                    <td>${formatCurrency(u.settings.daily_budget)} / day</td>
                     <td>
-                        ${u.security.is_account_locked 
+                        <span class="font-mono">${escapeHtml(u.phone_number || u.payout_phone_number || '-')}</span>
+                        ${u.payout_phone_number && u.payout_phone_number !== u.phone_number ? `<div class="text-xs text-dim">Payout: ${escapeHtml(u.payout_phone_number)}</div>` : ''}
+                    </td>
+                    <td><strong class="text-emerald font-mono">${formatCurrency(u.balance || 0)}</strong></td>
+                    <td><span class="font-mono">${formatCurrency(u.daily_budget || 0)}</span> <span class="text-xs text-muted">/day</span></td>
+                    <td>
+                        ${isLockedOut 
                             ? `<span class="status-pill pill-danger"><i data-lucide="lock"></i> Locked Out</span>` 
-                            : `<span class="status-pill pill-success"><i data-lucide="check"></i> Normal</span>`}
-                        ${u.security.is_deposit_locked ? `<span class="status-pill pill-warning ml-1">Deposit Lock</span>` : ""}
+                            : `<span class="status-pill pill-success"><i data-lucide="check"></i> Active</span>`}
+                        ${isBudgetLocked ? `<span class="status-pill pill-warning ml-1">Budget Lock</span>` : ''}
+                        ${isDepositLocked ? `<span class="status-pill pill-warning ml-1">Deposit Lock</span>` : ''}
+                        ${u.two_factor_enabled ? `<span class="status-pill pill-info ml-1">2FA</span>` : ''}
                     </td>
                     <td>
-                        <button class="btn btn-secondary btn-sm btn-inspect-user" data-user-id="${u.id}">
-                            <i data-lucide="eye"></i> Inspect 360°
-                        </button>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm btn-inspect-user" data-user-id="${u.id}">
+                                <i data-lucide="eye"></i> Inspect 360°
+                            </button>
+                            <button class="btn btn-secondary btn-sm btn-notify-user" data-user-id="${u.id}" data-email="${escapeHtml(u.email || displayName)}" title="Send In-App Notification">
+                                <i data-lucide="bell"></i>
+                            </button>
+                            ${isLockedOut ? `
+                            <button class="btn btn-danger btn-sm btn-unlock-user rbac-support" data-user-id="${u.id}" title="Unlock Account">
+                                <i data-lucide="unlock"></i> Unlock
+                            </button>
+                            ` : ''}
+                        </div>
                     </td>
                 </tr>
-            `).join("");
+            `;
+            }).join("");
+
+            // Attach user table row action listeners
+            tbody.querySelectorAll(".btn-inspect-user").forEach(btn => {
+                btn.addEventListener("click", () => openUser360(btn.getAttribute("data-user-id")));
+            });
+
+            tbody.querySelectorAll(".btn-notify-user").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    openSendNotificationModal(btn.getAttribute("data-user-id"), btn.getAttribute("data-email"));
+                });
+            });
+
+            tbody.querySelectorAll(".btn-unlock-user").forEach(btn => {
+                btn.addEventListener("click", () => handleQuickUnlock(btn.getAttribute("data-user-id")));
+            });
 
             // Update Pagination UI
             updatePaginationInfo("users");
             if (window.lucide) window.lucide.createIcons();
-        } catch {
+        } catch (err) {
+            console.error("loadUsersData error:", err);
             tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-8">Error loading customer directory.</td></tr>`;
+        }
+    }
+
+    async function openUser360(userId) {
+        const modal = document.getElementById("modal-user-360");
+        const modalTitle = document.getElementById("u360-modal-title");
+        const modalBody = document.getElementById("u360-modal-body");
+        if (!modal || !modalBody) return;
+
+        modalTitle.textContent = `Customer 360° Inspection — User #${userId}`;
+        modalBody.innerHTML = `<div class="text-center text-muted py-8"><i data-lucide="loader" class="spin-animation"></i> Loading customer dossier...</div>`;
+        modal.classList.remove("hidden");
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+            const data = await apiRequest(`/api/admin/users/${userId}`);
+            if (!data) throw new Error("Failed to load user 360 details");
+
+            const prof = data.profile || {};
+            const wallet = data.wallet || {};
+            const deposits = data.deposits || [];
+            const payouts = data.payouts || [];
+            const sessionsCount = data.active_sessions_count || 0;
+
+            const isLocked = wallet.is_budget_locked;
+            const isDepLocked = wallet.is_deposit_locked;
+
+            modalBody.innerHTML = `
+                <!-- Identity & Status Cards -->
+                <div class="u360-grid">
+                    <div class="u360-data-card">
+                        <div class="u360-section-title"><i data-lucide="user"></i> Account Identity</div>
+                        <div class="space-y-2 text-sm">
+                            <div><strong>Name:</strong> ${escapeHtml(prof.first_name || '')} ${escapeHtml(prof.last_name || '')}</div>
+                            <div><strong>Email:</strong> ${escapeHtml(prof.email || 'N/A')}</div>
+                            <div><strong>Phone:</strong> <span class="font-mono">${escapeHtml(prof.phone_number || 'N/A')}</span></div>
+                            <div><strong>Payout Phone:</strong> <span class="font-mono">${escapeHtml(prof.payout_phone_number || 'N/A')}</span></div>
+                            <div><strong>2FA Status:</strong> ${prof.two_factor_enabled ? '<span class="status-pill pill-success">Enabled</span>' : '<span class="status-pill pill-warning">Disabled</span>'}</div>
+                            <div><strong>Active Sessions:</strong> ${sessionsCount} active</div>
+                        </div>
+                    </div>
+
+                    <div class="u360-data-card">
+                        <div class="u360-section-title"><i data-lucide="wallet"></i> Financial Float & Savings</div>
+                        <div class="space-y-2 text-sm">
+                            <div><strong>Available Balance:</strong> <span class="text-emerald font-bold font-mono">${formatCurrency(wallet.balance || 0)}</span></div>
+                            <div><strong>Daily Budget:</strong> <span class="font-mono">${formatCurrency(wallet.daily_budget || 0)}</span> / day</div>
+                            <div><strong>Payout Time:</strong> ${escapeHtml(wallet.payout_time || '12:00')}</div>
+                            <div><strong>Budget Lock:</strong> ${isLocked ? `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.budget_locked_until || wallet.end_date || '')}</span>` : '<span class="status-pill pill-success">Unlocked</span>'}</div>
+                            <div><strong>Deposit Lock:</strong> ${isDepLocked ? `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.deposit_locked_until || '')}</span>` : '<span class="status-pill pill-success">Unlocked</span>'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Support & Security Actions Bar -->
+                <div class="u360-actions-bar mb-4">
+                    <button class="btn btn-secondary btn-sm rbac-support" id="u360-btn-notify" data-user-id="${userId}" data-email="${escapeHtml(prof.email || '')}">
+                        <i data-lucide="bell"></i> Send In-App Notice
+                    </button>
+                    <button class="btn btn-secondary btn-sm rbac-support" id="u360-btn-unlock" data-user-id="${userId}">
+                        <i data-lucide="unlock"></i> Unlock Account
+                    </button>
+                    <button class="btn btn-secondary btn-sm rbac-support" id="u360-btn-toggle-2fa" data-user-id="${userId}">
+                        <i data-lucide="shield"></i> ${prof.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
+                    </button>
+                    <button class="btn btn-secondary btn-sm rbac-support" id="u360-btn-revoke-sessions" data-user-id="${userId}">
+                        <i data-lucide="log-out"></i> Revoke All Sessions
+                    </button>
+                    <button class="btn btn-secondary btn-sm rbac-support" id="u360-btn-update-phone" data-user-id="${userId}">
+                        <i data-lucide="phone"></i> Update Payout Phone
+                    </button>
+                </div>
+
+                <!-- Recent Deposits & Payouts Lists -->
+                <div class="grid-2col mb-4">
+                    <div class="card p-3">
+                        <h4 class="text-xs uppercase tracking-wider text-dim mb-2"><i data-lucide="arrow-down-circle"></i> Recent Deposits</h4>
+                        ${deposits.length === 0 ? '<p class="text-dim text-xs">No deposits recorded yet.</p>' : `
+                        <div class="table-responsive">
+                            <table class="data-table text-xs">
+                                <thead><tr><th>Receipt</th><th>Amount</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    ${deposits.map(d => `
+                                        <tr>
+                                            <td><span class="font-mono">${escapeHtml(d.mpesa_receipt || d.checkout_request_id || '')}</span></td>
+                                            <td class="text-emerald font-mono font-bold">${formatCurrency(d.amount)}</td>
+                                            <td><span class="status-pill pill-${d.status === 'COMPLETED' ? 'success' : d.status === 'PENDING' ? 'warning' : 'danger'}">${d.status}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>`}
+                    </div>
+
+                    <div class="card p-3">
+                        <h4 class="text-xs uppercase tracking-wider text-dim mb-2"><i data-lucide="send"></i> Recent Payouts</h4>
+                        ${payouts.length === 0 ? '<p class="text-dim text-xs">No payouts recorded yet.</p>' : `
+                        <div class="table-responsive">
+                            <table class="data-table text-xs">
+                                <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    ${payouts.map(p => `
+                                        <tr>
+                                            <td>${escapeHtml(p.payout_date || '')}</td>
+                                            <td class="text-amber font-mono font-bold">${formatCurrency(p.amount)}</td>
+                                            <td><span class="status-pill pill-${p.status === 'COMPLETED' ? 'success' : p.status === 'PENDING' ? 'warning' : 'danger'}">${p.status}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>`}
+                    </div>
+                </div>
+            `;
+
+            // Wire up actions inside modal
+            const btnNotify = document.getElementById("u360-btn-notify");
+            if (btnNotify) {
+                btnNotify.addEventListener("click", () => {
+                    openSendNotificationModal(userId, prof.email || `User #${userId}`);
+                });
+            }
+
+            const btnUnlock = document.getElementById("u360-btn-unlock");
+            if (btnUnlock) {
+                btnUnlock.addEventListener("click", () => handleQuickUnlock(userId));
+            }
+
+            const btnToggle2fa = document.getElementById("u360-btn-toggle-2fa");
+            if (btnToggle2fa) {
+                btnToggle2fa.addEventListener("click", async () => {
+                    const targetState = !prof.two_factor_enabled;
+                    const reason = prompt(`Enter reason for ${targetState ? 'enabling' : 'disabling'} 2FA:`, "Customer support request");
+                    if (reason === null) return;
+                    try {
+                        await apiRequest(`/api/admin/users/${userId}/toggle-2fa`, {
+                            method: "POST",
+                            body: JSON.stringify({ enabled: targetState, reason })
+                        });
+                        showToast(`2FA successfully ${targetState ? 'enabled' : 'disabled'} for User #${userId}`, "success");
+                        openUser360(userId);
+                    } catch (err) {
+                        showToast(err.message || "Failed to toggle 2FA", "error");
+                    }
+                });
+            }
+
+            const btnRevoke = document.getElementById("u360-btn-revoke-sessions");
+            if (btnRevoke) {
+                btnRevoke.addEventListener("click", async () => {
+                    if (!confirm(`Are you sure you want to invalidate all active login sessions for User #${userId}?`)) return;
+                    const reason = prompt("Enter justification reason for session revocation:", "Security precaution");
+                    if (reason === null) return;
+                    try {
+                        const res = await apiRequest(`/api/admin/users/${userId}/revoke-sessions`, {
+                            method: "POST",
+                            body: JSON.stringify({ reason })
+                        });
+                        showToast(res.message || "All sessions revoked", "success");
+                        openUser360(userId);
+                    } catch (err) {
+                        showToast(err.message || "Failed to revoke sessions", "error");
+                    }
+                });
+            }
+
+            const btnPhone = document.getElementById("u360-btn-update-phone");
+            if (btnPhone) {
+                btnPhone.addEventListener("click", async () => {
+                    const newPhone = prompt("Enter new Safaricom M-Pesa phone number (e.g. 254712345678):", prof.payout_phone_number || prof.phone_number || "");
+                    if (!newPhone) return;
+                    const reason = prompt("Enter reason for updating payout phone number:", "Customer verified request");
+                    if (reason === null) return;
+                    try {
+                        const res = await apiRequest(`/api/admin/users/${userId}/update-payout-phone`, {
+                            method: "POST",
+                            body: JSON.stringify({ phone_number: newPhone, reason })
+                        });
+                        showToast(res.message || "Payout phone number updated", "success");
+                        openUser360(userId);
+                        loadUsersData();
+                    } catch (err) {
+                        showToast(err.message || "Failed to update phone number", "error");
+                    }
+                });
+            }
+
+            if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+            console.error("openUser360 error:", err);
+            modalBody.innerHTML = `<div class="text-center text-danger py-8">Failed to load customer profile: ${escapeHtml(err.message || '')}</div>`;
+        }
+    }
+
+    function openSendNotificationModal(userId, userDisplay) {
+        const modal = document.getElementById("modal-send-notification");
+        if (!modal) return;
+        document.getElementById("notif-user-id").value = userId;
+        document.getElementById("notif-user-display").value = `User #${userId} (${userDisplay})`;
+        document.getElementById("notif-title").value = "";
+        document.getElementById("notif-message").value = "";
+        document.getElementById("notif-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("notif-title").focus();
+    }
+
+    async function handleQuickUnlock(userId) {
+        const reason = prompt(`Enter justification for unlocking User #${userId}:`, "Customer support assistance");
+        if (reason === null) return;
+        try {
+            await apiRequest(`/api/admin/users/${userId}/unlock`, {
+                method: "POST",
+                body: JSON.stringify({ reason })
+            });
+            showToast(`User #${userId} account unlocked successfully`, "success");
+            loadUsersData();
+            const u360Modal = document.getElementById("modal-user-360");
+            if (u360Modal && !u360Modal.classList.contains("hidden")) {
+                openUser360(userId);
+            }
+        } catch (err) {
+            showToast(err.message || "Failed to unlock account", "error");
         }
     }
 
@@ -927,7 +1194,78 @@
             });
         }
 
-        // 9. Export CSV Download Button
+        // 9. Users Directory Search, Filters & Pagination
+        const usersSearch = document.getElementById("users-search-input");
+        if (usersSearch) {
+            usersSearch.addEventListener("input", () => {
+                clearTimeout(usersSearchDebounceTimer);
+                usersSearchDebounceTimer = setTimeout(() => {
+                    state.pagination.users.page = 1;
+                    loadUsersData();
+                }, 300);
+            });
+        }
+
+        const usersStatus = document.getElementById("users-status-filter");
+        if (usersStatus) {
+            usersStatus.addEventListener("change", () => {
+                state.pagination.users.page = 1;
+                loadUsersData();
+            });
+        }
+
+        const btnUsersPrev = document.getElementById("btn-users-prev");
+        if (btnUsersPrev) {
+            btnUsersPrev.addEventListener("click", () => {
+                if (state.pagination.users.page > 1) {
+                    state.pagination.users.page--;
+                    loadUsersData();
+                }
+            });
+        }
+
+        const btnUsersNext = document.getElementById("btn-users-next");
+        if (btnUsersNext) {
+            btnUsersNext.addEventListener("click", () => {
+                const p = state.pagination.users;
+                if (p.page * p.limit < p.total) {
+                    p.page++;
+                    loadUsersData();
+                }
+            });
+        }
+
+        // 10. Send In-App Notification Form Submit
+        const formSendNotif = document.getElementById("form-send-notification");
+        if (formSendNotif) {
+            formSendNotif.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const userId = document.getElementById("notif-user-id").value;
+                const title = document.getElementById("notif-title").value.trim();
+                const type = document.getElementById("notif-type").value;
+                const message = document.getElementById("notif-message").value.trim();
+                const reason = document.getElementById("notif-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-send-notif");
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest(`/api/admin/users/${userId}/notify`, {
+                        method: "POST",
+                        body: JSON.stringify({ title, message, type, reason })
+                    });
+                    showToast(res.message || "Notification dispatched to customer successfully", "success");
+                    const modal = document.getElementById("modal-send-notification");
+                    if (modal) modal.classList.add("hidden");
+                    formSendNotif.reset();
+                } catch (err) {
+                    showToast(err.message || "Failed to dispatch notification", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 11. Export CSV Download Button
         const btnExportCsv = document.getElementById("btn-export-audit-csv");
         if (btnExportCsv) {
             btnExportCsv.addEventListener("click", () => {
@@ -935,7 +1273,7 @@
             });
         }
 
-        // 10. Lucide Icons Initial Call
+        // 12. Lucide Icons Initial Call
         if (window.lucide) {
             window.lucide.createIcons();
         }
