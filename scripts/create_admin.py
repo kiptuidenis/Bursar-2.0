@@ -20,6 +20,7 @@ SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
+import app.core.config  # Automatically loads .env and environment properties
 from app.db.manager import DatabaseManager
 from app.core.password import hash_password_argon2, validate_password_strength
 
