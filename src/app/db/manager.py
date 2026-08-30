@@ -94,6 +94,8 @@ class DatabaseManager:
                 # Enable pre-ping and recycle to prevent stale RDS MySQL connection drops
                 engine_kwargs["pool_pre_ping"] = True
                 engine_kwargs["pool_recycle"] = 3600
+                engine_kwargs["pool_size"] = 10
+                engine_kwargs["max_overflow"] = 20
 
             engine = create_engine(self.db_url, connect_args=connect_args, **engine_kwargs)
             

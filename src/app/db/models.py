@@ -246,7 +246,7 @@ class AdminAuditLog(Base):
     after_state = Column(Text, default="")                    # JSON serialized
     reason = Column(String(500), default="")
     ip_address = Column(String(100), default="")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
     admin = relationship("AdminUser", back_populates="audit_logs")
 
