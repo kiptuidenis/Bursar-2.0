@@ -1828,15 +1828,18 @@ class DatabaseManager:
             query = query.filter(Payout.payout_date == payout_date)
 
         if search:
+            from sqlalchemy import or_, func
             search_pattern = f"%{search.strip()}%"
             query = query.filter(
-                (Payout.conversation_id.ilike(search_pattern)) |
-                (Payout.originator_conversation_id.ilike(search_pattern)) |
-                (Payout.transaction_id.ilike(search_pattern)) |
-                (Payout.phone_number.ilike(search_pattern)) |
-                (User.email.ilike(search_pattern)) |
-                (User.first_name.ilike(search_pattern)) |
-                (User.last_name.ilike(search_pattern))
+                or_(
+                    func.coalesce(Payout.conversation_id, '').ilike(search_pattern),
+                    func.coalesce(Payout.originator_conversation_id, '').ilike(search_pattern),
+                    func.coalesce(Payout.transaction_id, '').ilike(search_pattern),
+                    func.coalesce(Payout.phone_number, '').ilike(search_pattern),
+                    func.coalesce(User.email, '').ilike(search_pattern),
+                    func.coalesce(User.first_name, '').ilike(search_pattern),
+                    func.coalesce(User.last_name, '').ilike(search_pattern)
+                )
             )
 
         if date_from:

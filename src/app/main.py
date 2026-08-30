@@ -319,6 +319,65 @@ if config.IS_TEST_MODE:
             "mpesa_receipt": mpesa_receipt
         }
 
+    @app.post("/api/test/seed-payout")
+    def seed_test_payout(payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
+        import secrets
+        phone = payload.get("phone_number")
+        email = payload.get("email")
+        user_id = payload.get("user_id")
+        
+        if not user_id:
+            if phone or email:
+                phone = phone or f"2547{datetime.datetime.now().microsecond:06d}0"
+                email = email or f"user_{phone}@example.com"
+                user = db.get_user_by_email(email)
+                if not user:
+                    pwd_hash, salt = db._hash_password("Str0ng!P@ssw0rd2026!")
+                    try:
+                        user_id = db.create_user_email(email, pwd_hash, salt, payout_phone=phone, phone_number=phone)
+                    except Exception:
+                        user = db.get_user_by_email(email)
+                        user_id = user.id if user else 1
+                else:
+                    user_id = user.id
+                    phone = user.phone_number or phone
+            else:
+                user_id = 1
+                phone = "254712345678"
+
+        payout_date = payload.get("payout_date") or datetime.date.today().isoformat()
+        amount = payload.get("amount", 1200)
+        status = payload.get("status", "FAILED")
+        conversation_id = payload.get("conversation_id") or f"AG_B2C_{secrets.token_hex(6)}"
+        originator_id = payload.get("originator_conversation_id") or f"ORIG_{secrets.token_hex(4)}"
+        transaction_id = payload.get("transaction_id", "")
+        error_msg = payload.get("error_message", "")
+        
+        from app.db.models import Payout
+        payout = Payout(
+            user_id=user_id,
+            payout_date=payout_date,
+            amount=amount,
+            phone_number=phone,
+            status=status,
+            conversation_id=conversation_id,
+            originator_conversation_id=originator_id,
+            transaction_id=transaction_id,
+            error_message=error_msg
+        )
+        db.session.add(payout)
+        db._commit()
+        
+        return {
+            "status": "success",
+            "payout_id": payout.id,
+            "user_id": user_id,
+            "amount": amount,
+            "payout_status": status,
+            "conversation_id": conversation_id,
+            "transaction_id": transaction_id
+        }
+
 
 
 @app.get("/api/diagnostics")

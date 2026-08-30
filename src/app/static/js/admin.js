@@ -1091,8 +1091,10 @@
         const tbody = document.getElementById("payouts-table-body");
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">Loading disbursement records...</td></tr>`;
 
-        const search = document.getElementById("payouts-search-input").value.trim();
-        const status = document.getElementById("payouts-status-filter").value;
+        const searchInput = document.getElementById("payouts-search-input");
+        const search = searchInput ? searchInput.value.trim() : "";
+        const statusFilter = document.getElementById("payouts-status-filter");
+        const status = statusFilter ? statusFilter.value : "";
         const page = state.pagination.payouts.page;
 
         let query = `/api/admin/payouts?page=${page}&limit=${state.pagination.payouts.limit}`;
@@ -1101,7 +1103,12 @@
 
         try {
             const data = await apiRequest(query);
-            state.pagination.payouts.total = data.total;
+            state.pagination.payouts.total = data.total || 0;
+
+            const totalDisbursedEl = document.getElementById("payouts-total-disbursed");
+            if (totalDisbursedEl) {
+                totalDisbursedEl.textContent = formatCurrency(data.total_disbursed || 0);
+            }
 
             if (!data.payouts || data.payouts.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">No payout transactions found.</td></tr>`;
@@ -1114,31 +1121,91 @@
                 if (p.status === "FAILED") pillClass = "pill-danger";
                 if (p.status === "PENDING") pillClass = "pill-warning";
 
+                const customerDisplay = p.user_name || p.user_email || `User #${p.user_id}`;
+                const trackingDisplay = p.transaction_id || p.conversation_id || "-";
+                const errorSubtext = p.error_message ? `<div class="text-danger text-xs truncate max-w-xs" title="${escapeHtml(p.error_message)}">${escapeHtml(p.error_message)}</div>` : "";
+
                 return `
                     <tr>
-                        <td class="font-mono text-xs">${escapeHtml(p.payout_date || "-")}</td>
-                        <td>${escapeHtml(p.user_email || "-")}</td>
+                        <td class="font-mono text-xs font-bold">${escapeHtml(p.payout_date || "-")}</td>
+                        <td>
+                            <strong>${escapeHtml(customerDisplay)}</strong>
+                            <div class="text-dim text-xs">${escapeHtml(p.user_email || "")}</div>
+                        </td>
                         <td class="font-mono">${escapeHtml(p.phone_number)}</td>
-                        <td class="font-mono font-bold">${formatCurrency(p.amount)}</td>
+                        <td class="font-mono font-bold text-emerald">${formatCurrency(p.amount)}</td>
                         <td><span class="status-pill ${pillClass}">${p.status}</span></td>
-                        <td class="font-mono text-xs">${escapeHtml(p.transaction_id || p.conversation_id || "-")}</td>
+                        <td>
+                            <div class="font-mono text-xs">${escapeHtml(trackingDisplay)}</div>
+                            ${errorSubtext}
+                        </td>
                         <td>
                             <div class="btn-group rbac-finops">
                                 ${p.status === "FAILED" ? `
-                                    <button class="btn btn-secondary btn-sm btn-payout-retry" data-id="${p.id}">Retry</button>
-                                    <button class="btn btn-secondary btn-sm btn-payout-settle" data-id="${p.id}">Mark Settled</button>
-                                ` : `<span class="text-dim text-xs">-</span>`}
+                                    <button class="btn btn-primary btn-xs btn-payout-retry mr-1" data-id="${p.id}" data-customer="${escapeHtml(customerDisplay)}" data-amount="${p.amount}">
+                                        <i data-lucide="refresh-cw"></i> Retry
+                                    </button>
+                                    <button class="btn btn-secondary btn-xs btn-payout-settle" data-id="${p.id}" data-customer="${escapeHtml(customerDisplay)}" data-amount="${p.amount}">
+                                        <i data-lucide="check-circle-2"></i> Reconcile
+                                    </button>
+                                ` : (p.status === "PENDING" ? `
+                                    <button class="btn btn-secondary btn-xs btn-payout-settle" data-id="${p.id}" data-customer="${escapeHtml(customerDisplay)}" data-amount="${p.amount}">
+                                        <i data-lucide="check-circle-2"></i> Reconcile
+                                    </button>
+                                ` : `<span class="text-dim text-xs">-</span>`)}
                             </div>
                         </td>
                     </tr>
                 `;
             }).join("");
 
+            // Wire row buttons
+            tbody.querySelectorAll(".btn-payout-retry").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const id = btn.getAttribute("data-id");
+                    const cust = btn.getAttribute("data-customer");
+                    const amt = btn.getAttribute("data-amount");
+                    openRetryPayoutModal(id, `Payout #${id} (${cust} - KES ${Number(amt).toLocaleString()})`);
+                });
+            });
+
+            tbody.querySelectorAll(".btn-payout-settle").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const id = btn.getAttribute("data-id");
+                    const cust = btn.getAttribute("data-customer");
+                    const amt = btn.getAttribute("data-amount");
+                    openManualSettlePayoutModal(id, `Payout #${id} (${cust} - KES ${Number(amt).toLocaleString()})`);
+                });
+            });
+
             updatePaginationInfo("payouts");
+            applyRbacGuards();
             if (window.lucide) window.lucide.createIcons();
-        } catch {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading payouts pipeline.</td></tr>`;
+        } catch (err) {
+            console.error("loadPayoutsData error:", err);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading payouts pipeline: ${escapeHtml(err.message || '')}</td></tr>`;
         }
+    }
+
+    function openRetryPayoutModal(payoutId, payoutDisplay) {
+        const modal = document.getElementById("modal-retry-payout");
+        if (!modal) return;
+        document.getElementById("retry-payout-id").value = payoutId;
+        document.getElementById("retry-payout-display").value = payoutDisplay;
+        document.getElementById("retry-payout-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("retry-payout-reason").focus();
+    }
+
+    function openManualSettlePayoutModal(payoutId, payoutDisplay) {
+        const modal = document.getElementById("modal-manual-settle-payout");
+        if (!modal) return;
+        document.getElementById("settle-payout-id").value = payoutId;
+        document.getElementById("settle-payout-display").value = payoutDisplay;
+        document.getElementById("settle-payout-tx").value = "";
+        document.getElementById("settle-payout-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("settle-payout-tx").focus();
     }
 
     // --- VIEW: AUDIT LOGS ---
@@ -1581,7 +1648,149 @@
             });
         }
 
-        // 14. Send In-App Notification Form Submit
+        // 14. Payouts & Disbursements Table Search, Filter & Pagination
+        let payoutsSearchDebounceTimer = null;
+        const payoutsSearch = document.getElementById("payouts-search-input");
+        if (payoutsSearch) {
+            payoutsSearch.addEventListener("input", () => {
+                clearTimeout(payoutsSearchDebounceTimer);
+                payoutsSearchDebounceTimer = setTimeout(() => {
+                    state.pagination.payouts.page = 1;
+                    loadPayoutsData();
+                }, 300);
+            });
+        }
+
+        const payoutsFilter = document.getElementById("payouts-status-filter");
+        if (payoutsFilter) {
+            payoutsFilter.addEventListener("change", () => {
+                state.pagination.payouts.page = 1;
+                loadPayoutsData();
+            });
+        }
+
+        const btnPayoutsPrev = document.getElementById("btn-payouts-prev");
+        if (btnPayoutsPrev) {
+            btnPayoutsPrev.addEventListener("click", () => {
+                if (state.pagination.payouts.page > 1) {
+                    state.pagination.payouts.page--;
+                    loadPayoutsData();
+                }
+            });
+        }
+
+        const btnPayoutsNext = document.getElementById("btn-payouts-next");
+        if (btnPayoutsNext) {
+            btnPayoutsNext.addEventListener("click", () => {
+                const p = state.pagination.payouts;
+                if (p.page * p.limit < p.total) {
+                    p.page++;
+                    loadPayoutsData();
+                }
+            });
+        }
+
+        // 15. Trigger Daily Payout Batch Button
+        const btnTriggerBatch = document.getElementById("btn-open-trigger-batch");
+        if (btnTriggerBatch) {
+            btnTriggerBatch.addEventListener("click", async () => {
+                if (!confirm("Are you sure you want to trigger today's daily payout disbursement batch now?")) {
+                    return;
+                }
+                btnTriggerBatch.disabled = true;
+                showToast("Executing daily payout scheduler batch...", "info");
+                try {
+                    const res = await apiRequest("/api/admin/payouts/trigger-daily-batch", { method: "POST" });
+                    showToast(res.message || "Daily payout batch completed!", "success");
+                    loadPayoutsData();
+                } catch (err) {
+                    showToast(err.message || "Failed to execute daily batch", "error");
+                } finally {
+                    btnTriggerBatch.disabled = false;
+                }
+            });
+        }
+
+        // 16. Retry Payout Form Submit
+        const formRetryPayout = document.getElementById("form-retry-payout");
+        if (formRetryPayout) {
+            formRetryPayout.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const payoutId = document.getElementById("retry-payout-id").value;
+                const reason = document.getElementById("retry-payout-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-retry-payout");
+
+                if (!payoutId) {
+                    showToast("Missing payout reference", "error");
+                    return;
+                }
+                if (!reason || reason.length < 3) {
+                    showToast("Please enter mandatory audit justification", "error");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest(`/api/admin/payouts/${payoutId}/retry`, {
+                        method: "POST",
+                        body: JSON.stringify({ reason })
+                    });
+                    showToast(res.message || `Payout #${payoutId} queued for retry successfully!`, "success");
+                    const modal = document.getElementById("modal-retry-payout");
+                    if (modal) modal.classList.add("hidden");
+                    formRetryPayout.reset();
+                    loadPayoutsData();
+                } catch (err) {
+                    showToast(err.message || "Retry payout failed", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 17. Manual Settle Payout Form Submit
+        const formManualSettlePayout = document.getElementById("form-manual-settle-payout");
+        if (formManualSettlePayout) {
+            formManualSettlePayout.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const payoutId = document.getElementById("settle-payout-id").value;
+                const txId = document.getElementById("settle-payout-tx").value.trim().toUpperCase();
+                const reason = document.getElementById("settle-payout-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-settle-payout");
+
+                if (!payoutId) {
+                    showToast("Missing payout reference", "error");
+                    return;
+                }
+                if (!txId || txId.length < 4) {
+                    showToast("Please enter a valid external transaction ID", "error");
+                    return;
+                }
+                if (!reason || reason.length < 3) {
+                    showToast("Please provide mandatory audit justification", "error");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest(`/api/admin/payouts/${payoutId}/mark-settled`, {
+                        method: "POST",
+                        body: JSON.stringify({ transaction_id: txId, reason })
+                    });
+                    showToast(res.message || `Payout #${payoutId} reconciled successfully!`, "success");
+                    const modal = document.getElementById("modal-manual-settle-payout");
+                    if (modal) modal.classList.add("hidden");
+                    formManualSettlePayout.reset();
+                    loadPayoutsData();
+                } catch (err) {
+                    showToast(err.message || "Manual settlement failed", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 18. Send In-App Notification Form Submit
         const formSendNotif = document.getElementById("form-send-notification");
         if (formSendNotif) {
             formSendNotif.addEventListener("submit", async (e) => {
@@ -1611,7 +1820,7 @@
             });
         }
 
-        // 15. Export CSV Download Button
+        // 19. Export CSV Download Button
         const btnExportCsv = document.getElementById("btn-export-audit-csv");
         if (btnExportCsv) {
             btnExportCsv.addEventListener("click", () => {

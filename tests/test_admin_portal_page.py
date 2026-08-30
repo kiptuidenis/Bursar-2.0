@@ -104,5 +104,40 @@ def test_admin_portal_deposits_and_manual_settle_modal_present():
         assert 'id="settle-reason"' in html
         assert 'id="btn-submit-settle-deposit"' in html
 
+def test_admin_portal_payouts_and_retry_settle_modals_present():
+    """Verify that Payouts pane, table, total disbursed stat, trigger batch button, and Retry/Settle modals are mounted in HTML."""
+    with TestClient(app) as client:
+        res = client.get("/admin")
+        assert res.status_code == 200
+        html = res.text
+
+        # Verify Payouts Pane & Table
+        assert 'id="pane-payouts"' in html
+        assert 'id="payouts-total-disbursed"' in html
+        assert 'id="payouts-table"' in html
+        assert 'id="payouts-table-body"' in html
+        assert 'id="payouts-search-input"' in html
+        assert 'id="payouts-status-filter"' in html
+        assert 'id="btn-open-trigger-batch"' in html
+        assert 'id="payouts-pagination"' in html
+
+        # Verify Retry Payout Modal
+        assert 'id="modal-retry-payout"' in html
+        assert 'id="form-retry-payout"' in html
+        assert 'id="retry-payout-id"' in html
+        assert 'id="retry-payout-display"' in html
+        assert 'id="retry-payout-reason"' in html
+        assert 'id="btn-submit-retry-payout"' in html
+
+        # Verify Manual Settle Payout Modal
+        assert 'id="modal-manual-settle-payout"' in html
+        assert 'id="form-manual-settle-payout"' in html
+        assert 'id="settle-payout-id"' in html
+        assert 'id="settle-payout-display"' in html
+        assert 'id="settle-payout-tx"' in html
+        assert 'id="settle-payout-reason"' in html
+        assert 'id="btn-submit-settle-payout"' in html
+
+
 
 
