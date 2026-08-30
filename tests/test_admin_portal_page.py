@@ -138,6 +138,29 @@ def test_admin_portal_payouts_and_retry_settle_modals_present():
         assert 'id="settle-payout-reason"' in html
         assert 'id="btn-submit-settle-payout"' in html
 
+def test_admin_portal_audit_logs_and_payload_modal_present():
+    """Verify that Audit Logs pane, table, action filter, CSV export button, and Payload Inspector modal are mounted in HTML."""
+    with TestClient(app) as client:
+        res = client.get("/admin")
+        assert res.status_code == 200
+        html = res.text
+
+        # Verify Audit Logs Pane & Controls
+        assert 'id="pane-audit"' in html
+        assert 'id="audit-table"' in html
+        assert 'id="audit-table-body"' in html
+        assert 'id="audit-search-input"' in html
+        assert 'id="audit-action-filter"' in html
+        assert 'id="btn-export-audit-csv"' in html
+        assert 'id="audit-pagination"' in html
+
+        # Verify Payload Inspector Modal
+        assert 'id="modal-audit-payload"' in html
+        assert 'id="audit-before-state"' in html
+        assert 'id="audit-after-state"' in html
+        assert 'id="audit-payload-reason"' in html
+
+
 
 
 

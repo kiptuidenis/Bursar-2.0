@@ -275,7 +275,38 @@ if config.IS_TEST_MODE:
             samesite="lax",
             path="/"
         )
+        db.create_admin_audit_log(
+            admin_id=admin_id,
+            action="ADMIN_LOGIN",
+            target_type="AdminSession",
+            target_id=admin_id,
+            reason="Automated test admin session established",
+            ip_address=ip_address
+        )
         return {"status": "success", "admin_id": admin_id, "email": email, "role": role, "admin_session_token": token}
+
+    @app.post("/api/test/seed-audit-log")
+    def seed_test_audit_log(payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
+        admin_id = payload.get("admin_id", 1)
+        action = payload.get("action", "ADMIN_FINANCIAL_ADJUSTMENT")
+        target_type = payload.get("target_type", "User")
+        target_id = payload.get("target_id", 1)
+        before_state = payload.get("before_state", '{"balance": 1000}')
+        after_state = payload.get("after_state", '{"balance": 5000}')
+        reason = payload.get("reason", "Automated E2E compliance test log")
+        ip_address = payload.get("ip_address", "127.0.0.1")
+
+        log = db.create_admin_audit_log(
+            admin_id=admin_id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            before_state=before_state,
+            after_state=after_state,
+            reason=reason,
+            ip_address=ip_address
+        )
+        return {"status": "success", "log_id": log.id}
 
     @app.post("/api/test/seed-deposit")
     def seed_test_deposit(payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):

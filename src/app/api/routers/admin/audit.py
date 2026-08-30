@@ -22,7 +22,7 @@ def list_audit_logs(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     search: Optional[str] = None,
-    admin: dict = Depends(require_admin_roles(["superadmin", "finops", "auditor"])),
+    admin: dict = Depends(require_admin_roles(["superadmin", "finops", "auditor", "support"])),
     db: DatabaseManager = Depends(get_db)
 ):
     """Retrieve immutable administrative compliance audit trail."""
@@ -51,7 +51,7 @@ def export_audit_logs_csv(
     action: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    admin: dict = Depends(require_admin_roles(["superadmin", "finops", "auditor"])),
+    admin: dict = Depends(require_admin_roles(["superadmin", "finops", "auditor", "support"])),
     db: DatabaseManager = Depends(get_db)
 ):
     """Export compliance audit trail in CSV format for regulatory reporting."""

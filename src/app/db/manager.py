@@ -1982,13 +1982,16 @@ class DatabaseManager:
             query = query.filter(AdminAuditLog.created_at <= date_to)
 
         if search:
+            from sqlalchemy import or_, func
             search_pattern = f"%{search.strip()}%"
             query = query.filter(
-                (AdminAuditLog.action.ilike(search_pattern)) |
-                (AdminAuditLog.reason.ilike(search_pattern)) |
-                (AdminAuditLog.target_type.ilike(search_pattern)) |
-                (AdminAuditLog.ip_address.ilike(search_pattern)) |
-                (AdminUser.email.ilike(search_pattern))
+                or_(
+                    func.coalesce(AdminAuditLog.action, '').ilike(search_pattern),
+                    func.coalesce(AdminAuditLog.reason, '').ilike(search_pattern),
+                    func.coalesce(AdminAuditLog.target_type, '').ilike(search_pattern),
+                    func.coalesce(AdminAuditLog.ip_address, '').ilike(search_pattern),
+                    func.coalesce(AdminUser.email, '').ilike(search_pattern)
+                )
             )
 
         total = query.count()

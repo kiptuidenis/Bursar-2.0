@@ -819,6 +819,38 @@
         </div>
     </div>
 
+    <!-- Modal: Audit Log Payload Inspector -->
+    <div class="modal-overlay hidden" id="modal-audit-payload">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="code"></i>
+                    <h3 id="audit-payload-title">State Transformation Inspector</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-audit-payload"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="font-bold text-xs text-muted mb-1 block">Before State</label>
+                        <pre id="audit-before-state" class="payload-pre font-mono text-xs bg-dark p-3 rounded overflow-auto max-h-48 border border-subtle">{}</pre>
+                    </div>
+                    <div>
+                        <label class="font-bold text-xs text-muted mb-1 block">After State</label>
+                        <pre id="audit-after-state" class="payload-pre font-mono text-xs bg-dark p-3 rounded overflow-auto max-h-48 border border-subtle">{}</pre>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="font-bold text-xs text-muted mb-1 block">Reason & Justification</label>
+                    <p id="audit-payload-reason" class="text-sm text-dim bg-panel p-3 rounded border border-subtle"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-audit-payload">Close Inspector</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Generic Action Prompt (Manual Settle / Retry / Lock Override) -->
     <div class="modal-overlay hidden" id="modal-generic-action">
         <div class="modal-card">

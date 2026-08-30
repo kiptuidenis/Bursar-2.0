@@ -1209,12 +1209,16 @@
     }
 
     // --- VIEW: AUDIT LOGS ---
+    let currentAuditLogsCache = [];
+
     async function loadAuditLogsData() {
         const tbody = document.getElementById("audit-table-body");
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">Loading compliance audit logs...</td></tr>`;
 
-        const search = document.getElementById("audit-search-input").value.trim();
-        const action = document.getElementById("audit-action-filter").value;
+        const searchInput = document.getElementById("audit-search-input");
+        const search = searchInput ? searchInput.value.trim() : "";
+        const actionFilter = document.getElementById("audit-action-filter");
+        const action = actionFilter ? actionFilter.value : "";
         const page = state.pagination.audit.page;
 
         let query = `/api/admin/audit/logs?page=${page}&limit=${state.pagination.audit.limit}`;
@@ -1223,7 +1227,8 @@
 
         try {
             const data = await apiRequest(query);
-            state.pagination.audit.total = data.total;
+            state.pagination.audit.total = data.total || 0;
+            currentAuditLogsCache = data.logs || [];
 
             if (!data.logs || data.logs.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">No audit logs recorded for this criteria.</td></tr>`;
@@ -1234,23 +1239,59 @@
                 <tr>
                     <td class="text-dim text-xs font-mono">${formatDate(l.created_at)}</td>
                     <td><strong>${escapeHtml(l.admin_email || "System/CLI")}</strong></td>
-                    <td><span class="badge-neutral font-mono text-xs">${escapeHtml(l.action)}</span></td>
-                    <td>${l.target_type ? `${l.target_type} #${l.target_id || ""}` : "-"}</td>
+                    <td><span class="status-pill pill-neutral font-mono text-xs">${escapeHtml(l.action)}</span></td>
+                    <td>${l.target_type ? `<strong>${escapeHtml(l.target_type)}</strong> #${l.target_id || ""}` : "-"}</td>
                     <td>${escapeHtml(l.reason || "-")}</td>
                     <td class="font-mono text-xs">${escapeHtml(l.ip_address || "-")}</td>
                     <td>
-                        <span class="text-dim text-xs" title="${escapeHtml(l.after_state || "")}">
-                            ${l.after_state ? "View Details" : "-"}
-                        </span>
+                        <button class="btn btn-secondary btn-xs btn-inspect-audit" data-id="${l.id}">
+                            <i data-lucide="code"></i> Inspect
+                        </button>
                     </td>
                 </tr>
             `).join("");
 
+            tbody.querySelectorAll(".btn-inspect-audit").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const id = parseInt(btn.getAttribute("data-id"), 10);
+                    const log = currentAuditLogsCache.find(item => item.id === id);
+                    if (log) {
+                        openAuditPayloadModal(log);
+                    }
+                });
+            });
+
             updatePaginationInfo("audit");
+            applyRbacGuards();
             if (window.lucide) window.lucide.createIcons();
-        } catch {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading compliance audit trail.</td></tr>`;
+        } catch (err) {
+            console.error("loadAuditLogsData error:", err);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading compliance audit trail: ${escapeHtml(err.message || '')}</td></tr>`;
         }
+    }
+
+    function formatJsonPayload(str) {
+        if (!str || !str.trim()) return "None";
+        try {
+            const parsed = JSON.parse(str);
+            return JSON.stringify(parsed, null, 2);
+        } catch {
+            return str;
+        }
+    }
+
+    function openAuditPayloadModal(log) {
+        const modal = document.getElementById("modal-audit-payload");
+        if (!modal) return;
+
+        document.getElementById("audit-payload-title").textContent = `Audit Log #${log.id} (${log.action})`;
+        document.getElementById("audit-before-state").textContent = formatJsonPayload(log.before_state);
+        document.getElementById("audit-after-state").textContent = formatJsonPayload(log.after_state);
+        document.getElementById("audit-payload-reason").textContent = log.reason
+            ? `${log.reason} [Target: ${log.target_type || 'N/A'} #${log.target_id || 'N/A'} | IP: ${log.ip_address || 'N/A'}]`
+            : "No justification reason recorded.";
+
+        modal.classList.remove("hidden");
     }
 
     // --- VIEW: SYSTEM HEALTH ---
@@ -1828,7 +1869,49 @@
             });
         }
 
-        // 12. Lucide Icons Initial Call
+        // 20. Compliance Audit Logs Search, Filter & Pagination
+        let auditSearchDebounceTimer = null;
+        const auditSearch = document.getElementById("audit-search-input");
+        if (auditSearch) {
+            auditSearch.addEventListener("input", () => {
+                clearTimeout(auditSearchDebounceTimer);
+                auditSearchDebounceTimer = setTimeout(() => {
+                    state.pagination.audit.page = 1;
+                    loadAuditLogsData();
+                }, 300);
+            });
+        }
+
+        const auditFilter = document.getElementById("audit-action-filter");
+        if (auditFilter) {
+            auditFilter.addEventListener("change", () => {
+                state.pagination.audit.page = 1;
+                loadAuditLogsData();
+            });
+        }
+
+        const btnAuditPrev = document.getElementById("btn-audit-prev");
+        if (btnAuditPrev) {
+            btnAuditPrev.addEventListener("click", () => {
+                if (state.pagination.audit.page > 1) {
+                    state.pagination.audit.page--;
+                    loadAuditLogsData();
+                }
+            });
+        }
+
+        const btnAuditNext = document.getElementById("btn-audit-next");
+        if (btnAuditNext) {
+            btnAuditNext.addEventListener("click", () => {
+                const p = state.pagination.audit;
+                if (p.page * p.limit < p.total) {
+                    p.page++;
+                    loadAuditLogsData();
+                }
+            });
+        }
+
+        // 21. Lucide Icons Initial Call
         if (window.lucide) {
             window.lucide.createIcons();
         }
