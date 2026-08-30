@@ -79,4 +79,30 @@ def test_admin_portal_finances_and_adjust_balance_modal_present():
         assert 'id="adj-reason"' in html
         assert 'id="btn-submit-adjust"' in html
 
+def test_admin_portal_deposits_and_manual_settle_modal_present():
+    """Verify that Deposits pane, status filter, table, volume stat, and Manual Settle modal are mounted in HTML."""
+    with TestClient(app) as client:
+        res = client.get("/admin")
+        assert res.status_code == 200
+        html = res.text
+
+        # Verify Deposits Pane & Table
+        assert 'id="pane-deposits"' in html
+        assert 'id="deposits-total-volume"' in html
+        assert 'id="deposits-table"' in html
+        assert 'id="deposits-table-body"' in html
+        assert 'id="deposits-search-input"' in html
+        assert 'id="deposits-status-filter"' in html
+        assert 'id="deposits-pagination"' in html
+
+        # Verify Manual Settle Modal & Form Fields
+        assert 'id="modal-manual-settle-deposit"' in html
+        assert 'id="form-manual-settle-deposit"' in html
+        assert 'id="settle-checkout-id"' in html
+        assert 'id="settle-checkout-display"' in html
+        assert 'id="settle-mpesa-receipt"' in html
+        assert 'id="settle-reason"' in html
+        assert 'id="btn-submit-settle-deposit"' in html
+
+
 

@@ -265,7 +265,59 @@ if config.IS_TEST_MODE:
             max_age=86400,
             path="/"
         )
+        from app.core.csrf import generate_csrf_token
+        new_csrf = generate_csrf_token()
+        response.set_cookie(
+            key="csrf_token",
+            value=new_csrf,
+            httponly=False,
+            secure=False,
+            samesite="lax",
+            path="/"
+        )
         return {"status": "success", "admin_id": admin_id, "email": email, "role": role, "admin_session_token": token}
+
+    @app.post("/api/test/seed-deposit")
+    def seed_test_deposit(payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
+        import secrets
+        phone = payload.get("phone_number")
+        email = payload.get("email")
+        user_id = payload.get("user_id")
+        
+        if not user_id:
+            if phone or email:
+                phone = phone or f"2547{datetime.datetime.now().microsecond:06d}0"
+                email = email or f"user_{phone}@example.com"
+                user = db.get_user_by_email(email)
+                if not user:
+                    pwd_hash, salt = db._hash_password("Str0ng!P@ssw0rd2026!")
+                    try:
+                        user_id = db.create_user_email(email, pwd_hash, salt, payout_phone=phone, phone_number=phone)
+                    except Exception:
+                        user = db.get_user_by_email(email)
+                        user_id = user.id if user else 1
+                else:
+                    user_id = user.id
+            else:
+                user_id = 1
+
+        checkout_id = payload.get("checkout_request_id") or f"chk_test_{secrets.token_hex(6)}"
+        amount = payload.get("amount", 2500)
+        status = payload.get("status", "PENDING")
+        mpesa_receipt = payload.get("mpesa_receipt")
+        
+        db.create_deposit(user_id=user_id, checkout_request_id=checkout_id, amount=amount)
+        if status != "PENDING" or mpesa_receipt:
+            db.update_deposit_status(checkout_request_id=checkout_id, status=status, mpesa_receipt=mpesa_receipt)
+            
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "checkout_request_id": checkout_id,
+            "amount": amount,
+            "deposit_status": status,
+            "mpesa_receipt": mpesa_receipt
+        }
 
 
 

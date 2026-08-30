@@ -427,7 +427,10 @@
                         <div class="card-header flex-wrap-mobile">
                             <div class="card-title-group">
                                 <i data-lucide="arrow-down-left"></i>
-                                <h3>STK Push Deposits & Reconciliation</h3>
+                                <div>
+                                    <h3>STK Push Deposits & Reconciliation</h3>
+                                    <div class="text-xs text-muted" id="deposits-total-volume-stat">Total Collected: <strong class="text-primary" id="deposits-total-volume">KES -</strong></div>
+                                </div>
                             </div>
                             <div class="table-controls">
                                 <div class="search-input-box">
@@ -716,6 +719,38 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-adjust-balance">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="btn-submit-adjust">Confirm & Execute</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Manual Settle Deposit -->
+    <div class="modal-overlay hidden" id="modal-manual-settle-deposit">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="check-circle-2"></i>
+                    <h3>Manual Deposit Settlement</h3>
+                </div>
+                <button class="btn-icon-only btn-close-modal" data-modal="modal-manual-settle-deposit"><i data-lucide="x"></i></button>
+            </div>
+            <form id="form-manual-settle-deposit" class="modal-body">
+                <input type="hidden" id="settle-checkout-id" name="checkout_id">
+                <div class="form-group">
+                    <label for="settle-checkout-display">Checkout Request ID</label>
+                    <input type="text" id="settle-checkout-display" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="settle-mpesa-receipt">Safaricom M-Pesa Receipt Number</label>
+                    <input type="text" id="settle-mpesa-receipt" name="mpesa_receipt" class="form-input" placeholder="e.g. QWE123RTY8" required minlength="5">
+                </div>
+                <div class="form-group">
+                    <label for="settle-reason">Mandatory Audit Justification</label>
+                    <textarea id="settle-reason" name="reason" rows="3" class="form-textarea" placeholder="Explain why this deposit is being manually reconciled..." required minlength="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-manual-settle-deposit">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-settle-deposit">Confirm & Settle</button>
                 </div>
             </form>
         </div>

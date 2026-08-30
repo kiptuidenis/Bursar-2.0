@@ -1705,14 +1705,17 @@ class DatabaseManager:
             query = query.filter(Deposit.status == status.upper())
 
         if search:
+            from sqlalchemy import or_, func
             search_pattern = f"%{search.strip()}%"
             query = query.filter(
-                (Deposit.checkout_request_id.ilike(search_pattern)) |
-                (Deposit.mpesa_receipt.ilike(search_pattern)) |
-                (User.email.ilike(search_pattern)) |
-                (User.phone_number.ilike(search_pattern)) |
-                (User.first_name.ilike(search_pattern)) |
-                (User.last_name.ilike(search_pattern))
+                or_(
+                    func.coalesce(Deposit.checkout_request_id, '').ilike(search_pattern),
+                    func.coalesce(Deposit.mpesa_receipt, '').ilike(search_pattern),
+                    func.coalesce(User.email, '').ilike(search_pattern),
+                    func.coalesce(User.phone_number, '').ilike(search_pattern),
+                    func.coalesce(User.first_name, '').ilike(search_pattern),
+                    func.coalesce(User.last_name, '').ilike(search_pattern)
+                )
             )
 
         if date_from:

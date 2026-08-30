@@ -967,12 +967,15 @@
     }
 
     // --- VIEW: DEPOSITS & STK ---
+    // --- VIEW: DEPOSITS & STK ---
     async function loadDepositsData() {
         const tbody = document.getElementById("deposits-table-body");
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">Loading deposit records...</td></tr>`;
 
-        const search = document.getElementById("deposits-search-input").value.trim();
-        const status = document.getElementById("deposits-status-filter").value;
+        const searchInput = document.getElementById("deposits-search-input");
+        const search = searchInput ? searchInput.value.trim() : "";
+        const statusFilter = document.getElementById("deposits-status-filter");
+        const status = statusFilter ? statusFilter.value : "";
         const page = state.pagination.deposits.page;
 
         let query = `/api/admin/deposits?page=${page}&limit=${state.pagination.deposits.limit}`;
@@ -981,7 +984,12 @@
 
         try {
             const data = await apiRequest(query);
-            state.pagination.deposits.total = data.total;
+            state.pagination.deposits.total = data.total || 0;
+
+            const totalVolEl = document.getElementById("deposits-total-volume");
+            if (totalVolEl) {
+                totalVolEl.textContent = formatCurrency(data.total_amount || 0);
+            }
 
             if (!data.deposits || data.deposits.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">No deposit transactions found.</td></tr>`;
@@ -994,21 +1002,28 @@
                 if (d.status === "FAILED") pillClass = "pill-danger";
                 if (d.status === "PENDING") pillClass = "pill-warning";
 
+                const customerDisplay = d.user_name || d.user_email || d.user_phone || `User #${d.user_id}`;
+
                 return `
                     <tr>
-                        <td class="font-mono text-xs">${escapeHtml(d.checkout_request_id)}</td>
+                        <td class="font-mono text-xs font-bold">${escapeHtml(d.checkout_request_id)}</td>
                         <td>
-                            <div>${escapeHtml(d.user_email || d.phone_number)}</div>
+                            <strong>${escapeHtml(customerDisplay)}</strong>
+                            <div class="text-dim text-xs font-mono">${escapeHtml(d.user_phone || d.user_email)}</div>
                         </td>
-                        <td class="font-mono font-bold">${formatCurrency(d.amount)}</td>
+                        <td class="font-mono font-bold text-emerald">${formatCurrency(d.amount)}</td>
                         <td><span class="status-pill ${pillClass}">${d.status}</span></td>
                         <td class="font-mono">${escapeHtml(d.mpesa_receipt || "-")}</td>
                         <td class="text-dim text-xs">${formatDate(d.created_at)}</td>
                         <td>
                             <div class="btn-group rbac-finops">
                                 ${d.status === "PENDING" ? `
-                                    <button class="btn btn-secondary btn-sm btn-deposit-requery" data-checkout="${d.checkout_request_id}">Requery</button>
-                                    <button class="btn btn-secondary btn-sm btn-deposit-settle" data-checkout="${d.checkout_request_id}">Manual Settle</button>
+                                    <button class="btn btn-primary btn-xs btn-deposit-settle mr-1" data-checkout="${escapeHtml(d.checkout_request_id)}" data-customer="${escapeHtml(customerDisplay)}">
+                                        <i data-lucide="check-circle-2"></i> Settle
+                                    </button>
+                                    <button class="btn btn-secondary btn-xs btn-deposit-requery" data-checkout="${escapeHtml(d.checkout_request_id)}">
+                                        <i data-lucide="refresh-cw"></i> Requery
+                                    </button>
                                 ` : `<span class="text-dim text-xs">-</span>`}
                             </div>
                         </td>
@@ -1016,10 +1031,58 @@
                 `;
             }).join("");
 
+            // Wire row button events
+            tbody.querySelectorAll(".btn-deposit-settle").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const checkout = btn.getAttribute("data-checkout");
+                    const customer = btn.getAttribute("data-customer");
+                    openManualSettleModal(checkout, customer);
+                });
+            });
+
+            tbody.querySelectorAll(".btn-deposit-requery").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const checkout = btn.getAttribute("data-checkout");
+                    handleRequeryDeposit(checkout);
+                });
+            });
+
             updatePaginationInfo("deposits");
+            applyRbacGuards();
             if (window.lucide) window.lucide.createIcons();
-        } catch {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading deposit pipeline.</td></tr>`;
+        } catch (err) {
+            console.error("loadDepositsData error:", err);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading deposit pipeline: ${escapeHtml(err.message || '')}</td></tr>`;
+        }
+    }
+
+    function openManualSettleModal(checkoutId, customerDisplay) {
+        const modal = document.getElementById("modal-manual-settle-deposit");
+        if (!modal) return;
+        document.getElementById("settle-checkout-id").value = checkoutId;
+        document.getElementById("settle-checkout-display").value = `${checkoutId} (${customerDisplay || 'Customer'})`;
+        document.getElementById("settle-mpesa-receipt").value = "";
+        document.getElementById("settle-reason").value = "";
+        modal.classList.remove("hidden");
+        document.getElementById("settle-mpesa-receipt").focus();
+    }
+
+    async function handleRequeryDeposit(checkoutId) {
+        try {
+            showToast(`Requerying gateway for ${checkoutId}...`, "info");
+            const res = await apiRequest(`/api/admin/deposits/${checkoutId}/requery`, {
+                method: "POST"
+            });
+            if (res.status === "COMPLETED") {
+                showToast(`Deposit confirmed completed! Receipt: ${res.mpesa_receipt || 'VERIFIED'}`, "success");
+            } else if (res.status === "FAILED") {
+                showToast(`Deposit marked FAILED by gateway`, "warning");
+            } else {
+                showToast(`Deposit status is still ${res.status}`, "info");
+            }
+            loadDepositsData();
+        } catch (err) {
+            showToast(err.message || "Failed to requery gateway", "error");
         }
     }
 
@@ -1434,7 +1497,91 @@
             });
         }
 
-        // 12. Send In-App Notification Form Submit
+        // 12. Deposits & STK Push Table Search, Filter & Pagination
+        let depositsSearchDebounceTimer = null;
+        const depositsSearch = document.getElementById("deposits-search-input");
+        if (depositsSearch) {
+            depositsSearch.addEventListener("input", () => {
+                clearTimeout(depositsSearchDebounceTimer);
+                depositsSearchDebounceTimer = setTimeout(() => {
+                    state.pagination.deposits.page = 1;
+                    loadDepositsData();
+                }, 300);
+            });
+        }
+
+        const depositsFilter = document.getElementById("deposits-status-filter");
+        if (depositsFilter) {
+            depositsFilter.addEventListener("change", () => {
+                state.pagination.deposits.page = 1;
+                loadDepositsData();
+            });
+        }
+
+        const btnDepositsPrev = document.getElementById("btn-deposits-prev");
+        if (btnDepositsPrev) {
+            btnDepositsPrev.addEventListener("click", () => {
+                if (state.pagination.deposits.page > 1) {
+                    state.pagination.deposits.page--;
+                    loadDepositsData();
+                }
+            });
+        }
+
+        const btnDepositsNext = document.getElementById("btn-deposits-next");
+        if (btnDepositsNext) {
+            btnDepositsNext.addEventListener("click", () => {
+                const p = state.pagination.deposits;
+                if (p.page * p.limit < p.total) {
+                    p.page++;
+                    loadDepositsData();
+                }
+            });
+        }
+
+        // 13. Manual Settle Deposit Form Submit
+        const formManualSettle = document.getElementById("form-manual-settle-deposit");
+        if (formManualSettle) {
+            formManualSettle.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const checkoutId = document.getElementById("settle-checkout-id").value;
+                const mpesaReceipt = document.getElementById("settle-mpesa-receipt").value.trim().toUpperCase();
+                const reason = document.getElementById("settle-reason").value.trim();
+                const submitBtn = document.getElementById("btn-submit-settle-deposit");
+
+                if (!checkoutId) {
+                    showToast("Missing checkout transaction reference", "error");
+                    return;
+                }
+                if (!mpesaReceipt || mpesaReceipt.length < 5) {
+                    showToast("Please enter a valid M-Pesa receipt number", "error");
+                    return;
+                }
+                if (!reason || reason.length < 3) {
+                    showToast("Please provide mandatory audit justification", "error");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const res = await apiRequest(`/api/admin/deposits/${checkoutId}/manual-settle`, {
+                        method: "POST",
+                        body: JSON.stringify({ mpesa_receipt: mpesaReceipt, reason })
+                    });
+                    showToast(res.message || `Deposit ${checkoutId} settled successfully!`, "success");
+                    const modal = document.getElementById("modal-manual-settle-deposit");
+                    if (modal) modal.classList.add("hidden");
+                    formManualSettle.reset();
+                    loadDepositsData();
+                } catch (err) {
+                    showToast(err.message || "Manual settlement failed", "error");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        // 14. Send In-App Notification Form Submit
         const formSendNotif = document.getElementById("form-send-notification");
         if (formSendNotif) {
             formSendNotif.addEventListener("submit", async (e) => {
@@ -1464,7 +1611,7 @@
             });
         }
 
-        // 13. Export CSV Download Button
+        // 15. Export CSV Download Button
         const btnExportCsv = document.getElementById("btn-export-audit-csv");
         if (btnExportCsv) {
             btnExportCsv.addEventListener("click", () => {
