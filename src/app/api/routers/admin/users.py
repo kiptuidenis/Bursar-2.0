@@ -11,7 +11,8 @@ from app.api.schemas import (
     AdminUser2FATogglePayload,
     AdminUserRevokeSessionsPayload,
     AdminUserImpersonatePayload,
-    AdminUserUpdatePayoutPhonePayload
+    AdminUserUpdatePayoutPhonePayload,
+    AdminUserNotificationPayload
 )
 
 logger = logging.getLogger("bursar.admin.users")
@@ -189,3 +190,36 @@ def update_user_payout_phone(
         "phone_number": formatted_phone,
         "message": f"Customer payout phone updated to {formatted_phone}."
     }
+
+@router.post("/{user_id}/notify")
+def send_user_notification(
+    request: Request,
+    user_id: int,
+    payload: AdminUserNotificationPayload,
+    admin: dict = Depends(require_admin_roles(["superadmin", "support"])),
+    db: DatabaseManager = Depends(get_db)
+):
+    """Send an in-app notification directly to a customer account with audit logging."""
+    from app.db.models import User
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Customer account not found")
+
+    notif_id = db.create_notification(
+        user_id=user_id,
+        title=payload.title,
+        message=payload.message,
+        notif_type=payload.type or "INFO"
+    )
+    ip_address = request.client.host if request.client else "127.0.0.1"
+    db.create_admin_audit_log(
+        admin_id=admin["id"],
+        action="ADMIN_SEND_NOTIFICATION",
+        target_type="user",
+        target_id=user_id,
+        after_state=f"title={payload.title}; type={payload.type}",
+        reason=payload.reason or "Admin support notification",
+        ip_address=ip_address
+    )
+    return {"status": "success", "notification_id": notif_id, "message": "Notification dispatched to customer."}
+

@@ -176,6 +176,20 @@ class AdminStatusTogglePayload(BaseModel):
     is_active: bool = Field(..., description="Target active status (True = active, False = deactivated)")
     reason: str = Field(..., min_length=3, description="Mandatory audit justification for modifying admin status")
 
+class AdminUserNotificationPayload(BaseModel):
+    title: str = Field(..., min_length=2, max_length=200, description="Title of the in-app notification")
+    message: str = Field(..., min_length=3, description="Body content of the notification")
+    type: str = Field("INFO", description="Notification severity / style ('INFO', 'WARNING', 'SUCCESS', 'DANGER')")
+    reason: Optional[str] = Field("Customer support notification", description="Audit justification for sending notification")
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        upper = v.strip().upper()
+        if upper not in ("INFO", "WARNING", "SUCCESS", "DANGER"):
+            return "INFO"
+        return upper
+
 
 
 

@@ -226,3 +226,29 @@ def test_auditor_role_forbidden_from_support_mutations(users_admin_client):
     assert client.post(f"/api/admin/users/{user1_id}/revoke-sessions", json={"reason": "test"}).status_code == 403
     assert client.post(f"/api/admin/users/{user1_id}/impersonate", json={"reason": "test"}).status_code == 403
     assert client.post(f"/api/admin/users/{user1_id}/update-payout-phone", json={"phone_number": "254799887766", "reason": "test"}).status_code == 403
+    assert client.post(f"/api/admin/users/{user1_id}/notify", json={"title": "Test", "message": "Test"}).status_code == 403
+
+def test_admin_send_user_notification(users_admin_client):
+    """Admin/Support can dispatch an in-app notification to a customer with audit trail logging."""
+    client, user1_id, _ = users_admin_client
+
+    res = client.post(f"/api/admin/users/{user1_id}/notify", json={
+        "title": "Welcome Support Notice",
+        "message": "Thank you for contacting Bursar support. Your inquiry is being handled.",
+        "type": "SUCCESS",
+        "reason": "Direct user assistance"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert "notification_id" in data
+
+    # Verify notification appears in user 360 profile
+    res_360 = client.get(f"/api/admin/users/{user1_id}")
+    assert res_360.status_code == 200
+
+    # Verify audit log recorded
+    res_audit = client.get("/api/admin/audit/logs?action=ADMIN_SEND_NOTIFICATION")
+    assert res_audit.status_code == 200
+    assert res_audit.json()["total"] >= 1
+
