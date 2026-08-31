@@ -76,13 +76,18 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     await page.click('#nav-signup-btn');
     await page.waitForTimeout(500);
 
-    // 3. Verify mobile configurations of registration form fields
-    const phoneInput = page.locator('#auth-phone');
+    // 3. Verify mobile configurations of registration form fields (email-first signup)
+    const authInput = page.locator('#auth-phone');
     const pwdInput = page.locator('#auth-password');
 
-    await expect(phoneInput).toHaveAttribute('type', 'tel');
-    await expect(phoneInput).toHaveAttribute('inputmode', 'tel');
+    await expect(authInput).toHaveAttribute('type', 'email');
+    await expect(authInput).toHaveAttribute('inputmode', 'email');
     await expect(pwdInput).toHaveAttribute('type', 'password');
+
+    // Verify login tab has text inputmode for alphanumeric email/phone login
+    await page.click('#tab-login');
+    await expect(authInput).toHaveAttribute('type', 'text');
+    await expect(authInput).toHaveAttribute('inputmode', 'text');
 
     // 4. Log in via session setup
     await setupAuthenticatedUser(page);
