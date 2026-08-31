@@ -54,6 +54,12 @@ def _setup_client(phone_number="", email="", password="Str0ng!P@ssw0rd2026!"):
     c.headers = {"X-CSRF-Token": csrf}
     return c, user_id, email_clean, password
 
+def _get_test_dates():
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    next_week = (today_eat + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    return tomorrow, next_week
+
 def test_first_time_payout_phone_setup_does_not_require_stepup():
     """An email-only user setting up their initial payout phone line does not trigger step-up challenge."""
     c, user_id, email, password = _setup_client(phone_number="", email="new_email_user@example.com")
@@ -63,8 +69,7 @@ def test_first_time_payout_phone_setup_does_not_require_stepup():
     assert add_res.status_code == 200
 
     # 2. Lock budget with new initial payout phone without password/OTP
-    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
     
     lock_res = c.post("/api/budget/lock", json={
         "start_date": tomorrow,
@@ -85,8 +90,7 @@ def test_locking_budget_with_same_payout_phone_does_not_require_stepup():
     add_res = c.post("/api/budget/items", json={"category": "Transport", "amount": 300})
     assert add_res.status_code == 200
 
-    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     # Lock with the same phone (or omitted payout_phone_number)
     lock_res = c.post("/api/budget/lock", json={
@@ -104,8 +108,7 @@ def test_modifying_payout_phone_without_credentials_fails_400():
     add_res = c.post("/api/budget/items", json={"category": "Rent", "amount": 500})
     assert add_res.status_code == 200
 
-    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     # Attempt to change payout line to a different number without password/OTP
     lock_res = c.post("/api/budget/lock", json={
@@ -127,8 +130,7 @@ def test_modifying_payout_phone_with_wrong_password_fails_401():
     # Generate valid OTP challenge
     otp = db.create_otp_challenge(email, purpose="payout_stepup", ttl_seconds=300, user_id=user_id)
 
-    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     lock_res = c.post("/api/budget/lock", json={
         "start_date": tomorrow,
@@ -147,8 +149,7 @@ def test_modifying_payout_phone_with_invalid_or_expired_otp_fails_400():
     add_res = c.post("/api/budget/items", json={"category": "Rent", "amount": 500})
     assert add_res.status_code == 200
 
-    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     lock_res = c.post("/api/budget/lock", json={
         "start_date": tomorrow,
@@ -171,8 +172,7 @@ def test_modifying_payout_phone_with_valid_password_and_otp_succeeds():
     # Generate valid OTP challenge
     otp = db.create_otp_challenge(email, purpose="payout_stepup", ttl_seconds=300, user_id=user_id)
 
-    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     lock_res = c.post("/api/budget/lock", json={
         "start_date": tomorrow,
