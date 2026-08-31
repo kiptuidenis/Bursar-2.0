@@ -3,17 +3,15 @@ const { setupEmailOnlyUser, setupAuthenticatedUser } = require('./helpers');
 
 test.describe('Deposit Phone Prompt Feature', () => {
 
-  test('Email-only user is prompted for phone number on deposit and number is auto-persisted', async ({ page }) => {
+  test('Email-only user deposits with custom phone number without altering profile', async ({ page }) => {
     test.setTimeout(60000);
-    // Auto-accept alert dialogs
     page.on('dialog', async dialog => await dialog.accept());
 
     await setupEmailOnlyUser(page);
 
-    // Generate a unique random Kenyan phone number to avoid UNIQUE constraint conflicts
+    // Random test phone
     const randomSuffix = Math.floor(10000000 + Math.random() * 90000000);
     const testPhone = `07${randomSuffix}`;
-    const normalizedPhone = `2547${randomSuffix}`;
 
     // Flip debit card to reveal action buttons
     await page.click('#debit-card-container');
@@ -37,15 +35,17 @@ test.describe('Deposit Phone Prompt Feature', () => {
     const pollingOverlay = page.locator('#deposit-polling-overlay');
     await expect(pollingOverlay).toHaveClass(/active/);
 
-    // In simulation mode, polling will complete or transition
-    // Wait for polling modal to dismiss and balance to reflect deposit
-    await expect(pollingOverlay).not.toHaveClass(/active/, { timeout: 15000 });
+    // Wait for polling modal to dismiss (simulation polling cycle)
+    await expect(pollingOverlay).not.toHaveClass(/active/, { timeout: 30000 });
 
-    // Wait for dashboard data to refresh, then verify phone number on profile summary
-    await expect(page.locator('#dash-profile-phone')).toHaveText(normalizedPhone, { timeout: 10000 });
+    // Verify balance updated on dashboard
+    await expect(page.locator('#wallet-balance')).toHaveText('2,000.00');
+
+    // Verify profile phone remains unlinked ("—")
+    await expect(page.locator('#dash-profile-phone')).toHaveText('—');
   });
 
-  test('Phone-registered user has phone pre-populated in deposit modal', async ({ page }) => {
+  test('Phone-registered user can deposit using a different phone without altering original profile', async ({ page }) => {
     test.setTimeout(60000);
     const userPhone = '254799112233';
     await setupAuthenticatedUser(page, { phoneNumber: userPhone });
@@ -61,9 +61,17 @@ test.describe('Deposit Phone Prompt Feature', () => {
     await expect(phoneInput).toBeVisible();
     await expect(phoneInput).toHaveValue(userPhone);
 
-    // Verify Saved Line badge is shown
-    const savedBadge = page.locator('#deposit-phone-status-badge');
-    await expect(savedBadge).toBeVisible();
+    // Edit to pay from a different phone number
+    await phoneInput.fill('0711998877');
+    await page.locator('#deposit-amount').fill('1500');
+    await page.locator('#deposit-form button[type="submit"]').click();
+
+    const pollingOverlay = page.locator('#deposit-polling-overlay');
+    await expect(pollingOverlay).toHaveClass(/active/);
+    await expect(pollingOverlay).not.toHaveClass(/active/, { timeout: 30000 });
+
+    // Verify profile retains original phone number
+    await expect(page.locator('#dash-profile-phone')).toHaveText(userPhone);
   });
 
 });

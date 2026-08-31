@@ -184,12 +184,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const confirmGroup = document.getElementById("auth-confirm-password-group");
         const confirmInput = document.getElementById("auth-confirm-password");
+        const emailLabel = document.getElementById("email-label");
+        const authPhone = document.getElementById("auth-phone");
 
         if (action === "login") {
             if (tabLogin) tabLogin.classList.add("active");
             if (tabSignup) tabSignup.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Log In";
             if (authSubtitle) authSubtitle.innerText = "Log in to manage your daily allowances";
+            if (emailLabel) emailLabel.innerText = "Email or Phone Number";
+            if (authPhone) {
+                authPhone.placeholder = "e.g. user@example.com or 0712345678";
+                authPhone.type = "text";
+                authPhone.inputMode = "text";
+            }
             if (passwordLabel) passwordLabel.innerText = "Password";
             if (authPassword) authPassword.placeholder = "Enter password (min 8 chars)";
             if (confirmGroup) confirmGroup.style.display = "none";
@@ -199,6 +207,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabLogin) tabLogin.classList.remove("active");
             if (authSubmitBtn) authSubmitBtn.innerText = "Register";
             if (authSubtitle) authSubtitle.innerText = "Create an account with your email address";
+            if (emailLabel) emailLabel.innerText = "Email Address";
+            if (authPhone) {
+                authPhone.placeholder = "e.g. user@example.com";
+                authPhone.type = "email";
+                authPhone.inputMode = "email";
+            }
             if (passwordLabel) passwordLabel.innerText = "Create Strong Password";
             if (authPassword) authPassword.placeholder = "Password (min 8 chars, A-Z, a-z, 0-9, symbol)";
             if (confirmGroup) confirmGroup.style.display = "block";

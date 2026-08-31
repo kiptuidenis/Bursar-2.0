@@ -32,21 +32,6 @@ async def initiate_deposit(request: Request, payload: DepositRequest, user_id: i
             detail="Please provide a valid Safaricom M-Pesa phone number to initiate the deposit."
         )
 
-    # If user provided a phone number and settings has no saved phone, persist it
-    if payload.phone_number and not settings.get("phone_number"):
-        try:
-            db.update_settings(user_id, phone_number=payload.phone_number)
-            db.update_payout_phone_number(user_id, payload.phone_number)
-            from app.db.models import User
-            user_obj = db.session.query(User).filter(User.id == user_id).first()
-            if user_obj and not user_obj.phone_number:
-                user_obj.phone_number = payload.phone_number
-                db._commit()
-            # Refresh settings dict
-            settings = db.get_settings(user_id) or {}
-        except Exception:
-            db.session.rollback()
-        
     daily_budget = int(settings.get("daily_budget", 0))
     balance = int(settings.get("balance", 0))
     if daily_budget > 0 and (balance + amount) < daily_budget:

@@ -99,26 +99,32 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if daily_budget > balance and balance > 0:
         raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
         
-    # Dual Step-Up Verification for Payout Phone Number & Budget Locking
-    if payload.payout_phone_number or payload.password or payload.otp_code:
+    # Payout Phone Number Configuration & Budget Locking
+    current_payout_phone = db.get_payout_phone_number(user_id)
+    if payload.payout_phone_number:
         from app.api.routers.auth import sanitize_phone_number
-        from app.db.models import User
-        user = db.session.query(User).filter(User.id == user_id).first()
+        sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
         
-        if payload.payout_phone_number:
-            sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
-        else:
-            sanitized_phone = db.get_payout_phone_number(user_id)
-
-        if payload.password and payload.otp_code:
-            if user and not db._verify_password(payload.password, user.password_hash, user.salt):
-                raise HTTPException(status_code=401, detail="Invalid password credential.")
-            if user and user.email:
-                is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
-                if not is_valid_otp:
-                    raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
-            if sanitized_phone:
-                db.update_payout_phone_number(user_id, sanitized_phone)
+        # If user is changing an already configured payout phone, verify step-up if credentials provided
+        if current_payout_phone and current_payout_phone != sanitized_phone:
+            if payload.password and payload.otp_code:
+                from app.db.models import User
+                user = db.session.query(User).filter(User.id == user_id).first()
+                if user and not db._verify_password(payload.password, user.password_hash, user.salt):
+                    raise HTTPException(status_code=401, detail="Invalid password credential.")
+                if user and user.email:
+                    is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
+                    if not is_valid_otp:
+                        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+            elif payload.password or payload.otp_code:
+                raise HTTPException(status_code=400, detail="Both password and OTP verification code are required to update your payout phone number.")
+        
+        db.update_payout_phone_number(user_id, sanitized_phone)
+    elif not current_payout_phone:
+        raise HTTPException(
+            status_code=400,
+            detail="A target Safaricom M-Pesa phone number is required to receive your daily disbursements. Please provide a payout phone number."
+        )
 
     db.lock_budget(user_id)
     db.update_settings(user_id, start_date=start_date, end_date=end_date)
