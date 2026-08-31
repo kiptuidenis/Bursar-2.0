@@ -52,10 +52,8 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     await page.fill('#lock-end-date', farFutureStr);
     await page.click('#budget-wizard-next-2');
     await page.waitForTimeout(300);
-    if (await page.locator('#lock-budget-btn').isVisible()) {
-      await page.click('#lock-budget-btn');
-    }
-    await page.waitForTimeout(1000);
+    await page.click('#lock-budget-btn');
+    await page.waitForTimeout(500);
 
     // Verify alert message for non-future date was captured
     expect(dialogMessages.some(m => m.toLowerCase().includes('future') || m.toLowerCase().includes('past'))).toBe(true);
@@ -66,14 +64,16 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     futureDate.setDate(futureDate.getDate() + 5);
     const futureDateStr = futureDate.toISOString().split('T')[0];
 
+    // Navigate back to Step 2 (Payout Schedule) to change dates
+    await page.click('#budget-wizard-back-3');
+    await page.waitForTimeout(300);
+
     await page.fill('#lock-start-date', futureDateStr);
     await page.fill('#lock-end-date', futureDateStr);
     await page.click('#budget-wizard-next-2');
     await page.waitForTimeout(300);
-    if (await page.locator('#lock-budget-btn').isVisible()) {
-      await page.click('#lock-budget-btn');
-    }
-    await page.waitForTimeout(1000);
+    await page.click('#lock-budget-btn');
+    await page.waitForTimeout(500);
 
     expect(dialogMessages.some(m => /after start date|same/.test(m.toLowerCase()))).toBe(true);
 
