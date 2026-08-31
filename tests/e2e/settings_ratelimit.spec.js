@@ -11,8 +11,8 @@ test.describe('Settings Pre-Modal Rate-Limiting E2E Tests', () => {
     await setupAuthenticatedUser(page, { phoneNumber: userPhone });
 
     // Open Settings Drawer via top navigation button
-    const openSettingsBtn = page.locator('#open-settings-btn');
-    await openSettingsBtn.click();
+    const toggleSettingsBtn = page.locator('#toggle-settings-btn');
+    await toggleSettingsBtn.click();
     const settingsDrawer = page.locator('#settings-drawer');
     await expect(settingsDrawer).toHaveClass(/active/, { timeout: 8000 });
 
