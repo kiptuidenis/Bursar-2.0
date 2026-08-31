@@ -922,8 +922,8 @@ body:not(.landing-body) {
     min-height: 300px;
 }
 
-/* Overlay & Modals / Drawers */
-.modal-overlay, .drawer-overlay {
+/* Base Overlays: Drawers (Slide-outs) */
+.drawer-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -931,7 +931,7 @@ body:not(.landing-body) {
     bottom: 0;
     background: rgba(5, 6, 12, 0.75);
     backdrop-filter: blur(8px);
-    z-index: 100;
+    z-index: 1000;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -939,6 +939,30 @@ body:not(.landing-body) {
     align-items: center;
     justify-content: center;
     transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+/* Modals (Layered in front of drawers and page backdrops) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(5, 6, 12, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+/* Step-Up Security & Confirmation Modals (Topmost Priority) */
+#stepup-payout-modal {
+    z-index: 2100;
 }
 
 .modal-overlay.active, .drawer-overlay.active {
