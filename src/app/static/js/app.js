@@ -362,6 +362,14 @@ function switchTab(tabId) {
         if (settingsDrawer) {
             settingsDrawer.classList.remove("active");
         }
+        if (currentSettings) {
+            const phoneEl = document.getElementById("settings-phone");
+            const timeEl = document.getElementById("settings-time");
+            const budgetEl = document.getElementById("settings-budget");
+            if (phoneEl) phoneEl.value = currentSettings.phone_number || "";
+            if (timeEl) timeEl.value = currentSettings.payout_time || "08:00";
+            if (budgetEl) budgetEl.value = currentSettings.daily_budget || 0;
+        }
     } else {
         // Return to drawer overlay if not on settings tab
         if (settingsContent && settingsDrawer && settingsContent.parentNode !== settingsDrawer) {
@@ -611,6 +619,14 @@ function setupEventHandlers() {
         // Only open drawer overlay if settings content is in the drawer overlay (not flat tab view)
         const settingsContent = document.getElementById("settings-drawer-content");
         if (settingsContent && settingsContent.parentNode === settingsDrawer) {
+            if (currentSettings) {
+                const phoneEl = document.getElementById("settings-phone");
+                const timeEl = document.getElementById("settings-time");
+                const budgetEl = document.getElementById("settings-budget");
+                if (phoneEl) phoneEl.value = currentSettings.phone_number || "";
+                if (timeEl) timeEl.value = currentSettings.payout_time || "08:00";
+                if (budgetEl) budgetEl.value = currentSettings.daily_budget || 0;
+            }
             settingsDrawer.classList.add("active");
         }
     });
@@ -1080,6 +1096,162 @@ function setupEventHandlers() {
         });
     }
 
+    // Helper to sanitize phone for comparison
+    function normalizePhone(p) {
+        if (!p) return "";
+        let clean = p.replace(/\s+/g, "").replace(/\+/g, "");
+        if (clean.startsWith("0")) clean = "254" + clean.substring(1);
+        return clean;
+    }
+
+    let pendingLockPayload = null;
+    let stepupTimer = null;
+
+    function openStepupModal(payload) {
+        pendingLockPayload = payload;
+        const modal = document.getElementById("stepup-payout-modal");
+        const errorEl = document.getElementById("stepup-payout-error");
+        const passwordInput = document.getElementById("stepup-payout-password");
+        const otpInput = document.getElementById("stepup-payout-otp");
+        if (errorEl) { errorEl.style.display = "none"; errorEl.innerText = ""; }
+        if (passwordInput) passwordInput.value = "";
+        if (otpInput) otpInput.value = "";
+        if (modal) modal.classList.add("active");
+        if (passwordInput) passwordInput.focus();
+        
+        requestStepupOtp();
+    }
+
+    async function requestStepupOtp() {
+        const resendBtn = document.getElementById("stepup-resend-otp-btn");
+        const errorEl = document.getElementById("stepup-payout-error");
+        try {
+            if (resendBtn) {
+                resendBtn.disabled = true;
+                let countdown = 60;
+                resendBtn.innerText = `Resend in ${countdown}s`;
+                clearInterval(stepupTimer);
+                stepupTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(stepupTimer);
+                        resendBtn.disabled = false;
+                        resendBtn.innerText = "Resend Code";
+                    } else {
+                        resendBtn.innerText = `Resend in ${countdown}s`;
+                    }
+                }, 1000);
+            }
+
+            const res = await fetch("/api/profile/request-stepup-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ purpose: "payout_stepup" })
+            });
+            if (res.status === 401) return showAuthScreen();
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Failed to send authorization code.");
+            }
+        } catch (err) {
+            console.error("Step-up OTP request error:", err);
+            if (errorEl) {
+                errorEl.innerText = err.message || "Failed to send verification code.";
+                errorEl.style.display = "block";
+            }
+        }
+    }
+
+    const closeStepupBtn = document.getElementById("close-stepup-payout-btn");
+    const cancelStepupBtn = document.getElementById("cancel-stepup-payout-btn");
+    if (closeStepupBtn) {
+        closeStepupBtn.addEventListener("click", () => {
+            const modal = document.getElementById("stepup-payout-modal");
+            if (modal) modal.classList.remove("active");
+            clearInterval(stepupTimer);
+        });
+    }
+    if (cancelStepupBtn) {
+        cancelStepupBtn.addEventListener("click", () => {
+            const modal = document.getElementById("stepup-payout-modal");
+            if (modal) modal.classList.remove("active");
+            clearInterval(stepupTimer);
+        });
+    }
+
+    const resendStepupBtn = document.getElementById("stepup-resend-otp-btn");
+    if (resendStepupBtn) {
+        resendStepupBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            requestStepupOtp();
+        });
+    }
+
+    const stepupForm = document.getElementById("stepup-payout-form");
+    if (stepupForm) {
+        stepupForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const password = document.getElementById("stepup-payout-password").value;
+            const otp_code = document.getElementById("stepup-payout-otp").value.trim();
+            const errorEl = document.getElementById("stepup-payout-error");
+            const confirmBtn = document.getElementById("confirm-stepup-payout-btn");
+
+            if (!password || !otp_code || otp_code.length !== 6) {
+                if (errorEl) {
+                    errorEl.innerText = "Please enter your password and complete 6-digit verification code.";
+                    errorEl.style.display = "block";
+                }
+                return;
+            }
+
+            try {
+                if (confirmBtn) confirmBtn.disabled = true;
+                if (errorEl) errorEl.style.display = "none";
+
+                const finalPayload = {
+                    ...pendingLockPayload,
+                    password,
+                    otp_code
+                };
+
+                const res = await fetch("/api/budget/lock", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(finalPayload)
+                });
+                if (res.status === 401) return showAuthScreen();
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Failed to finalize and lock budget.");
+                }
+
+                alert("Budget successfully finalized and locked for this month! 🔒");
+                const stepupModal = document.getElementById("stepup-payout-modal");
+                if (stepupModal) stepupModal.classList.remove("active");
+                clearInterval(stepupTimer);
+
+                await pollDashboardData();
+
+                // Close Budget Designer Modal
+                const budgetModal = document.getElementById("budget-designer-modal");
+                const budgetContent = document.getElementById("budget-designer-modal-content");
+                if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
+                    switchTab("dashboard");
+                } else if (budgetModal) {
+                    budgetModal.classList.remove("active");
+                }
+            } catch (err) {
+                console.error("Step-up authorization error:", err);
+                if (errorEl) {
+                    errorEl.innerText = err.message || "Invalid credentials or verification code.";
+                    errorEl.style.display = "block";
+                }
+            } finally {
+                if (confirmBtn) confirmBtn.disabled = false;
+            }
+        });
+    }
+
     const lockBudgetBtn = document.getElementById("lock-budget-btn");
     if (lockBudgetBtn) {
         lockBudgetBtn.addEventListener("click", async () => {
@@ -1108,6 +1280,15 @@ function setupEventHandlers() {
             }
             
             if (!confirm("Are you sure you want to finalize and lock your budget? Once locked, you cannot add or delete allocation categories until the first day of next month.")) {
+                return;
+            }
+
+            const currentSavedPhone = currentSettings && (currentSettings.payout_phone_number || currentSettings.phone_number);
+            const hasChangedPhone = currentSavedPhone && payout_phone && (normalizePhone(payout_phone) !== normalizePhone(currentSavedPhone));
+
+            if (hasChangedPhone) {
+                const lockPayload = { start_date, end_date, payout_phone_number: payout_phone };
+                openStepupModal(lockPayload);
                 return;
             }
             
@@ -1139,7 +1320,7 @@ function setupEventHandlers() {
                 }
             } catch (err) {
                 console.error(err);
-                alert(err.message || "Failed to lock budget.");
+                alert(err.message || "Failed to finalize and lock budget.");
             }
         });
     }
@@ -1369,9 +1550,21 @@ function updateDashboardMetrics(settings) {
     
     document.getElementById("payout-time-info").innerText = `Payout: ${settings.payout_time || "08:00"}`;
 
+    const settingsDrawer = document.getElementById("settings-drawer");
+    const isSettingsDrawerOpen = settingsDrawer && settingsDrawer.classList.contains("active");
+    const viewSettings = document.getElementById("view-settings");
+    const inFlatTabMode = viewSettings && !viewSettings.classList.contains("hidden") && viewSettings.classList.contains("active");
+    const isEditingSettings = isSettingsDrawerOpen || inFlatTabMode || [
+        document.getElementById("settings-phone"),
+        document.getElementById("settings-time"),
+        document.getElementById("settings-budget")
+    ].some(el => el && el === document.activeElement);
+
     const settingsBudgetInput = document.getElementById("settings-budget");
     if (settingsBudgetInput) {
-        settingsBudgetInput.value = settings.daily_budget || 0;
+        if (!isEditingSettings) {
+            settingsBudgetInput.value = settings.daily_budget || 0;
+        }
         if (settings.is_budget_locked) {
             settingsBudgetInput.disabled = true;
             settingsBudgetInput.title = "Budget is locked until the end of the month.";
@@ -1404,8 +1597,12 @@ function updateDashboardMetrics(settings) {
         }
     }
 
-    document.getElementById(`settings-time`).value = settings.payout_time || "08:00";
-    document.getElementById(`settings-phone`).value = settings.phone_number || "";
+    if (!isEditingSettings) {
+        const timeEl = document.getElementById("settings-time");
+        const phoneEl = document.getElementById("settings-phone");
+        if (timeEl) timeEl.value = settings.payout_time || "08:00";
+        if (phoneEl) phoneEl.value = settings.phone_number || "";
+    }
 
     const depositPhone = document.getElementById("deposit-phone");
     const depositPhoneBadge = document.getElementById("deposit-phone-status-badge");

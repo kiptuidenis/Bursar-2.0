@@ -105,19 +105,36 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
         from app.api.routers.auth import sanitize_phone_number
         sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
         
-        # If user is changing an already configured payout phone, verify step-up if credentials provided
+        # If user is changing an already configured payout phone, enforce step-up
         if current_payout_phone and current_payout_phone != sanitized_phone:
-            if payload.password and payload.otp_code:
-                from app.db.models import User
-                user = db.session.query(User).filter(User.id == user_id).first()
-                if user and not db._verify_password(payload.password, user.password_hash, user.salt):
-                    raise HTTPException(status_code=401, detail="Invalid password credential.")
-                if user and user.email:
-                    is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
-                    if not is_valid_otp:
-                        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
-            elif payload.password or payload.otp_code:
-                raise HTTPException(status_code=400, detail="Both password and OTP verification code are required to update your payout phone number.")
+            if not payload.password or not payload.otp_code:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Both password and 6-digit OTP verification code are required to update your configured payout phone number."
+                )
+            from app.db.models import User
+            user = db.session.query(User).filter(User.id == user_id).first()
+            if not user or not db._verify_password(payload.password, user.password_hash, user.salt):
+                raise HTTPException(status_code=401, detail="Invalid password credential.")
+            if not user.email:
+                raise HTTPException(status_code=400, detail="User account does not have a verified email address.")
+            
+            is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
+            if not is_valid_otp:
+                raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+            
+            client_ip = request.client.host if request.client else "127.0.0.1"
+            db.log_event(user_id, "SECURITY", f"Payout phone number updated from '{current_payout_phone}' to '{sanitized_phone}' via step-up authentication.")
+            db.create_admin_audit_log(
+                admin_id=None,
+                action="USER_PAYOUT_PHONE_UPDATED",
+                target_type="User",
+                target_id=user_id,
+                before_state=f'{{"payout_phone": "{current_payout_phone}"}}',
+                after_state=f'{{"payout_phone": "{sanitized_phone}"}}',
+                reason="User updated payout destination line during budget lock",
+                ip_address=client_ip
+            )
         
         db.update_payout_phone_number(user_id, sanitized_phone)
     elif not current_payout_phone:

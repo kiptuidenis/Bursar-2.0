@@ -120,7 +120,7 @@ class BudgetLockPayload(BaseModel):
     items: Optional[List[DraftBudgetItem]] = None
     payout_phone_number: Optional[str] = None
     password: Optional[str] = None
-    otp_code: Optional[str] = None
+    otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for payout step-up")
 
 class StepUpOTPPayload(BaseModel):
     purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update)")

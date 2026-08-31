@@ -413,6 +413,19 @@ if config.IS_TEST_MODE:
             "transaction_id": transaction_id
         }
 
+    @app.get("/api/test/latest-otp")
+    def get_latest_test_otp(email: str = "", purpose: str = "", db: DatabaseManager = Depends(get_db)):
+        from app.db.models import OtpCode
+        query = db.session.query(OtpCode)
+        if email:
+            query = query.filter(OtpCode.email == email.strip().lower())
+        if purpose:
+            query = query.filter(OtpCode.purpose == purpose)
+        otp = query.order_by(OtpCode.id.desc()).first()
+        if not otp:
+            raise HTTPException(status_code=404, detail="No OTP found")
+        return {"status": "success", "otp_code": otp.otp_code, "purpose": otp.purpose, "email": otp.email}
+
 
 
 @app.get("/api/diagnostics")
