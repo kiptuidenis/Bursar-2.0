@@ -413,6 +413,18 @@ if config.IS_TEST_MODE:
             "transaction_id": transaction_id
         }
 
+    @app.get("/api/test/latest-otp")
+    def get_latest_test_otp(email: str = "", purpose: str = ""):
+        from app.services.email import last_sent_otp_emails
+        email_clean = email.strip().lower()
+        if email_clean and email_clean in last_sent_otp_emails:
+            entry = last_sent_otp_emails[email_clean]
+            return {"status": "success", "otp_code": entry["otp_code"], "purpose": entry["purpose"], "email": entry["email"]}
+        if last_sent_otp_emails:
+            last_entry = list(last_sent_otp_emails.values())[-1]
+            return {"status": "success", "otp_code": last_entry["otp_code"], "purpose": last_entry["purpose"], "email": last_entry["email"]}
+        raise HTTPException(status_code=404, detail="No mock OTP found in email delivery queue.")
+
 
 
 @app.get("/api/diagnostics")
