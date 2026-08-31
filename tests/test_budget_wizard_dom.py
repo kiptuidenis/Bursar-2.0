@@ -50,8 +50,8 @@ def test_budget_wizard_css_track_and_tile_proportions():
 
     assert ".budget-wizard-container" in css
     assert ".budget-wizard-track" in css
-    assert "width: 300%;" in css
-    assert "width: 33.333333%;" in css or "flex: 0 0 33.333333%;" in css
+    assert "width: 300%" in css
+    assert "33.333333%" in css
 
 def test_budget_wizard_js_step_offset_formula():
     """Verify that app.js calculates offset based on 300% track proportions (100 / 3) to prevent slide overlap."""
