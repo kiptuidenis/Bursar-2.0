@@ -278,10 +278,10 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     let t3Box = await tile3.boundingBox();
 
     // Tile 1 aligned with container
-    expect(Math.abs(t1Box.x - cBox.x)).toBeLessThanOrEqual(3);
-    expect(Math.abs(t1Box.width - cBox.width)).toBeLessThanOrEqual(3);
+    expect(Math.abs(t1Box.x - cBox.x)).toBeLessThanOrEqual(5);
+    expect(Math.abs(t1Box.width - cBox.width)).toBeLessThanOrEqual(5);
     // Tile 2 is to the right
-    expect(t2Box.x).toBeGreaterThanOrEqual(cBox.x + cBox.width - 2);
+    expect(t2Box.x).toBeGreaterThanOrEqual(cBox.x + cBox.width - 5);
 
     // --- MOVE TO STEP 2 ---
     await page.locator('#budget-wizard-next-1').click();

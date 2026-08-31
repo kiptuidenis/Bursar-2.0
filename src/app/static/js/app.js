@@ -1219,7 +1219,6 @@ function setupEventHandlers() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(finalPayload)
                 });
-                if (res.status === 401) return showAuthScreen();
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.detail || "Failed to finalize and lock budget.");
