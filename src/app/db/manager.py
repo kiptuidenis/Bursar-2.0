@@ -1283,14 +1283,14 @@ class DatabaseManager:
         
         # 2. Total Deposits All Time & Pending Deposits
         deposits = self.session.query(Deposit).all()
-        total_deposited_all_time = sum(int(d.amount or 0) for d in deposits if d.status == 'COMPLETED')
+        total_deposited_all_time = sum(int(d.amount or 0) for d in deposits if d.status in ('COMPLETED', 'SUCCESS'))
         pending_deposits = [d for d in deposits if d.status == 'PENDING']
         pending_deposits_count = len(pending_deposits)
         pending_deposits_amount = sum(int(d.amount or 0) for d in pending_deposits)
 
         # 3. Total Payouts All Time, Failed Queue, and Today's Velocity
         payouts = self.session.query(Payout).all()
-        completed_payouts = [p for p in payouts if p.status == 'COMPLETED']
+        completed_payouts = [p for p in payouts if p.status in ('COMPLETED', 'SUCCESS')]
         total_disbursed_all_time = sum(int(p.amount or 0) for p in completed_payouts)
         
         failed_payouts = [p for p in payouts if p.status == 'FAILED']

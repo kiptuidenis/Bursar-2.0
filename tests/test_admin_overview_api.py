@@ -53,9 +53,11 @@ def admin_client(tmp_path, monkeypatch):
 
     dep3 = db.create_deposit(user2_id, "chk_1003", 2000)
 
-    # 5. Seed Payouts (completed and failed)
-    db.create_payout(user1_id, "2026-08-30", 1000, "254711000001", status="COMPLETED")
-    db.create_payout(user2_id, "2026-08-30", 500, "254711000002", status="FAILED")
+    # 5. Seed Payouts (completed and failed) for today
+    eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+    today_str = datetime.datetime.now(eat_tz).strftime("%Y-%m-%d")
+    db.create_payout(user1_id, today_str, 1000, "254711000001", status="COMPLETED")
+    db.create_payout(user2_id, today_str, 500, "254711000002", status="FAILED")
 
     db.close()
 
