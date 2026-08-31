@@ -17,7 +17,7 @@ module.exports = defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:8000',
+    baseURL: 'http://127.0.0.1:8000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -34,10 +34,10 @@ module.exports = defineConfig({
     }
   ],
   webServer: {
-    command: `${pythonCmd} -m uvicorn app.main:app --port 8000 --app-dir src`,
-    url: 'http://localhost:8000/api/diagnostics',
+    command: `${pythonCmd} -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --app-dir src`,
+    url: 'http://127.0.0.1:8000/api/diagnostics',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 60000,
     env: {
       DISABLE_SCHEDULER: '1',
       DATABASE_URL: 'bursar_test.db',

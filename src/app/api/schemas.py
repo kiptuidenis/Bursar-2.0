@@ -60,6 +60,7 @@ class SettingsUpdate(BaseModel):
 
 class DepositRequest(BaseModel):
     amount: int = Field(..., gt=0, description="Amount to deposit must be a positive whole integer KES amount")
+    phone_number: Optional[str] = Field(None, description="Optional Safaricom M-Pesa phone number (e.g. 0712345678 or 254712345678)")
 
     @field_validator("amount")
     @classmethod
@@ -67,6 +68,29 @@ class DepositRequest(BaseModel):
         if not float(v).is_integer():
             raise ValueError("Deposit amount must be a whole positive integer KES amount (no decimal places).")
         return int(v)
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        clean = v.strip().replace(" ", "").replace("-", "")
+        if not clean:
+            return None
+        if clean.startswith("+"):
+            clean = clean[1:]
+        if clean.startswith("0") and len(clean) == 10:
+            clean = "254" + clean[1:]
+        elif clean.startswith("7") and len(clean) == 9:
+            clean = "254" + clean
+        elif clean.startswith("1") and len(clean) == 9:
+            clean = "254" + clean
+
+        import re
+        if not re.match(r"^254(7\d{8}|1\d{8})$", clean):
+            raise ValueError("Invalid phone number format. Must be a valid Kenyan Safaricom mobile number (e.g. 0712345678 or 254712345678).")
+        return clean
+
 
 class BudgetItemPayload(BaseModel):
     category: str = Field(..., min_length=1, max_length=100, description="Budget category name")
