@@ -31,11 +31,9 @@ test.describe('Phase 2: Next Payout Tile Status E2E Tests', () => {
     await page.click('#add-category-form button[type="submit"]');
     await page.waitForTimeout(500);
 
-    // Expand schedule dates and fill tomorrow as start date
-    await page.evaluate(() => {
-      const scheduleBody = document.getElementById('schedule-collapse-body');
-      if (scheduleBody) scheduleBody.style.display = 'block';
-    });
+    // Advance to Step 2 (Payout Schedule)
+    await page.click('#budget-wizard-next-1');
+    await page.waitForTimeout(300);
     
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -47,6 +45,10 @@ test.describe('Phase 2: Next Payout Tile Status E2E Tests', () => {
 
     await page.fill('#lock-start-date', tomorrowStr);
     await page.fill('#lock-end-date', farFutureStr);
+
+    // Advance to Step 3 (Payout Destination)
+    await page.click('#budget-wizard-next-2');
+    await page.waitForTimeout(300);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'confirm') await dialog.accept();

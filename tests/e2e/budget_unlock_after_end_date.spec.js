@@ -34,11 +34,9 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
 
     await expect(page.locator('#designer-category-list')).toContainText('Food');
 
-    // Expand schedule dates and lock with dates
-    await page.evaluate(() => {
-      const scheduleBody = document.getElementById('schedule-collapse-body');
-      if (scheduleBody) scheduleBody.style.display = 'block';
-    });
+    // Advance to Step 2 (Payout Schedule)
+    await page.click('#budget-wizard-next-1');
+    await page.waitForTimeout(300);
 
     // Use +3 and +10 days to be 100% timezone resilient (UTC vs EAT)
     const future3 = new Date();
@@ -51,6 +49,10 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
 
     await page.fill('#lock-start-date', future3Str);
     await page.fill('#lock-end-date', future10Str);
+
+    // Advance to Step 3 (Payout Destination)
+    await page.click('#budget-wizard-next-2');
+    await page.waitForTimeout(300);
 
     const [lockRes] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/budget/lock') && res.request().method() === 'POST'),
