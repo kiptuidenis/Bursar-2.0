@@ -749,7 +749,7 @@ function setupEventHandlers() {
         
         const daily_budget = parseFloat(document.getElementById("settings-budget").value);
         const payout_time = document.getElementById("settings-time").value;
-        const phone_number = document.getElementById("settings-phone").value;
+        const phone_number = document.getElementById("settings-phone").value.trim();
         
         // Validate payout_time is not in the past today if changed
         if (payout_time !== currentSettings.payout_time) {
@@ -769,6 +769,14 @@ function setupEventHandlers() {
             phone_number
         };
 
+        const currentPhone = currentSettings ? (currentSettings.phone_number || "") : "";
+        const hasChangedPhone = currentPhone && phone_number && (normalizePhone(phone_number) !== normalizePhone(currentPhone));
+
+        if (hasChangedPhone) {
+            openStepupModal(payload, "settings");
+            return;
+        }
+
         try {
             const res = await fetch("/api/settings", {
                 method: "POST",
@@ -783,14 +791,11 @@ function setupEventHandlers() {
             }
             
             // Determine if settings was opened via sidebar (flat tab) or top nav (drawer)
-            // When in flat tab mode, drawer-content is parented to #view-settings (not settingsDrawer)
             const viewSettings = document.getElementById("view-settings");
             const inFlatTabMode = viewSettings && !viewSettings.classList.contains("hidden") && viewSettings.classList.contains("active");
             if (inFlatTabMode) {
-                // Flat tab mode: navigate back to dashboard after save
                 switchTab("dashboard");
             } else {
-                // Drawer mode: close the drawer
                 settingsDrawer.classList.remove("active");
             }
             pollDashboardData();
@@ -1104,15 +1109,32 @@ function setupEventHandlers() {
         return clean;
     }
 
-    let pendingLockPayload = null;
+    let pendingStepupPayload = null;
+    let stepupContext = "budget_lock"; // "budget_lock" or "settings"
     let stepupTimer = null;
 
-    function openStepupModal(payload) {
-        pendingLockPayload = payload;
+    function openStepupModal(payload, context = "budget_lock") {
+        pendingStepupPayload = payload;
+        stepupContext = context;
         const modal = document.getElementById("stepup-payout-modal");
+        const titleEl = document.getElementById("stepup-payout-title");
+        const subtitleEl = document.getElementById("stepup-payout-subtitle");
         const errorEl = document.getElementById("stepup-payout-error");
         const passwordInput = document.getElementById("stepup-payout-password");
         const otpInput = document.getElementById("stepup-payout-otp");
+
+        if (titleEl) {
+            titleEl.innerHTML = context === "settings"
+                ? '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Phone Number Change'
+                : '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Payout Line Change';
+            if (window.lucide) lucide.createIcons();
+        }
+        if (subtitleEl) {
+            subtitleEl.innerText = context === "settings"
+                ? "For your financial protection, updating your account phone number requires your account password and email verification."
+                : "For your financial protection, modifying your automated daily payout destination requires your account password and email verification.";
+        }
+
         if (errorEl) { errorEl.style.display = "none"; errorEl.innerText = ""; }
         if (passwordInput) passwordInput.value = "";
         if (otpInput) otpInput.value = "";
@@ -1209,36 +1231,50 @@ function setupEventHandlers() {
                 if (errorEl) errorEl.style.display = "none";
 
                 const finalPayload = {
-                    ...pendingLockPayload,
+                    ...pendingStepupPayload,
                     password,
                     otp_code
                 };
 
-                const res = await fetch("/api/budget/lock", {
+                const endpoint = stepupContext === "settings" ? "/api/settings" : "/api/budget/lock";
+
+                const res = await fetch(endpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(finalPayload)
                 });
                 if (!res.ok) {
                     const data = await res.json();
-                    throw new Error(data.detail || "Failed to finalize and lock budget.");
+                    throw new Error(data.detail || "Failed to authorize changes.");
                 }
 
-                alert("Budget successfully finalized and locked for this month! 🔒");
                 const stepupModal = document.getElementById("stepup-payout-modal");
                 if (stepupModal) stepupModal.classList.remove("active");
                 clearInterval(stepupTimer);
 
-                await pollDashboardData();
-
-                // Close Budget Designer Modal
-                const budgetModal = document.getElementById("budget-designer-modal");
-                const budgetContent = document.getElementById("budget-designer-modal-content");
-                if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
-                    switchTab("dashboard");
-                } else if (budgetModal) {
-                    budgetModal.classList.remove("active");
+                if (stepupContext === "settings") {
+                    alert("Settings successfully updated!");
+                    const viewSettings = document.getElementById("view-settings");
+                    const inFlatTabMode = viewSettings && !viewSettings.classList.contains("hidden") && viewSettings.classList.contains("active");
+                    if (inFlatTabMode) {
+                        switchTab("dashboard");
+                    } else {
+                        const settingsDrawer = document.getElementById("settings-drawer");
+                        if (settingsDrawer) settingsDrawer.classList.remove("active");
+                    }
+                } else {
+                    alert("Budget successfully finalized and locked for this month! 🔒");
+                    // Close Budget Designer Modal
+                    const budgetModal = document.getElementById("budget-designer-modal");
+                    const budgetContent = document.getElementById("budget-designer-modal-content");
+                    if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
+                        switchTab("dashboard");
+                    } else if (budgetModal) {
+                        budgetModal.classList.remove("active");
+                    }
                 }
+
+                await pollDashboardData();
             } catch (err) {
                 console.error("Step-up authorization error:", err);
                 if (errorEl) {

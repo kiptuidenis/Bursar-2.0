@@ -11,7 +11,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2.0">
     <!-- CSS Style -->
-    <link rel="stylesheet" href="css/style.css?v=1.5.2">
+    <link rel="stylesheet" href="css/style.css?v=1.5.3">
 
     <!-- Self-Hosted Lucide Icons & Chart.js -->
     <script src="js/vendor/lucide.min.js?v=0.344.0"></script>
@@ -673,13 +673,13 @@
     <div class="modal-overlay" id="stepup-payout-modal">
         <div class="modal-content glass-panel" id="stepup-payout-modal-content" style="max-width: 440px;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.15rem;">
+                <h3 id="stepup-payout-title" style="display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.15rem;">
                     <i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Payout Line Change
                 </h3>
                 <button type="button" class="close-btn" id="close-stepup-payout-btn">&times;</button>
             </div>
 
-            <p class="subtitle" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.45;">
+            <p class="subtitle" id="stepup-payout-subtitle" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.45;">
                 For your financial protection, modifying your automated daily payout destination requires your account password and email verification.
             </p>
 
@@ -838,6 +838,6 @@
     </div>
 
     <!-- JS Logic -->
-    <script src="js/app.js?v=1.5.2"></script>
+    <script src="js/app.js?v=1.5.3"></script>
 </body>
 </html>
