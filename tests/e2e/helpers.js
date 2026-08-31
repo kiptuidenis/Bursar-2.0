@@ -62,7 +62,29 @@ async function setupAuthenticatedAdmin(page, options = {}) {
   return { email, password, role };
 }
 
+async function setupEmailOnlyUser(page, options = {}) {
+  const randomId = Math.floor(100000 + Math.random() * 900000);
+  const email = options.email || `emailonly_${randomId}@bursar.co.ke`;
+  const password = options.password || 'Str0ng!P@ssw0rd2026!';
+
+  await page.goto('/admin');
+  await page.evaluate(async (payload) => {
+    await fetch('/api/test/setup-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: 'include'
+    });
+  }, { email_only: true, email, password });
+
+  await page.goto('/dashboard');
+  await page.waitForLoadState('networkidle');
+  return { email, password };
+}
+
 module.exports = {
   setupAuthenticatedUser,
-  setupAuthenticatedAdmin
+  setupAuthenticatedAdmin,
+  setupEmailOnlyUser
 };
+

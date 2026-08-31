@@ -534,6 +534,22 @@ function setupEventHandlers() {
 
         const depositAmt = document.getElementById("deposit-amount");
         if (depositAmt) depositAmt.value = "";
+
+        const depositPhone = document.getElementById("deposit-phone");
+        const depositPhoneBadge = document.getElementById("deposit-phone-status-badge");
+        const depositPhoneHint = document.getElementById("deposit-phone-hint");
+
+        if (depositPhone) {
+            if (currentSettings && currentSettings.phone_number) {
+                depositPhone.value = currentSettings.phone_number;
+                if (depositPhoneBadge) depositPhoneBadge.style.display = "inline-block";
+                if (depositPhoneHint) depositPhoneHint.innerText = "The STK push prompt will be sent to your saved Safaricom line.";
+            } else {
+                if (depositPhoneBadge) depositPhoneBadge.style.display = "none";
+                if (depositPhoneHint) depositPhoneHint.innerText = "The STK push payment prompt will be sent to this number.";
+            }
+        }
+
         if (depositModal) depositModal.classList.add("active");
     };
     const openDepositBtn = document.getElementById("open-deposit-btn");
@@ -586,6 +602,19 @@ function setupEventHandlers() {
             return;
         }
 
+        const phoneInput = document.getElementById("deposit-phone");
+        const phone = phoneInput ? phoneInput.value.trim() : "";
+        if (!phone && (!currentSettings || !currentSettings.phone_number)) {
+            alert("Please enter a valid Safaricom M-Pesa phone number.");
+            if (phoneInput) phoneInput.focus();
+            return;
+        }
+
+        const payload = { amount };
+        if (phone) {
+            payload.phone_number = phone;
+        }
+
         try {
             const idempKey = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `idemp_${Date.now()}_${Math.random()}`;
             const res = await fetch("/api/deposit/initiate", {
@@ -594,7 +623,7 @@ function setupEventHandlers() {
                     "Content-Type": "application/json",
                     "Idempotency-Key": idempKey
                 },
-                body: JSON.stringify({ amount })
+                body: JSON.stringify(payload)
             });
             if (res.status === 401) return showAuthScreen();
             if (res.status === 429) {
@@ -1288,6 +1317,17 @@ function updateDashboardMetrics(settings) {
 
     document.getElementById(`settings-time`).value = settings.payout_time || "08:00";
     document.getElementById(`settings-phone`).value = settings.phone_number || "";
+
+    const depositPhone = document.getElementById("deposit-phone");
+    const depositPhoneBadge = document.getElementById("deposit-phone-status-badge");
+    const depositPhoneHint = document.getElementById("deposit-phone-hint");
+    if (depositPhone && settings.phone_number) {
+        if (!depositPhone.value || depositPhone.value === "") {
+            depositPhone.value = settings.phone_number;
+        }
+        if (depositPhoneBadge) depositPhoneBadge.style.display = "inline-block";
+        if (depositPhoneHint) depositPhoneHint.innerText = "The STK push prompt will be sent to your saved Safaricom line.";
+    }
 }
 
 // Fetch historical payout transaction rows
@@ -1578,6 +1618,7 @@ function startCountdownTimer() {
 function pollDashboardData() {
     if (!isAuthenticated) return;
     fetchSettings();
+    fetchProfile();
     fetchPayouts();
     fetchBudgetItems();
     fetchNotifications();

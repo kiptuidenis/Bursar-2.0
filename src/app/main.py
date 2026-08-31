@@ -177,20 +177,24 @@ if config.IS_TEST_MODE:
     @app.post("/api/test/setup-session")
     def setup_test_session(request: Request, response: Response, payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
         from app.api.dependencies import session_manager
-        phone = payload.get("phone_number") or f"2547{datetime.datetime.now().microsecond:06d}0"
-        email = payload.get("email") or f"user_{phone}@example.com"
-        password = payload.get("password") or "Str0ng!P@ssw0rd2026!"
-        two_factor = payload.get("two_factor_enabled", False)
-        pwd_hash, salt = db._hash_password(password)
-        try:
-            user_id = db.create_user_email(email, pwd_hash, salt, payout_phone=phone, phone_number=phone)
-            user = db.session.query(User).filter(User.id == user_id).first()
-            if user:
-                user.two_factor_enabled = two_factor
-                db._commit()
-        except Exception:
-            user = db.get_user_by_email(email)
-            user_id = user.id if user else 1
+        
+        if payload.get("user_id"):
+            user_id = int(payload["user_id"])
+        else:
+            phone = payload.get("phone_number") or ("" if payload.get("email_only") else f"2547{datetime.datetime.now().microsecond:06d}0")
+            email = payload.get("email") or f"user_{datetime.datetime.now().microsecond:06d}@example.com"
+            password = payload.get("password") or "Str0ng!P@ssw0rd2026!"
+            two_factor = payload.get("two_factor_enabled", False)
+            pwd_hash, salt = db._hash_password(password)
+            try:
+                user_id = db.create_user_email(email, pwd_hash, salt, payout_phone=phone, phone_number=phone if phone else None)
+                user = db.session.query(User).filter(User.id == user_id).first()
+                if user:
+                    user.two_factor_enabled = two_factor
+                    db._commit()
+            except Exception:
+                user = db.get_user_by_email(email)
+                user_id = user.id if user else 1
             
         # Optionally seed wallet balance for E2E finance tests
         initial_balance = payload.get("balance", 0)

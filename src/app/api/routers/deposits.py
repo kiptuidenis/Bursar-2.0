@@ -24,10 +24,28 @@ async def initiate_deposit(request: Request, payload: DepositRequest, user_id: i
     if amount < 10 or amount > 250000:
         raise HTTPException(status_code=400, detail="Invalid Amount.")
 
-    settings = db.get_settings(user_id)
-    phone = settings.get("phone_number", "")
+    settings = db.get_settings(user_id) or {}
+    phone = payload.phone_number or settings.get("phone_number", "")
     if not phone:
-        raise HTTPException(status_code=400, detail="Target phone number must be configured in settings before depositing.")
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid Safaricom M-Pesa phone number to initiate the deposit."
+        )
+
+    # If user provided a phone number and settings has no saved phone, persist it
+    if payload.phone_number and not settings.get("phone_number"):
+        try:
+            db.update_settings(user_id, phone_number=payload.phone_number)
+            db.update_payout_phone_number(user_id, payload.phone_number)
+            from app.db.models import User
+            user_obj = db.session.query(User).filter(User.id == user_id).first()
+            if user_obj and not user_obj.phone_number:
+                user_obj.phone_number = payload.phone_number
+                db._commit()
+            # Refresh settings dict
+            settings = db.get_settings(user_id) or {}
+        except Exception:
+            db.session.rollback()
         
     daily_budget = int(settings.get("daily_budget", 0))
     balance = int(settings.get("balance", 0))
