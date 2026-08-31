@@ -36,11 +36,8 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     await page.click('#add-category-form button[type="submit"]');
     await page.waitForTimeout(500);
 
-    // Expand Payout Schedule section
-    await page.evaluate(() => {
-      const scheduleBody = document.getElementById('schedule-collapse-body');
-      if (scheduleBody) scheduleBody.style.display = 'block';
-    });
+    // Advance to Step 2 (Payout Schedule)
+    await page.click('#budget-wizard-next-1');
     await page.waitForTimeout(300);
 
     // 3. Test Today / Past Start Date validation (start_date must be > today)
@@ -53,7 +50,11 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     // Try today's date as start date -> should be rejected because start_date must be strictly > today
     await page.fill('#lock-start-date', todayStr);
     await page.fill('#lock-end-date', farFutureStr);
-    await page.click('#lock-budget-btn');
+    await page.click('#budget-wizard-next-2');
+    await page.waitForTimeout(300);
+    if (await page.locator('#lock-budget-btn').isVisible()) {
+      await page.click('#lock-budget-btn');
+    }
     await page.waitForTimeout(1000);
 
     // Verify alert message for non-future date was captured
@@ -67,7 +68,11 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
 
     await page.fill('#lock-start-date', futureDateStr);
     await page.fill('#lock-end-date', futureDateStr);
-    await page.click('#lock-budget-btn');
+    await page.click('#budget-wizard-next-2');
+    await page.waitForTimeout(300);
+    if (await page.locator('#lock-budget-btn').isVisible()) {
+      await page.click('#lock-budget-btn');
+    }
     await page.waitForTimeout(1000);
 
     expect(dialogMessages.some(m => /after start date|same/.test(m.toLowerCase()))).toBe(true);

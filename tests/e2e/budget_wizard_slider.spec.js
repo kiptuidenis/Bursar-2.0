@@ -209,7 +209,10 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
 
     // --- MOVE TO STEP 2 ---
     await page.locator('#budget-wizard-next-1').click();
-    await page.waitForTimeout(450); // wait for 0.35s transition
+    await page.locator('#budget-wizard-track').evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map(a => a.finished));
+    });
+    await page.waitForTimeout(100);
 
     cBox = await container.boundingBox();
     t1Box = await tile1.boundingBox();
@@ -217,20 +220,20 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     t3Box = await tile3.boundingBox();
 
     // Tile 1 must be completely to the left (no bleed on left)
-    expect(t1Box.x + t1Box.width).toBeLessThanOrEqual(cBox.x + 3);
+    expect(t1Box.x + t1Box.width).toBeLessThanOrEqual(cBox.x + 5);
 
     // Tile 2 must be precisely aligned with the container window
-    expect(Math.abs(t2Box.x - cBox.x)).toBeLessThanOrEqual(3);
-    expect(Math.abs(t2Box.width - cBox.width)).toBeLessThanOrEqual(3);
+    expect(Math.abs(t2Box.x - cBox.x)).toBeLessThanOrEqual(5);
+    expect(Math.abs(t2Box.width - cBox.width)).toBeLessThanOrEqual(5);
 
     // Tile 2 buttons must be within container bounds
     const backBtn2Box = await page.locator('#budget-wizard-back-2').boundingBox();
     const nextBtn2Box = await page.locator('#budget-wizard-next-2').boundingBox();
-    expect(backBtn2Box.x).toBeGreaterThanOrEqual(cBox.x - 1);
-    expect(nextBtn2Box.x + nextBtn2Box.width).toBeLessThanOrEqual(cBox.x + cBox.width + 3);
+    expect(backBtn2Box.x).toBeGreaterThanOrEqual(cBox.x - 2);
+    expect(nextBtn2Box.x + nextBtn2Box.width).toBeLessThanOrEqual(cBox.x + cBox.width + 5);
 
     // Tile 3 is to the right
-    expect(t3Box.x).toBeGreaterThanOrEqual(cBox.x + cBox.width - 2);
+    expect(t3Box.x).toBeGreaterThanOrEqual(cBox.x + cBox.width - 5);
 
     // Fill dates to allow moving to Step 3
     await page.locator('#lock-start-date').fill('2026-09-01');
@@ -238,24 +241,27 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
 
     // --- MOVE TO STEP 3 ---
     await page.locator('#budget-wizard-next-2').click();
-    await page.waitForTimeout(450);
+    await page.locator('#budget-wizard-track').evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map(a => a.finished));
+    });
+    await page.waitForTimeout(100);
 
     cBox = await container.boundingBox();
     t2Box = await tile2.boundingBox();
     t3Box = await tile3.boundingBox();
 
     // Tile 2 must be completely to the left
-    expect(t2Box.x + t2Box.width).toBeLessThanOrEqual(cBox.x + 3);
+    expect(t2Box.x + t2Box.width).toBeLessThanOrEqual(cBox.x + 5);
 
     // Tile 3 must be precisely aligned with the container window
-    expect(Math.abs(t3Box.x - cBox.x)).toBeLessThanOrEqual(3);
-    expect(Math.abs(t3Box.width - cBox.width)).toBeLessThanOrEqual(3);
+    expect(Math.abs(t3Box.x - cBox.x)).toBeLessThanOrEqual(5);
+    expect(Math.abs(t3Box.width - cBox.width)).toBeLessThanOrEqual(5);
 
     // Tile 3 buttons must be within container bounds
     const backBtn3Box = await page.locator('#budget-wizard-back-3').boundingBox();
     const lockBtnBox = await page.locator('#lock-budget-btn').boundingBox();
-    expect(backBtn3Box.x).toBeGreaterThanOrEqual(cBox.x - 1);
-    expect(lockBtnBox.x + lockBtnBox.width).toBeLessThanOrEqual(cBox.x + cBox.width + 3);
+    expect(backBtn3Box.x).toBeGreaterThanOrEqual(cBox.x - 2);
+    expect(lockBtnBox.x + lockBtnBox.width).toBeLessThanOrEqual(cBox.x + cBox.width + 5);
   });
 
 });

@@ -38,10 +38,10 @@ test.describe('Budget Lock Payout Phone Configuration Flow', () => {
     await page.locator('#add-category-form button[type="submit"]').click();
     await page.waitForTimeout(500);
 
-    // 4. Expand Payout Schedule Section
-    await page.click('#schedule-toggle-hdr');
-    const scheduleBody = page.locator('#schedule-collapse-body');
-    await expect(scheduleBody).toBeVisible();
+    // 4. Advance to Step 2 (Payout Schedule)
+    await page.click('#budget-wizard-next-1');
+    await page.waitForTimeout(400);
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 2 of 3');
 
     // Fill start and end dates
     const today = new Date();
@@ -54,7 +54,12 @@ test.describe('Budget Lock Payout Phone Configuration Flow', () => {
     await page.locator('#lock-start-date').fill(formatYMD(tomorrow));
     await page.locator('#lock-end-date').fill(formatYMD(nextWeek));
 
-    // 5. Fill in Target M-Pesa Payout Number
+    // 5. Advance to Step 3 (Payout Destination)
+    await page.click('#budget-wizard-next-2');
+    await page.waitForTimeout(400);
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 3 of 3');
+
+    // Fill in Target M-Pesa Payout Number
     const targetPayoutPhone = '0712345678';
     await page.locator('#budget-lock-payout-phone').fill(targetPayoutPhone);
 

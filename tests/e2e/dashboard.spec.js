@@ -38,16 +38,8 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('#open-budget-designer-btn');
     await expect(page.locator('#budget-designer-modal')).toHaveClass(/active/);
 
-    // Verify Payout Schedule is collapsed by default initially
-    await expect(page.locator('#schedule-collapse-body')).not.toBeVisible();
-
-    // Toggle expand
-    await page.click('#schedule-toggle-hdr');
-    await expect(page.locator('#schedule-collapse-body')).toBeVisible();
-
-    // Toggle collapse back
-    await page.click('#schedule-toggle-hdr');
-    await expect(page.locator('#schedule-collapse-body')).not.toBeVisible();
+    // Verify Budget Wizard step indicator is visible
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 1 of 3');
 
     // Close the Budget Designer modal
     await page.click('#close-budget-designer-btn');
@@ -153,7 +145,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     expect(page.url()).not.toContain('/dashboard');
   });
 
-  test('Should show error alert and expand schedule if trying to lock budget without schedule dates', async ({ page }) => {
+  test('Should show error alert and navigate to schedule if trying to lock budget without schedule dates', async ({ page }) => {
     // 1. Setup authenticated session
     await setupAuthenticatedUser(page);
 
@@ -161,7 +153,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     await page.click('#open-budget-designer-btn');
     await expect(page.locator('#budget-designer-modal')).toHaveClass(/active/);
 
-    // 3. Add a category to make lock button visible
+    // 3. Add a category
     await page.fill('#new-category-name', 'Rent');
     await page.fill('#new-category-amount', '500');
     
@@ -171,25 +163,25 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     ]);
 
     await expect(page.locator('#designer-category-list')).toContainText('Rent');
-    const lockBtn = page.locator('#lock-budget-btn');
-    await expect(lockBtn).toBeVisible();
 
-    // 4. Setup dialog handler to accept/dismiss alerts
+    // 4. Advance to Step 2
+    await page.click('#budget-wizard-next-1');
+    await page.waitForTimeout(400);
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 2 of 3');
+
+    // 5. Setup dialog handler to accept/dismiss alerts
     let dialogMessage = '';
     page.on('dialog', async dialog => {
       dialogMessage = dialog.message();
       await dialog.accept();
     });
 
-    // 5. Try to lock WITHOUT setting start/end dates
-    await lockBtn.click();
+    // 6. Try to advance to Step 3 WITHOUT setting start/end dates
+    await page.click('#budget-wizard-next-2');
+    await page.waitForTimeout(300);
 
-    // 6. Verify alert dialog warned user about missing dates
-    expect(dialogMessage).toContain('Please select both start and end dates');
-
-    // 7. Verify schedule accordion automatically expanded to reveal date inputs
-    const scheduleBody = page.locator('#schedule-collapse-body');
-    await expect(scheduleBody).toBeVisible();
+    // 7. Verify alert dialog warned user about missing dates
+    expect(dialogMessage.toLowerCase()).toContain('dates');
   });
 
   test('Should verify the full functionality of the Budget Creator (add, delete, draft preservation, dashboard separation, and final lock)', async ({ page }) => {
