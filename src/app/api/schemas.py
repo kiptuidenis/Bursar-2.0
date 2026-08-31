@@ -48,6 +48,8 @@ class SettingsUpdate(BaseModel):
     mpesa_b2c_timeout_url: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    password: Optional[str] = None
+    otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for phone update verification")
 
     @field_validator("daily_budget")
     @classmethod

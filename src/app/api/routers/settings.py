@@ -74,6 +74,50 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
             else:
                 updates[field] = ""
                 
+    # 2. Check if phone_number is being changed
+    if "phone_number" in updates and updates["phone_number"]:
+        from app.api.routers.auth import sanitize_phone_number
+        sanitized_phone = sanitize_phone_number(updates["phone_number"])
+        current_phone = current.get("phone_number", "") if current else ""
+        
+        if current_phone and sanitize_phone_number(current_phone) != sanitized_phone:
+            password = updates.pop("password", None) or payload.password
+            otp_code = updates.pop("otp_code", None) or payload.otp_code
+            if not password or not otp_code:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Both password and 6-digit OTP verification code are required to update your configured phone number."
+                )
+            from app.db.models import User
+            user = db.session.query(User).filter(User.id == user_id).first()
+            if not user or not db._verify_password(password, user.password_hash, user.salt):
+                raise HTTPException(status_code=401, detail="Invalid password credential.")
+            if not user.email:
+                raise HTTPException(status_code=400, detail="User account does not have a verified email address.")
+            
+            is_valid_otp = db.verify_otp_challenge(user.email, otp_code, purpose="phone_update")
+            if not is_valid_otp:
+                is_valid_otp = db.verify_otp_challenge(user.email, otp_code, purpose="payout_stepup")
+            if not is_valid_otp:
+                raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+            
+            client_ip = request.client.host if request.client else "127.0.0.1"
+            db.log_event(user_id, "SECURITY", f"Phone number in settings updated from '{current_phone}' to '{sanitized_phone}' via step-up authentication.")
+            db.create_admin_audit_log(
+                admin_id=None,
+                action="USER_PHONE_UPDATED",
+                target_type="User",
+                target_id=user_id,
+                before_state=f'{{"phone_number": "{current_phone}"}}',
+                after_state=f'{{"phone_number": "{sanitized_phone}"}}',
+                reason="User updated phone number in settings",
+                ip_address=client_ip
+            )
+        updates["phone_number"] = sanitized_phone
+
+    updates.pop("password", None)
+    updates.pop("otp_code", None)
+
     # 3. Validate payout_time format and ensure it is not in the past today if changed
     if "payout_time" in updates and updates["payout_time"]:
         payout_time_str = updates["payout_time"]
