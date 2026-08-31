@@ -741,8 +741,9 @@
                     <input type="tel" id="settings-phone" inputmode="tel" placeholder="e.g. 254712345678" pattern="^254\d{9}$" required>
                 </div>
 
+                <div id="settings-error" class="info-alert" style="display: none; margin-bottom: 1rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); font-size: 0.85rem; padding: 0.75rem; border-radius: 0.5rem;"></div>
 
-                <button type="submit" class="btn btn-primary btn-block">Save Configuration</button>
+                <button type="submit" id="save-settings-btn" class="btn btn-primary btn-block">Save Configuration</button>
             </form>
         </div>
     </div>
@@ -838,6 +839,6 @@
     </div>
 
     <!-- JS Logic -->
-    <script src="js/app.js?v=1.5.3"></script>
+    <script src="js/app.js?v=1.5.4"></script>
 </body>
 </html>

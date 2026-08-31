@@ -773,7 +773,9 @@ function setupEventHandlers() {
         const hasChangedPhone = currentPhone && phone_number && (normalizePhone(phone_number) !== normalizePhone(currentPhone));
 
         if (hasChangedPhone) {
-            openStepupModal(payload, "settings");
+            const saveBtn = document.getElementById("save-settings-btn") || e.target.querySelector('button[type="submit"]');
+            const errEl = document.getElementById("settings-error");
+            await triggerStepupFlow(payload, "settings", saveBtn, errEl);
             return;
         }
 
@@ -1113,6 +1115,58 @@ function setupEventHandlers() {
     let stepupContext = "budget_lock"; // "budget_lock" or "settings"
     let stepupTimer = null;
 
+    async function triggerStepupFlow(payload, context, triggerBtn, errorEl = null) {
+        let originalHtml = "";
+        if (triggerBtn) {
+            triggerBtn.disabled = true;
+            originalHtml = triggerBtn.innerHTML;
+            triggerBtn.innerHTML = '<span style="display:inline-block;width:0.9rem;height:0.9rem;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:0.4rem;vertical-align:middle;"></span> Requesting authorization...';
+        }
+        if (errorEl) {
+            errorEl.style.display = "none";
+            errorEl.innerText = "";
+        }
+
+        try {
+            // Request OTP before opening modal
+            const res = await fetch("/api/profile/request-stepup-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ purpose: "payout_stepup" })
+            });
+
+            if (res.status === 401) {
+                showAuthScreen();
+                return;
+            }
+
+            if (res.status === 429) {
+                throw new Error("Too many requests. Please wait a minute before requesting another verification code.");
+            }
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.detail || "Failed to initiate verification code.");
+            }
+
+            // OTP dispatched successfully -> Now open step-up confirmation modal
+            openStepupModal(payload, context);
+        } catch (err) {
+            console.error("Step-up trigger error:", err);
+            if (errorEl) {
+                errorEl.innerText = err.message || "Failed to initiate verification code.";
+                errorEl.style.display = "block";
+            } else {
+                alert(err.message || "Failed to initiate verification code.");
+            }
+        } finally {
+            if (triggerBtn) {
+                triggerBtn.disabled = false;
+                triggerBtn.innerHTML = originalHtml;
+            }
+        }
+    }
+
     function openStepupModal(payload, context = "budget_lock") {
         pendingStepupPayload = payload;
         stepupContext = context;
@@ -1122,6 +1176,7 @@ function setupEventHandlers() {
         const errorEl = document.getElementById("stepup-payout-error");
         const passwordInput = document.getElementById("stepup-payout-password");
         const otpInput = document.getElementById("stepup-payout-otp");
+        const resendBtn = document.getElementById("stepup-resend-otp-btn");
 
         if (titleEl) {
             titleEl.innerHTML = context === "settings"
@@ -1138,16 +1193,34 @@ function setupEventHandlers() {
         if (errorEl) { errorEl.style.display = "none"; errorEl.innerText = ""; }
         if (passwordInput) passwordInput.value = "";
         if (otpInput) otpInput.value = "";
+
+        // Start 60-second cooldown timer since OTP was just sent
+        if (resendBtn) {
+            resendBtn.disabled = true;
+            let countdown = 60;
+            resendBtn.innerText = `Resend in ${countdown}s`;
+            clearInterval(stepupTimer);
+            stepupTimer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(stepupTimer);
+                    resendBtn.disabled = false;
+                    resendBtn.innerText = "Resend Code";
+                } else {
+                    resendBtn.innerText = `Resend in ${countdown}s`;
+                }
+            }, 1000);
+        }
+
         if (modal) modal.classList.add("active");
         if (passwordInput) passwordInput.focus();
-        
-        requestStepupOtp();
     }
 
     async function requestStepupOtp() {
         const resendBtn = document.getElementById("stepup-resend-otp-btn");
         const errorEl = document.getElementById("stepup-payout-error");
         try {
+            if (errorEl) { errorEl.style.display = "none"; errorEl.innerText = ""; }
             if (resendBtn) {
                 resendBtn.disabled = true;
                 let countdown = 60;
@@ -1171,8 +1244,11 @@ function setupEventHandlers() {
                 body: JSON.stringify({ purpose: "payout_stepup" })
             });
             if (res.status === 401) return showAuthScreen();
+            if (res.status === 429) {
+                throw new Error("Too many requests. Please wait a minute before requesting another verification code.");
+            }
             if (!res.ok) {
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 throw new Error(data.detail || "Failed to send authorization code.");
             }
         } catch (err) {
@@ -1323,7 +1399,7 @@ function setupEventHandlers() {
 
             if (hasChangedPhone) {
                 const lockPayload = { start_date, end_date, payout_phone_number: payout_phone };
-                openStepupModal(lockPayload);
+                await triggerStepupFlow(lockPayload, "budget_lock", lockBudgetBtn);
                 return;
             }
             
