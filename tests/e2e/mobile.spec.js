@@ -178,4 +178,77 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
 
     expect(pageErrors).toHaveLength(0);
   });
+
+  test('Should verify mobile budget creator sliding wizard steps (Phase 5)', async ({ page }) => {
+    // 1. Setup authenticated session
+    await setupAuthenticatedUser(page);
+
+    // 2. Open Budget Creator Modal
+    await page.click('#open-budget-designer-btn');
+    const modal = page.locator('#budget-designer-modal');
+    await expect(modal).toHaveClass(/active/);
+
+    const container = page.locator('#budget-wizard-container');
+    const tile1 = page.locator('#budget-wizard-tile-1');
+    const tile2 = page.locator('#budget-wizard-tile-2');
+    const tile3 = page.locator('#budget-wizard-tile-3');
+
+    // Add a category item
+    await page.fill('#new-category-name', 'Snacks');
+    await page.fill('#new-category-amount', '150');
+    await page.click('#add-category-form button[type="submit"]');
+    await page.waitForTimeout(400);
+
+    // Step 1 title check
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 1 of 3');
+
+    // --- Slide to Step 2 ---
+    await page.click('#budget-wizard-next-1');
+    await page.locator('#budget-wizard-track').evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map(a => a.finished));
+    });
+    await page.waitForTimeout(100);
+
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 2 of 3');
+
+    let cBox = await container.boundingBox();
+    let t1Box = await tile1.boundingBox();
+    let t2Box = await tile2.boundingBox();
+
+    // Tile 1 is completely shifted to the left of the container
+    expect(t1Box.x + t1Box.width).toBeLessThanOrEqual(cBox.x + 5);
+
+    // Tile 2 aligns with the container viewport
+    expect(Math.abs(t2Box.x - cBox.x)).toBeLessThanOrEqual(5);
+
+    // Fill dates to advance to Step 3
+    await page.fill('#lock-start-date', '2026-09-02');
+    await page.fill('#lock-end-date', '2026-09-08');
+
+    // --- Slide to Step 3 ---
+    await page.click('#budget-wizard-next-2');
+    await page.locator('#budget-wizard-track').evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map(a => a.finished));
+    });
+    await page.waitForTimeout(100);
+
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 3 of 3');
+
+    cBox = await container.boundingBox();
+    let t3Box = await tile3.boundingBox();
+
+    // Tile 3 aligns with the container viewport
+    expect(Math.abs(t3Box.x - cBox.x)).toBeLessThanOrEqual(5);
+
+    // Verify back navigation to Step 2
+    await page.click('#budget-wizard-back-3');
+    await page.locator('#budget-wizard-track').evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map(a => a.finished));
+    });
+    await page.waitForTimeout(100);
+
+    await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 2 of 3');
+
+    expect(pageErrors).toHaveLength(0);
+  });
 });

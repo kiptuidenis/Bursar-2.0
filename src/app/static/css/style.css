@@ -1432,26 +1432,32 @@ body:not(.landing-body) {
 
 /* Wizard Track & Tiles */
 .budget-wizard-container {
-    overflow: hidden;
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
+    overflow: hidden !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .budget-wizard-track {
-    display: flex;
-    width: 300%;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    width: 300% !important;
+    min-width: 300% !important;
+    max-width: 300% !important;
+    flex-shrink: 0 !important;
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     will-change: transform;
 }
 
 .budget-wizard-tile {
-    width: 33.333333%;
-    max-width: 33.333333%;
-    min-width: 33.333333%;
-    flex: 0 0 33.333333%;
-    box-sizing: border-box;
+    width: 33.333333% !important;
+    max-width: 33.333333% !important;
+    min-width: 33.333333% !important;
+    flex: 0 0 33.333333% !important;
+    box-sizing: border-box !important;
     padding: 0.25rem 0.25rem;
 }
 
