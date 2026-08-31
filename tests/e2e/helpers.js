@@ -82,9 +82,34 @@ async function setupEmailOnlyUser(page, options = {}) {
   return { email, password };
 }
 
+function getFutureDates() {
+  const nowUtc = new Date();
+  const eatOffsetMs = 3 * 60 * 60 * 1000;
+  const nowEat = new Date(nowUtc.getTime() + (nowUtc.getTimezoneOffset() * 60 * 1000) + eatOffsetMs);
+
+  const tomorrow = new Date(nowEat);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const nextWeek = new Date(nowEat);
+  nextWeek.setDate(nextWeek.getDate() + 7);
+
+  const formatYMD = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    tomorrow: formatYMD(tomorrow),
+    nextWeek: formatYMD(nextWeek)
+  };
+}
+
 module.exports = {
   setupAuthenticatedUser,
   setupAuthenticatedAdmin,
-  setupEmailOnlyUser
+  setupEmailOnlyUser,
+  getFutureDates
 };
 

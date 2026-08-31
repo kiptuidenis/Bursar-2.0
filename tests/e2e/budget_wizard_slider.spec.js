@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupEmailOnlyUser, setupAuthenticatedUser } = require('./helpers');
+const { setupEmailOnlyUser, setupAuthenticatedUser, getFutureDates } = require('./helpers');
 
 test.describe('Budget Creation 3-Step Sliding Wizard', () => {
 
@@ -47,15 +47,9 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 2 of 3');
 
     // Fill start and end dates
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const formatYMD = (d) => d.toISOString().split('T')[0];
-
-    await page.locator('#lock-start-date').fill(formatYMD(tomorrow));
-    await page.locator('#lock-end-date').fill(formatYMD(nextWeek));
+    const dates1 = getFutureDates();
+    await page.locator('#lock-start-date').fill(dates1.tomorrow);
+    await page.locator('#lock-end-date').fill(dates1.nextWeek);
 
     // 4. Advance to Step 3 (Payout Destination)
     await page.locator('#budget-wizard-next-2').click();
@@ -100,15 +94,9 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     await page.locator('#budget-wizard-next-1').click();
     await page.waitForTimeout(400);
 
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const formatYMD = (d) => d.toISOString().split('T')[0];
-
-    await page.locator('#lock-start-date').fill(formatYMD(tomorrow));
-    await page.locator('#lock-end-date').fill(formatYMD(nextWeek));
+    const dates2 = getFutureDates();
+    await page.locator('#lock-start-date').fill(dates2.tomorrow);
+    await page.locator('#lock-end-date').fill(dates2.nextWeek);
 
     // Advance to Step 3
     await page.locator('#budget-wizard-next-2').click();
@@ -150,15 +138,9 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     await page.locator('#budget-wizard-next-1').click();
     await page.waitForTimeout(400);
 
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const formatYMD = (d) => d.toISOString().split('T')[0];
-
-    await page.locator('#lock-start-date').fill(formatYMD(tomorrow));
-    await page.locator('#lock-end-date').fill(formatYMD(nextWeek));
+    const dates3 = getFutureDates();
+    await page.locator('#lock-start-date').fill(dates3.tomorrow);
+    await page.locator('#lock-end-date').fill(dates3.nextWeek);
 
     // Advance to Step 3
     await page.locator('#budget-wizard-next-2').click();

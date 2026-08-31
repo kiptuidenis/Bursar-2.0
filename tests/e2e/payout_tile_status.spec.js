@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupAuthenticatedUser } = require('./helpers');
+const { setupAuthenticatedUser, getFutureDates } = require('./helpers');
 
 test.describe('Phase 2: Next Payout Tile Status E2E Tests', () => {
   let pageErrors = [];
@@ -12,21 +12,18 @@ test.describe('Phase 2: Next Payout Tile Status E2E Tests', () => {
     });
   });
 
-  test('Should display "No Budget Set" when budget is unlocked', async ({ page }) => {
-    await setupAuthenticatedUser(page);
+  test('Daily payout tile reflects SCHEDULED, PROCESSING, and PAID statuses dynamically', async ({ page }) => {
+    test.setTimeout(60000);
 
-    // Default tile state should say "No Budget Set"
-    const timerLabel = page.locator('#countdown-timer');
-    await expect(timerLabel).toContainText('No Budget Set');
-  });
+    const userPhone = '254712345678';
+    await setupAuthenticatedUser(page, { phoneNumber: userPhone });
 
-  test('Should NOT display "Payout is due" when time passes without a failed 3rd-party API attempt', async ({ page }) => {
-    await setupAuthenticatedUser(page);
-
-    // Add budget item & lock budget
+    // Open Budget Modal
     await page.click('#open-budget-designer-btn');
-    await page.waitForTimeout(300);
-    await page.fill('#new-category-name', 'Food');
+    await page.waitForSelector('#budget-designer-modal.active', { state: 'visible' });
+
+    // Add a category
+    await page.fill('#new-category-name', 'Transport');
     await page.fill('#new-category-amount', '200');
     await page.click('#add-category-form button[type="submit"]');
     await page.waitForTimeout(500);
@@ -35,16 +32,9 @@ test.describe('Phase 2: Next Payout Tile Status E2E Tests', () => {
     await page.click('#budget-wizard-next-1');
     await page.waitForTimeout(300);
     
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-    const farFuture = new Date();
-    farFuture.setDate(farFuture.getDate() + 5);
-    const farFutureStr = farFuture.toISOString().split('T')[0];
-
-    await page.fill('#lock-start-date', tomorrowStr);
-    await page.fill('#lock-end-date', farFutureStr);
+    const dates = getFutureDates();
+    await page.fill('#lock-start-date', dates.tomorrow);
+    await page.fill('#lock-end-date', dates.nextWeek);
 
     // Advance to Step 3 (Payout Destination)
     await page.click('#budget-wizard-next-2');

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupEmailOnlyUser } = require('./helpers');
+const { setupEmailOnlyUser, getFutureDates } = require('./helpers');
 
 test.describe('Budget Lock Payout Phone Configuration Flow', () => {
 
@@ -44,15 +44,9 @@ test.describe('Budget Lock Payout Phone Configuration Flow', () => {
     await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 2 of 3');
 
     // Fill start and end dates
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
-    const formatYMD = (d) => d.toISOString().split('T')[0];
-    await page.locator('#lock-start-date').fill(formatYMD(tomorrow));
-    await page.locator('#lock-end-date').fill(formatYMD(nextWeek));
+    const dates = getFutureDates();
+    await page.locator('#lock-start-date').fill(dates.tomorrow);
+    await page.locator('#lock-end-date').fill(dates.nextWeek);
 
     // 5. Advance to Step 3 (Payout Destination)
     await page.click('#budget-wizard-next-2');
