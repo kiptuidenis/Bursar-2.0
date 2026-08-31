@@ -11,7 +11,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2.0">
     <!-- CSS Style -->
-    <link rel="stylesheet" href="css/style.css?v=1.5.0">
+    <link rel="stylesheet" href="css/style.css?v=1.5.1">
 
     <!-- Self-Hosted Lucide Icons & Chart.js -->
     <script src="js/vendor/lucide.min.js?v=0.344.0"></script>
@@ -597,9 +597,9 @@
                             <span class="amount-value" id="designer-total-budget" style="font-size: 1.5rem;">KES 0.00</span>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                            <button type="button" id="budget-wizard-next-1" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.35rem;">
-                                Next: Payout Schedule <i data-lucide="arrow-right" style="width: 1rem; height: 1rem;"></i>
+                        <div class="wizard-btn-row-end">
+                            <button type="button" id="budget-wizard-next-1" class="btn btn-primary">
+                                Next <i data-lucide="arrow-right" style="width: 1rem; height: 1rem;"></i>
                             </button>
                         </div>
                     </div>
@@ -624,12 +624,12 @@
                             <span>Disbursements trigger automatically every morning at 08:00 AM EAT during this active schedule.</span>
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem;">
-                            <button type="button" id="budget-wizard-back-2" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem;">
+                        <div class="wizard-btn-row">
+                            <button type="button" id="budget-wizard-back-2" class="btn btn-secondary">
                                 <i data-lucide="arrow-left" style="width: 1rem; height: 1rem;"></i> Back
                             </button>
-                            <button type="button" id="budget-wizard-next-2" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.35rem;">
-                                Next: Payout Destination <i data-lucide="arrow-right" style="width: 1rem; height: 1rem;"></i>
+                            <button type="button" id="budget-wizard-next-2" class="btn btn-primary">
+                                Next <i data-lucide="arrow-right" style="width: 1rem; height: 1rem;"></i>
                             </button>
                         </div>
                     </div>
@@ -654,12 +654,12 @@
                             <span>Once locked, daily allowance distributions will run automatically according to your schedule.</span>
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem;">
-                            <button type="button" id="budget-wizard-back-3" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem;">
+                        <div class="wizard-btn-row">
+                            <button type="button" id="budget-wizard-back-3" class="btn btn-secondary">
                                 <i data-lucide="arrow-left" style="width: 1rem; height: 1rem;"></i> Back
                             </button>
-                            <button type="button" id="lock-budget-btn" class="btn btn-primary" style="border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
-                                <i data-lucide="lock" style="width: 1rem; height: 1rem;"></i> Lock & Finalize Budget
+                            <button type="button" id="lock-budget-btn" class="btn btn-primary" style="border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 600; cursor: pointer;">
+                                <i data-lucide="lock" style="width: 1rem; height: 1rem;"></i> Lock Budget
                             </button>
                         </div>
                     </div>
@@ -791,6 +791,6 @@
     </div>
 
     <!-- JS Logic -->
-    <script src="js/app.js?v=1.5.0"></script>
+    <script src="js/app.js?v=1.5.1"></script>
 </body>
 </html>
