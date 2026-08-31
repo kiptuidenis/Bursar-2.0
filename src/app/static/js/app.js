@@ -1141,12 +1141,16 @@ function setupEventHandlers() {
             }
 
             if (res.status === 429) {
-                throw new Error("Too many requests. Please wait a minute before requesting another verification code.");
+                throw new Error("Too many requests.");
             }
 
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                throw new Error(data.detail || "Failed to initiate verification code.");
+                const detail = data.detail || "";
+                if (detail.includes("verified email address") || detail.includes("link an email")) {
+                    throw new Error("Email verification required: Please link an email address in your Profile before updating your phone number.");
+                }
+                throw new Error(detail || "Failed to initiate verification code.");
             }
 
             // OTP dispatched successfully -> Now open step-up confirmation modal
@@ -1177,18 +1181,27 @@ function setupEventHandlers() {
         const passwordInput = document.getElementById("stepup-payout-password");
         const otpInput = document.getElementById("stepup-payout-otp");
         const resendBtn = document.getElementById("stepup-resend-otp-btn");
+        const confirmBtn = document.getElementById("confirm-stepup-payout-btn");
 
         if (titleEl) {
             titleEl.innerHTML = context === "settings"
                 ? '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Phone Number Change'
                 : '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Payout Line Change';
-            if (window.lucide) lucide.createIcons();
         }
         if (subtitleEl) {
             subtitleEl.innerText = context === "settings"
                 ? "For your financial protection, updating your account phone number requires your account password and email verification."
                 : "For your financial protection, modifying your automated daily payout destination requires your account password and email verification.";
         }
+
+        if (confirmBtn) {
+            if (context === "settings") {
+                confirmBtn.innerHTML = '<i data-lucide="check" style="width: 1rem; height: 1rem;"></i> Save';
+            } else {
+                confirmBtn.innerHTML = '<i data-lucide="lock" style="width: 1rem; height: 1rem;"></i> Lock Budget';
+            }
+        }
+        if (window.lucide) lucide.createIcons();
 
         if (errorEl) { errorEl.style.display = "none"; errorEl.innerText = ""; }
         if (passwordInput) passwordInput.value = "";

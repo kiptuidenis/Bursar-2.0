@@ -117,7 +117,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
             if not user or not db._verify_password(payload.password, user.password_hash, user.salt):
                 raise HTTPException(status_code=401, detail="Invalid password credential.")
             if not user.email:
-                raise HTTPException(status_code=400, detail="User account does not have a verified email address.")
+                raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link an email address in Profile first.")
             
             is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
             if not is_valid_otp:

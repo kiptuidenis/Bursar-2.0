@@ -93,7 +93,7 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
             if not user or not db._verify_password(password, user.password_hash, user.salt):
                 raise HTTPException(status_code=401, detail="Invalid password credential.")
             if not user.email:
-                raise HTTPException(status_code=400, detail="User account does not have a verified email address.")
+                raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link an email address in Profile first.")
             
             is_valid_otp = db.verify_otp_challenge(user.email, otp_code, purpose="phone_update")
             if not is_valid_otp:
