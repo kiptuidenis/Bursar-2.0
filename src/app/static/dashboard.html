@@ -543,83 +543,128 @@
     <!-- Budget Designer Modal -->
     <div class="modal-overlay" id="budget-designer-modal">
         <div class="modal-content glass-panel" id="budget-designer-modal-content">
-            <div class="modal-header">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="sliders" style="color: var(--color-accent-violet);"></i> Budget Creator</h3>
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin: 0;"><i data-lucide="sliders" style="color: var(--color-accent-violet);"></i> Budget Creator</h3>
                 <button class="close-btn" id="close-budget-designer-btn">&times;</button>
             </div>
-            <div class="designer-body" style="display: flex; flex-direction: column; gap: 1rem;">
-                <p class="subtitle" style="margin-bottom: 0.5rem;">Segment your daily budget into custom categories (e.g. food, transport).</p>
-                
-                <div id="budget-creator-lock-notice" class="info-alert lock-warning-alert" style="display: none; margin-bottom: 0.5rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted); align-items: flex-start; gap: 0.5rem;">
-                    <i data-lucide="lock" style="color: #ef4444; shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
-                    <span id="budget-lock-notice-text"></span>
-                </div>
-                
-                <!-- Add New Category Form -->
-                <form id="add-category-form" class="designer-add-form" style="margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-glass);">
-                    <div class="form-grid" style="margin-bottom: 1rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="new-category-name" style="margin-bottom: 0.3rem;">Category Name</label>
-                            <input type="text" id="new-category-name" placeholder="e.g. Food" required>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="new-category-amount" style="margin-bottom: 0.3rem;">Amount (KES)</label>
-                            <input type="number" id="new-category-amount" inputmode="numeric" placeholder="e.g. 300" min="1" step="1" required>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">
-                        <i data-lucide="plus"></i> Add Category
-                    </button>
-                </form>
 
-                <!-- Category List -->
-                <div class="category-designer-list" id="designer-category-list">
-                    <!-- Dynamic Rows: Category Name | Amount KES | Delete Button -->
+            <!-- Wizard Step Header & Dots -->
+            <div id="budget-wizard-header" class="wizard-step-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                <span id="budget-wizard-step-title" style="font-size: 0.78rem; font-weight: 600; color: var(--color-accent-teal); letter-spacing: 0.02em;">Step 1 of 3: Allocations</span>
+                <div id="budget-wizard-dots" class="wizard-step-dots" style="display: flex; gap: 0.35rem; align-items: center;">
+                    <span class="wizard-dot active" data-step="1"></span>
+                    <span class="wizard-dot" data-step="2"></span>
+                    <span class="wizard-dot" data-step="3"></span>
                 </div>
             </div>
-            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
-                    <span class="amount-value" id="designer-total-budget" style="font-size: 1.6rem;">KES 0.00</span>
-                </div>
-                
-                <!-- Collapsible Payout Schedule Section -->
-                <div id="designer-lock-dates-section" class="collapsible-schedule-container" style="display: none; flex-direction: column; gap: 0.5rem; border: 1px solid rgba(255, 255, 255, 0.06); background: rgba(255, 255, 255, 0.015); padding: 0.75rem; border-radius: 0.6rem; text-align: left; width: 100%;">
-                    <button type="button" class="schedule-toggle-hdr" id="schedule-toggle-hdr" style="background: none; border: none; padding: 0; margin: 0; width: 100%; display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--text-primary); outline: none; font-family: inherit;">
-                        <span style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em; font-family: inherit;">
-                            <i data-lucide="calendar" style="width: 0.95rem; height: 0.95rem; color: var(--color-accent-violet);"></i> Payout Schedule
-                        </span>
-                        <i data-lucide="chevron-down" id="schedule-chevron" style="width: 1rem; height: 1rem; color: var(--text-muted); transition: transform 0.25s ease;"></i>
-                    </button>
+
+            <!-- Locked Notice Alert -->
+            <div id="budget-creator-lock-notice" class="info-alert lock-warning-alert" style="display: none; margin-bottom: 0.75rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; color: var(--text-muted); align-items: flex-start; gap: 0.5rem;">
+                <i data-lucide="lock" style="color: #ef4444; shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.1rem;"></i>
+                <span id="budget-lock-notice-text"></span>
+            </div>
+
+            <!-- Wizard Track Container -->
+            <div class="budget-wizard-container" id="budget-wizard-container">
+                <div class="budget-wizard-track" id="budget-wizard-track">
                     
-                    <div id="schedule-collapse-body" style="display: none; margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 0.6rem;">
-                        <p class="text-muted" style="font-size: 0.72rem; margin-bottom: 0.6rem; line-height: 1.35;">Select start and end dates for daily allowance disbursements.</p>
-                        <div class="form-grid" style="margin-bottom: 0; gap: 0.8rem;">
+                    <!-- Tile 1: Budget Categories & Allocations -->
+                    <div class="budget-wizard-tile" id="budget-wizard-tile-1">
+                        <p class="subtitle" style="margin-bottom: 0.5rem; font-size: 0.78rem;">Segment your daily budget into custom categories (e.g. food, transport).</p>
+                        
+                        <form id="add-category-form" class="designer-add-form" style="margin-bottom: 0.85rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-glass);">
+                            <div class="form-grid" style="margin-bottom: 0.75rem; gap: 0.75rem;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="new-category-name" style="margin-bottom: 0.3rem; font-size: 0.75rem;">Category Name</label>
+                                    <input type="text" id="new-category-name" placeholder="e.g. Food" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="new-category-amount" style="margin-bottom: 0.3rem; font-size: 0.75rem;">Amount (KES)</label>
+                                    <input type="number" id="new-category-amount" inputmode="numeric" placeholder="e.g. 300" min="1" step="1" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block" style="padding: 0.55rem 1rem; font-size: 0.85rem;">
+                                <i data-lucide="plus"></i> Add Category
+                            </button>
+                        </form>
+
+                        <div class="category-designer-list" id="designer-category-list">
+                            <!-- Dynamic Rows: Category Name | Amount KES | Delete Button -->
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 0.85rem; padding-top: 0.6rem; border-top: 1px solid var(--border-glass);">
+                            <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Total Daily Payout:</span>
+                            <span class="amount-value" id="designer-total-budget" style="font-size: 1.5rem;">KES 0.00</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                            <button type="button" id="budget-wizard-next-1" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.35rem;">
+                                Next: Payout Schedule <i data-lucide="arrow-right" style="width: 1rem; height: 1rem;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tile 2: Payout Schedule (Dates) -->
+                    <div class="budget-wizard-tile" id="budget-wizard-tile-2">
+                        <p class="subtitle" style="margin-bottom: 0.75rem; font-size: 0.78rem;">Select the active date range for automated daily allowance disbursements.</p>
+                        
+                        <div class="form-grid" style="margin-bottom: 1rem; gap: 0.8rem;">
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label for="lock-start-date" style="font-size: 0.7rem; margin-bottom: 0.3rem; display: block; color: var(--text-muted);">Start Date</label>
-                                <input type="date" id="lock-start-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                                <label for="lock-start-date" style="font-size: 0.75rem; margin-bottom: 0.3rem; display: block; color: var(--text-muted);">Start Date (Disbursements Begin)</label>
+                                <input type="date" id="lock-start-date" style="padding: 0.5rem 0.6rem; font-size: 0.85rem; width: 100%;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label for="lock-end-date" style="font-size: 0.7rem; margin-bottom: 0.3rem; display: block; color: var(--text-muted);">End Date</label>
-                                <input type="date" id="lock-end-date" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
+                                <label for="lock-end-date" style="font-size: 0.75rem; margin-bottom: 0.3rem; display: block; color: var(--text-muted);">End Date (Disbursements End)</label>
+                                <input type="date" id="lock-end-date" style="padding: 0.5rem 0.6rem; font-size: 0.85rem; width: 100%;">
                             </div>
                         </div>
-                        <div class="form-group" id="budget-lock-payout-phone-group" style="margin-top: 0.6rem; margin-bottom: 0;">
-                            <label for="budget-lock-payout-phone" style="font-size: 0.7rem; margin-bottom: 0.3rem; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
+
+                        <div class="info-alert" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; display: flex; align-items: flex-start; gap: 0.4rem;">
+                            <i data-lucide="info" style="color: var(--color-accent-violet); width: 1rem; height: 1rem; shrink: 0; margin-top: 0.1rem;"></i>
+                            <span>Disbursements trigger automatically every morning at 08:00 AM EAT during this active schedule.</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem;">
+                            <button type="button" id="budget-wizard-back-2" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem;">
+                                <i data-lucide="arrow-left" style="width: 1rem; height: 1rem;"></i> Back
+                            </button>
+                            <button type="button" id="budget-wizard-next-2" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.35rem;">
+                                Next: Payout Destination <i data-lucide="arrow-right" style="width: 1rem; height: 1rem;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tile 3: Target Payout Destination (M-Pesa Phone) -->
+                    <div class="budget-wizard-tile" id="budget-wizard-tile-3">
+                        <p class="subtitle" style="margin-bottom: 0.75rem; font-size: 0.78rem;">Confirm the Safaricom M-Pesa line to receive your daily disbursements.</p>
+                        
+                        <div class="form-group" id="budget-lock-payout-phone-group" style="margin-bottom: 1rem;">
+                            <label for="budget-lock-payout-phone" style="font-size: 0.75rem; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
                                 <span>Target M-Pesa Payout Number</span>
                                 <span id="budget-lock-phone-status" style="font-size: 0.65rem; color: var(--color-accent-teal);"></span>
                             </label>
-                            <input type="tel" id="budget-lock-payout-phone" placeholder="e.g. 0712345678 or 254712345678" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; width: 100%;">
-                            <small style="font-size: 0.65rem; color: var(--text-muted); display: block; margin-top: 0.2rem;">
-                                Daily disbursements will be sent to this M-Pesa number.
+                            <input type="tel" id="budget-lock-payout-phone" placeholder="e.g. 0712345678 or 254712345678" style="padding: 0.5rem 0.6rem; font-size: 0.85rem; width: 100%;">
+                            <small style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                                Daily automated disbursements will be sent directly to this M-Pesa account.
                             </small>
                         </div>
-                    </div>
-                </div>
 
-                <button id="lock-budget-btn" class="btn btn-block" style="display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.12); color: #f59e0b; padding: 0.65rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-                    <i data-lucide="lock" style="width: 1rem; height: 1rem; vertical-align: middle; margin-right: 0.3rem; display: inline-block;"></i> Lock & Finalize Budget
-                </button>
+                        <div class="info-alert" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; display: flex; align-items: flex-start; gap: 0.4rem;">
+                            <i data-lucide="shield-check" style="color: #f59e0b; width: 1rem; height: 1rem; shrink: 0; margin-top: 0.1rem;"></i>
+                            <span>Once locked, daily allowance distributions will run automatically according to your schedule.</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem;">
+                            <button type="button" id="budget-wizard-back-3" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem;">
+                                <i data-lucide="arrow-left" style="width: 1rem; height: 1rem;"></i> Back
+                            </button>
+                            <button type="button" id="lock-budget-btn" class="btn btn-primary" style="border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                                <i data-lucide="lock" style="width: 1rem; height: 1rem;"></i> Lock & Finalize Budget
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
