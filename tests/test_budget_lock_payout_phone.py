@@ -31,12 +31,16 @@ def user_client(tmp_path, monkeypatch):
         assert res.status_code == 200
         yield client, user_id, test_db_path
 
+def _get_test_dates():
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    next_week = (today_eat + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    return tomorrow, next_week
+
 def test_lock_budget_without_payout_phone_when_none_configured_returns_400(user_client):
     """Attempting to lock budget without a payout phone when none is configured returns 400 Bad Request."""
     client, user_id, _ = user_client
-
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     res = client.post("/api/budget/lock", json={
         "start_date": tomorrow,
@@ -48,9 +52,7 @@ def test_lock_budget_without_payout_phone_when_none_configured_returns_400(user_
 def test_lock_budget_with_payout_phone_sets_payout_destination_and_locks(user_client):
     """Providing payout_phone_number during budget lock sets the payout destination and locks the budget."""
     client, user_id, test_db_path = user_client
-
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     res = client.post("/api/budget/lock", json={
         "start_date": tomorrow,
@@ -80,8 +82,7 @@ def test_lock_budget_with_existing_payout_phone_succeeds_without_reproviding(use
     db.update_payout_phone_number(user_id, "254799887766")
     db.close()
 
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    tomorrow, next_week = _get_test_dates()
 
     res = client.post("/api/budget/lock", json={
         "start_date": tomorrow,

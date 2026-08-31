@@ -842,14 +842,15 @@ class DatabaseManager:
         import datetime
         try:
             lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            return datetime.date.today() < lock_date
+            ref_date = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
+            return ref_date < lock_date
         except ValueError:
             return False
 
     def _get_first_of_next_month(self) -> str:
-        """Calculate the first day of the next calendar month as 'YYYY-MM-DD'."""
+        """Calculate the first day of the next calendar month as 'YYYY-MM-DD' in UTC+3 (Kenya Time)."""
         import datetime
-        dt = datetime.date.today()
+        dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
         if dt.month == 12:
             next_month = datetime.date(dt.year + 1, 1, 1)
         else:
