@@ -31,8 +31,8 @@ def email_user_client(tmp_path, monkeypatch):
         assert res.status_code == 200
         yield client, user_id, test_db_path
 
-def test_deposit_email_user_with_phone_in_payload_succeeds_and_saves_profile(email_user_client):
-    """Email-registered user deposits with phone number; phone is normalized, STK initiated, and profile updated."""
+def test_deposit_with_custom_phone_succeeds_without_modifying_profile_or_settings(email_user_client):
+    """Email-registered user deposits with phone number; STK push succeeds, but profile/payout phone is NOT modified."""
     client, user_id, test_db_path = email_user_client
 
     payload = {
@@ -46,14 +46,50 @@ def test_deposit_email_user_with_phone_in_payload_succeeds_and_saves_profile(ema
     assert data["status"] == "success"
     assert "checkout_request_id" in data
 
-    # Verify phone was normalized and persisted to settings & user profile
+    # Verify phone was NOT written to settings, user profile, or payout phone
     db = DatabaseManager(test_db_path)
     settings = db.get_settings(user_id)
-    assert settings["phone_number"] == "254712345678"
+    assert not settings.get("phone_number")
 
     user = db.session.query(User).filter(User.id == user_id).first()
-    assert user.phone_number == "254712345678"
-    assert user.payout_phone_number == "254712345678"
+    assert not user.phone_number
+    assert not user.payout_phone_number
+    db.close()
+
+def test_deposit_with_duplicate_phone_succeeds_and_leaves_both_users_unchanged(email_user_client):
+    """Depositing from a phone already registered to another account succeeds and leaves both profiles untouched."""
+    client, user_id, test_db_path = email_user_client
+
+    db = DatabaseManager(test_db_path)
+    user2_id = db.create_user_email(
+        email="otheruser@bursar.co.ke",
+        password_hash="mock_hash_2",
+        salt="argon2",
+        phone_number="254799000111"
+    )
+    db.update_payout_phone_number(user2_id, "254799000111")
+    db.close()
+
+    # User 1 deposits using User 2's phone
+    payload = {
+        "amount": 3000,
+        "phone_number": "0799000111"
+    }
+
+    res = client.post("/api/deposit/initiate", json=payload)
+    assert res.status_code == 200
+    assert res.json()["status"] == "success"
+
+    # Verify User 2's profile is intact
+    db = DatabaseManager(test_db_path)
+    u2 = db.session.query(User).filter(User.id == user2_id).first()
+    assert u2.phone_number == "254799000111"
+    assert u2.payout_phone_number == "254799000111"
+
+    # Verify User 1's profile is still empty
+    u1 = db.session.query(User).filter(User.id == user_id).first()
+    assert not u1.phone_number
+    assert not u1.payout_phone_number
     db.close()
 
 def test_deposit_email_user_without_phone_in_payload_returns_400(email_user_client):

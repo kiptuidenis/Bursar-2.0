@@ -541,12 +541,14 @@ function setupEventHandlers() {
 
         if (depositPhone) {
             if (currentSettings && currentSettings.phone_number) {
-                depositPhone.value = currentSettings.phone_number;
-                if (depositPhoneBadge) depositPhoneBadge.style.display = "inline-block";
-                if (depositPhoneHint) depositPhoneHint.innerText = "The STK push prompt will be sent to your saved Safaricom line.";
+                if (!depositPhone.value) {
+                    depositPhone.value = currentSettings.phone_number;
+                }
+                if (depositPhoneBadge) depositPhoneBadge.style.display = "none";
+                if (depositPhoneHint) depositPhoneHint.innerText = "The M-Pesa STK prompt will be sent to this number. You can change it to pay from any line.";
             } else {
                 if (depositPhoneBadge) depositPhoneBadge.style.display = "none";
-                if (depositPhoneHint) depositPhoneHint.innerText = "The STK push payment prompt will be sent to this number.";
+                if (depositPhoneHint) depositPhoneHint.innerText = "The M-Pesa STK prompt will be sent to this number. You can pay from any line.";
             }
         }
 
@@ -1003,7 +1005,22 @@ function setupEventHandlers() {
         lockBudgetBtn.addEventListener("click", async () => {
             const start_date = document.getElementById("lock-start-date").value || "";
             const end_date = document.getElementById("lock-end-date").value || "";
+            const payout_phone_el = document.getElementById("budget-lock-payout-phone");
+            const payout_phone = payout_phone_el ? payout_phone_el.value.trim() : "";
             
+            const hasExistingPhone = currentSettings && (currentSettings.phone_number || currentSettings.payout_phone_number);
+            if (!hasExistingPhone && !payout_phone) {
+                alert("Please enter a valid Safaricom M-Pesa phone number to receive your daily disbursements.");
+                const scheduleBody = document.getElementById("schedule-collapse-body");
+                const scheduleChevron = document.getElementById("schedule-chevron");
+                if (scheduleBody && scheduleBody.style.display === "none") {
+                    scheduleBody.style.display = "block";
+                    if (scheduleChevron) scheduleChevron.classList.add("expanded");
+                }
+                if (payout_phone_el) payout_phone_el.focus();
+                return;
+            }
+
             if (!start_date || !end_date) {
                 alert("Please select both start and end dates for the payout schedule.");
                 // Expand the collapsible section if it was closed
@@ -1026,10 +1043,14 @@ function setupEventHandlers() {
             }
             
             try {
+                const lockPayload = { start_date, end_date };
+                if (payout_phone) {
+                    lockPayload.payout_phone_number = payout_phone;
+                }
                 const res = await fetch("/api/budget/lock", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ start_date, end_date })
+                    body: JSON.stringify(lockPayload)
                 });
                 if (res.status === 401) return showAuthScreen();
                 if (!res.ok) {
@@ -1037,6 +1058,7 @@ function setupEventHandlers() {
                     throw new Error(data.detail || "Failed to lock budget.");
                 }
                 alert("Budget successfully finalized and locked for this month! 🔒");
+                pollDashboardData();
                 
                 // Close modal or switch back to dashboard if flat
                 const budgetDesignerModal = document.getElementById("budget-designer-modal");
@@ -1726,7 +1748,21 @@ function renderBudgetBreakdown() {
             const inputs = addForm.querySelectorAll("input, button");
             inputs.forEach(el => el.disabled = false);
         }
-        if (lockDatesSection) lockDatesSection.style.display = "flex";
+        if (lockDatesSection) {
+            lockDatesSection.style.display = "flex";
+            const payoutPhoneInput = document.getElementById("budget-lock-payout-phone");
+            const payoutPhoneStatus = document.getElementById("budget-lock-phone-status");
+            if (payoutPhoneInput) {
+                if (currentSettings && (currentSettings.phone_number || currentSettings.payout_phone_number)) {
+                    if (!payoutPhoneInput.value) {
+                        payoutPhoneInput.value = currentSettings.payout_phone_number || currentSettings.phone_number;
+                    }
+                    if (payoutPhoneStatus) payoutPhoneStatus.innerText = "Configured Line";
+                } else {
+                    if (payoutPhoneStatus) payoutPhoneStatus.innerText = "Required";
+                }
+            }
+        }
         if (lockBtn) {
             // Only show lock button if we have items
             if (budgetItems.length > 0) {
@@ -2040,7 +2076,8 @@ async function fetchProfile() {
         const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
         if (dashName) dashName.textContent = fullName || profile.phone_number || "—";
-        if (dashPhone) dashPhone.textContent = profile.phone_number || "—";
+        const payoutDisplay = profile.payout_phone_number || profile.phone_number;
+        if (dashPhone) dashPhone.textContent = payoutDisplay || "—";
         if (dashEmail) dashEmail.textContent = profile.email || "No email set";
         if (dashInitials) {
             const initials = [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase();

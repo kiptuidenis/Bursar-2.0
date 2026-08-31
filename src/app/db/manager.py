@@ -563,6 +563,26 @@ class DatabaseManager:
                 setattr(user, key, val)
         self._commit()
 
+    def get_payout_phone_number(self, user_id: int) -> str:
+        """Get the configured M-Pesa payout phone number for a user."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if user and user.payout_phone_number:
+            return user.payout_phone_number
+        if user and user.phone_number:
+            return user.phone_number
+        settings = self.get_settings(user_id)
+        return settings.get("phone_number", "")
+
+    def update_payout_phone_number(self, user_id: int, phone_number: str) -> None:
+        """Update the M-Pesa payout phone number for a user across User and Settings models."""
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.payout_phone_number = phone_number
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if settings:
+            settings.phone_number = phone_number
+        self._commit()
+
     def update_password(self, user_id: int, new_password_plaintext: str) -> None:
         """Update user's password PIN."""
         user = self.session.query(User).filter(User.id == user_id).first()
