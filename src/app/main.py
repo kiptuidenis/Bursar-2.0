@@ -310,7 +310,7 @@ if config.IS_TEST_MODE:
             reason=reason,
             ip_address=ip_address
         )
-        return {"status": "success", "log_id": log.id}
+        return {"status": "success", "log_id": log}
 
     @app.post("/api/test/seed-deposit")
     def seed_test_deposit(payload: dict = Body(default={}), db: DatabaseManager = Depends(get_db)):
