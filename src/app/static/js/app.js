@@ -614,6 +614,280 @@ function setupEventHandlers() {
         });
     });
 
+    // Open/Close Withdrawal Modal Handlers
+    const withdrawModal = document.getElementById("withdraw-modal");
+    const openWithdraw = () => {
+        const bal = parseFloat(currentSettings && currentSettings.balance ? currentSettings.balance : 0);
+        const balDisplay = document.getElementById("withdraw-available-balance-display");
+        if (balDisplay) balDisplay.innerText = bal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const phoneInput = document.getElementById("withdraw-phone");
+        if (phoneInput && currentSettings) {
+            phoneInput.value = currentSettings.payout_phone_number || currentSettings.phone_number || "";
+        }
+
+        const amtInput = document.getElementById("withdraw-amount");
+        if (amtInput) {
+            amtInput.value = "";
+            amtInput.max = Math.max(10, Math.floor(bal));
+        }
+
+        const pwdInput = document.getElementById("withdraw-password");
+        if (pwdInput) pwdInput.value = "";
+
+        const otpInput = document.getElementById("withdraw-otp");
+        if (otpInput) otpInput.value = "";
+
+        const otpGroup = document.getElementById("withdraw-otp-group");
+        if (otpGroup) otpGroup.style.display = "none";
+
+        const reqOtpBtn = document.getElementById("request-withdraw-otp-btn");
+        if (reqOtpBtn) {
+            reqOtpBtn.style.display = "inline-flex";
+            reqOtpBtn.disabled = false;
+            reqOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
+        }
+
+        const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
+        if (confirmBtn) confirmBtn.style.display = "none";
+
+        const errBox = document.getElementById("withdraw-error");
+        if (errBox) {
+            errBox.style.display = "none";
+            errBox.innerText = "";
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+        if (withdrawModal) withdrawModal.classList.add("active");
+    };
+
+    const openWithdrawBtnElem = document.getElementById("open-withdraw-btn");
+    if (openWithdrawBtnElem) {
+        openWithdrawBtnElem.addEventListener("click", openWithdraw);
+    }
+
+    const closeWithdrawBtn = document.getElementById("close-withdraw-btn");
+    if (closeWithdrawBtn) {
+        closeWithdrawBtn.addEventListener("click", () => {
+            if (withdrawModal) withdrawModal.classList.remove("active");
+        });
+    }
+    const cancelWithdrawBtn = document.getElementById("cancel-withdraw-btn");
+    if (cancelWithdrawBtn) {
+        cancelWithdrawBtn.addEventListener("click", () => {
+            if (withdrawModal) withdrawModal.classList.remove("active");
+        });
+    }
+    if (withdrawModal) {
+        withdrawModal.addEventListener("click", (e) => {
+            if (e.target === withdrawModal) withdrawModal.classList.remove("active");
+        });
+    }
+
+    // Quick withdrawal percentage buttons
+    document.querySelectorAll(".quick-withdraw-pct-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const pct = parseFloat(btn.getAttribute("data-pct") || "1.0");
+            const bal = parseFloat(currentSettings && currentSettings.balance ? currentSettings.balance : 0);
+            const calcAmt = Math.floor(bal * pct);
+            const amtInput = document.getElementById("withdraw-amount");
+            if (amtInput) {
+                amtInput.value = calcAmt >= 10 ? calcAmt : (bal >= 10 ? 10 : bal);
+            }
+        });
+    });
+
+    // Request Step-Up OTP for withdrawal
+    const requestWithdrawOtpBtn = document.getElementById("request-withdraw-otp-btn");
+    const withdrawResendOtpBtn = document.getElementById("withdraw-resend-otp-btn");
+
+    async function handleRequestWithdrawalOtp() {
+        const errBox = document.getElementById("withdraw-error");
+        if (errBox) { errBox.style.display = "none"; errBox.innerText = ""; }
+
+        const amtInput = document.getElementById("withdraw-amount");
+        const amount = parseInt(amtInput ? amtInput.value : "0", 10);
+        const bal = parseFloat(currentSettings && currentSettings.balance ? currentSettings.balance : 0);
+
+        if (isNaN(amount) || amount < 10) {
+            if (errBox) {
+                errBox.innerText = "Minimum withdrawal amount is KES 10.";
+                errBox.style.display = "block";
+            }
+            if (amtInput) amtInput.focus();
+            return;
+        }
+
+        if (amount > bal) {
+            if (errBox) {
+                errBox.innerText = `Requested amount (KES ${amount}) exceeds available balance (KES ${bal.toFixed(2)}).`;
+                errBox.style.display = "block";
+            }
+            return;
+        }
+
+        const pwdInput = document.getElementById("withdraw-password");
+        if (!pwdInput || !pwdInput.value.trim()) {
+            if (errBox) {
+                errBox.innerText = "Please enter your account password.";
+                errBox.style.display = "block";
+            }
+            if (pwdInput) pwdInput.focus();
+            return;
+        }
+
+        if (requestWithdrawOtpBtn) {
+            requestWithdrawOtpBtn.disabled = true;
+            requestWithdrawOtpBtn.innerHTML = `<span class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.3rem;"></span> Sending Code...`;
+        }
+
+        try {
+            const res = await fetch("/api/profile/request-stepup-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ purpose: "wallet_withdrawal", amount: amount })
+            });
+            const data = await res.json();
+
+            if (res.status !== 200) {
+                if (errBox) {
+                    errBox.innerText = data.detail || "Failed to send authorization code.";
+                    errBox.style.display = "block";
+                }
+                if (requestWithdrawOtpBtn) {
+                    requestWithdrawOtpBtn.disabled = false;
+                    requestWithdrawOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
+                    if (window.lucide) window.lucide.createIcons();
+                }
+                return;
+            }
+
+            // OTP dispatched successfully
+            const otpGroup = document.getElementById("withdraw-otp-group");
+            if (otpGroup) otpGroup.style.display = "block";
+
+            if (requestWithdrawOtpBtn) requestWithdrawOtpBtn.style.display = "none";
+            const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
+            if (confirmBtn) confirmBtn.style.display = "inline-flex";
+
+            const otpInput = document.getElementById("withdraw-otp");
+            if (otpInput) {
+                otpInput.required = true;
+                otpInput.focus();
+            }
+
+            if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+            console.error("Error requesting withdrawal OTP:", err);
+            if (errBox) {
+                errBox.innerText = "Network error requesting authorization code. Please try again.";
+                errBox.style.display = "block";
+            }
+            if (requestWithdrawOtpBtn) {
+                requestWithdrawOtpBtn.disabled = false;
+                requestWithdrawOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
+    }
+
+    if (requestWithdrawOtpBtn) {
+        requestWithdrawOtpBtn.addEventListener("click", handleRequestWithdrawalOtp);
+    }
+    if (withdrawResendOtpBtn) {
+        withdrawResendOtpBtn.addEventListener("click", async () => {
+            withdrawResendOtpBtn.innerText = "Resending...";
+            await handleRequestWithdrawalOtp();
+            withdrawResendOtpBtn.innerText = "Resend Code";
+        });
+    }
+
+    // Submit Withdrawal Form
+    const withdrawForm = document.getElementById("withdraw-form");
+    if (withdrawForm) {
+        withdrawForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const errBox = document.getElementById("withdraw-error");
+            if (errBox) { errBox.style.display = "none"; errBox.innerText = ""; }
+
+            const amtInput = document.getElementById("withdraw-amount");
+            const amount = parseInt(amtInput ? amtInput.value : "0", 10);
+            const phoneInput = document.getElementById("withdraw-phone");
+            const phone = phoneInput ? phoneInput.value.trim() : "";
+            const pwdInput = document.getElementById("withdraw-password");
+            const password = pwdInput ? pwdInput.value : "";
+            const otpInput = document.getElementById("withdraw-otp");
+            const otpCode = otpInput ? otpInput.value.trim() : "";
+
+            if (!otpCode || !/^[0-9]{6}$/.test(otpCode)) {
+                if (errBox) {
+                    errBox.innerText = "Please enter the 6-digit verification code sent to your email.";
+                    errBox.style.display = "block";
+                }
+                if (otpInput) otpInput.focus();
+                return;
+            }
+
+            const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = `<span class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.3rem;"></span> Processing...`;
+            }
+
+            // Generate unique idempotency key
+            const idempotencyKey = "wd_" + (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : (Date.now() + "_" + Math.random().toString(36).substring(2)));
+
+            try {
+                const res = await fetch("/api/wallet/withdraw", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Idempotency-Key": idempotencyKey
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        payout_phone_number: phone,
+                        password: password,
+                        otp_code: otpCode
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.status !== 200) {
+                    if (errBox) {
+                        errBox.innerText = data.detail || "Withdrawal failed. Please verify your credentials and try again.";
+                        errBox.style.display = "block";
+                    }
+                    if (confirmBtn) {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
+                        if (window.lucide) window.lucide.createIcons();
+                    }
+                    return;
+                }
+
+                // Success! Close modal and show notification
+                if (withdrawModal) withdrawModal.classList.remove("active");
+                alert(`Withdrawal Successful!\n\nKES ${amount} has been disbursed to ${phone}.\nTransaction Reference: ${data.transaction_id || 'Completed'}`);
+                
+                // Immediately refresh dashboard data
+                await pollDashboardData();
+            } catch (err) {
+                console.error("Withdrawal error:", err);
+                if (errBox) {
+                    errBox.innerText = "Network error executing withdrawal. Please check your connection.";
+                    errBox.style.display = "block";
+                }
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            }
+        });
+    }
+
     // Open/Close Settings
     document.getElementById("toggle-settings-btn").addEventListener("click", () => {
         // Only open drawer overlay if settings content is in the drawer overlay (not flat tab view)
@@ -1737,6 +2011,34 @@ function updateDashboardMetrics(settings) {
         }
         if (depositPhoneBadge) depositPhoneBadge.style.display = "inline-block";
         if (depositPhoneHint) depositPhoneHint.innerText = "The STK push prompt will be sent to your saved Safaricom line.";
+    }
+
+    // Withdraw Cash Button visibility & state rule:
+    // Visible only before budget is locked OR after active schedule ends
+    const openWithdrawBtn = document.getElementById("open-withdraw-btn");
+    if (openWithdrawBtn) {
+        const isLocked = Boolean(settings.is_budget_locked);
+        const bal = parseFloat(settings.balance || 0);
+
+        if (isLocked) {
+            // In between an active locked schedule -> hidden
+            openWithdrawBtn.style.display = "none";
+        } else {
+            // Unlocked (before budget lock OR after schedule ends) -> visible
+            openWithdrawBtn.style.display = "inline-flex";
+            
+            if (bal < 10) {
+                openWithdrawBtn.disabled = true;
+                openWithdrawBtn.style.opacity = "0.5";
+                openWithdrawBtn.style.cursor = "not-allowed";
+                openWithdrawBtn.title = "Minimum balance of KES 10 required to withdraw";
+            } else {
+                openWithdrawBtn.disabled = false;
+                openWithdrawBtn.style.opacity = "1";
+                openWithdrawBtn.style.cursor = "pointer";
+                openWithdrawBtn.title = "Withdraw available funds";
+            }
+        }
     }
 }
 
