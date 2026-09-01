@@ -243,11 +243,26 @@ from app.services.email import send_otp_email
 @router.post("/request-stepup-otp")
 @limiter.limit("5/minute")
 def request_stepup_otp(request: Request, payload: StepUpOTPPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    profile = db.get_profile(user_id)
-    if not profile or not profile.get("email"):
-        raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link an email address in Profile first.")
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user or not user.email or not user.email_verified:
+        raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link and verify an email address in Profile first.")
 
-    user_email = profile["email"].strip().lower()
+    user_email = user.email.strip().lower()
+
+    if payload.purpose == "wallet_withdrawal":
+        if db.is_deposit_locked(user_id):
+            raise HTTPException(status_code=400, detail="Deposit balance is currently locked. Withdrawal is not permitted during an active schedule.")
+        
+        if payload.amount is not None:
+            if payload.amount < 10:
+                raise HTTPException(status_code=400, detail="Minimum withdrawal amount is KES 10.")
+            if payload.amount > 250000:
+                raise HTTPException(status_code=400, detail="Maximum withdrawal amount is KES 250,000.")
+            
+            wallet = db.get_user_wallet(user_id)
+            if wallet.available_balance < payload.amount:
+                raise HTTPException(status_code=400, detail=f"Insufficient wallet balance. (Available: KES {wallet.available_balance}, Required: KES {payload.amount}).")
+
     otp_code = db.create_otp_challenge(user_email, purpose=payload.purpose, ttl_seconds=300, user_id=user_id)
     send_otp_email(user_email, otp_code, purpose=payload.purpose)
 

@@ -768,6 +768,35 @@ class DatabaseManager:
                 setattr(settings, key, val)
         self._commit()
 
+    def debit_wallet_atomic(self, user_id: int, amount: int | float) -> bool:
+        """
+        Atomically debit amount from wallet and settings balance if available_balance >= amount.
+        Guarantees race-condition-proof deduction at the database engine layer.
+        Returns True if debited successfully, False if insufficient balance.
+        """
+        import sqlalchemy
+        int_amount = int(amount)
+        res = self.session.execute(
+            sqlalchemy.text(
+                "UPDATE wallets SET available_balance = available_balance - :amount "
+                "WHERE user_id = :user_id AND available_balance >= :amount"
+            ),
+            {"amount": int_amount, "user_id": user_id}
+        )
+        if res.rowcount == 0:
+            self.session.rollback()
+            return False
+            
+        self.session.execute(
+            sqlalchemy.text(
+                "UPDATE settings SET balance = balance - :amount "
+                "WHERE user_id = :user_id"
+            ),
+            {"amount": int_amount, "user_id": user_id}
+        )
+        self.session.commit()
+        return True
+
     def adjust_balance(self, user_id: int, amount: int | float) -> None:
         """Add or subtract from current wallet balance of a specific user using atomic SQL arithmetic."""
         int_amount = int(amount)

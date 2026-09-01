@@ -19,6 +19,10 @@ def format_otp_email_html(otp_code: str, purpose: str) -> str:
         purpose_title = "Payout Step-Up Authorization Code"
     elif purpose == "phone_update":
         purpose_title = "Update Payout Phone Authorization Code"
+    elif purpose == "wallet_withdrawal":
+        purpose_title = "Authorize Cash Withdrawal"
+    elif purpose == "password_change":
+        purpose_title = "Authorize Password Change"
 
     return f"""<!DOCTYPE html>
 <html>
@@ -153,7 +157,14 @@ def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "login_2f
     recipient_clean = recipient_email.strip().lower()
     html_body = format_otp_email_html(otp_code, purpose)
     text_body = format_otp_email_text(otp_code, purpose)
-    subject = f"Your Bursar 2.0 Verification Code: {otp_code}"
+    if purpose == "wallet_withdrawal":
+        subject = f"[Bursar] 💸 Cash Withdrawal Verification Code: {otp_code}"
+    elif purpose == "password_change":
+        subject = f"[Bursar] 🔑 Password Change Verification Code: {otp_code}"
+    elif purpose == "payout_stepup":
+        subject = f"[Bursar] 🛡️ Authorization Code: {otp_code}"
+    else:
+        subject = f"Your Bursar 2.0 Verification Code: {otp_code}"
 
     # Always populate test store for test assertions
     last_sent_otp_emails[recipient_clean] = {

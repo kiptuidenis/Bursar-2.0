@@ -125,7 +125,8 @@ class BudgetLockPayload(BaseModel):
     otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for payout step-up")
 
 class StepUpOTPPayload(BaseModel):
-    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update)")
+    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update, wallet_withdrawal, password_change)")
+    amount: Optional[int] = Field(None, description="Optional withdrawal amount in whole KES to pre-validate before sending OTP")
 
 class PayoutPhonePayload(BaseModel):
     payout_phone_number: str = Field(..., description="Safaricom phone number for M-Pesa payouts")
