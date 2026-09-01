@@ -82,9 +82,10 @@ async def check_deposit_status(request: Request, checkout_request_id: str, user_
                     db.adjust_balance(user_id, deposit["amount"])
                     db.log_event(user_id, "INFO", f"Deposit {checkout_request_id} verified as SUCCESS via active polling.")
                     
-                    db.lock_deposit(user_id)
                     items = db.get_budget_items(user_id)
-                    if items:
+                    has_schedule = bool(settings.get("end_date"))
+                    if items or has_schedule:
+                        db.lock_deposit(user_id)
                         db.lock_budget(user_id)
                         db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
                 deposit = db.get_deposit(checkout_request_id)

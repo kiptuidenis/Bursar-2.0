@@ -139,12 +139,12 @@ async def mpesa_stk_callback(
             db.adjust_balance(user_id, amount)
             db.log_event(user_id, "INFO", f"STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
             
-            # Auto-lock deposit for the month
-            db.lock_deposit(user_id)
-            
-            # Auto-lock budget if user already has budget categories configured
+            # Auto-lock budget & deposit if user has budget categories or schedule configured
             items = db.get_budget_items(user_id)
-            if items:
+            settings = db.get_settings(user_id, decrypt_secrets=False)
+            has_schedule = bool(settings.get("end_date"))
+            if items or has_schedule:
+                db.lock_deposit(user_id)
                 db.lock_budget(user_id)
                 db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
     else:
@@ -185,9 +185,11 @@ def simulate_stk_callback(
             db.adjust_balance(user_id, amount)
             db.log_event(user_id, "INFO", f"[SIMULATED] STK Push deposit of KES {amount:.2f} completed successfully. Receipt: {receipt}.")
             
-            db.lock_deposit(user_id)
             items = db.get_budget_items(user_id)
-            if items:
+            settings = db.get_settings(user_id, decrypt_secrets=False)
+            has_schedule = bool(settings.get("end_date"))
+            if items or has_schedule:
+                db.lock_deposit(user_id)
                 db.lock_budget(user_id)
                 db.log_event(user_id, "INFO", "Budget automatically locked due to simulated active deposit.")
     else:
@@ -305,9 +307,11 @@ async def intasend_webhook(
                     db.adjust_balance(user_id, amount)
                     db.log_event(user_id, "INFO", f"IntaSend deposit of KES {amount:.2f} completed successfully (verified). Invoice: {invoice_id}.")
                     
-                    db.lock_deposit(user_id)
                     items = db.get_budget_items(user_id)
-                    if items:
+                    settings = db.get_settings(user_id, decrypt_secrets=False)
+                    has_schedule = bool(settings.get("end_date"))
+                    if items or has_schedule:
+                        db.lock_deposit(user_id)
                         db.lock_budget(user_id)
                         db.log_event(user_id, "INFO", "Budget automatically locked due to active deposit.")
             elif status == "FAILED":

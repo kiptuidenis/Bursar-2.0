@@ -259,9 +259,10 @@ async def poll_pending_deposits(db: DatabaseManager) -> None:
                 if db.update_deposit_status(checkout_request_id, "SUCCESS", "POLL_VERIFIED"):
                     db.adjust_balance(user_id, amount)
                     db.log_event(user_id, "INFO", f"[Scheduler Poll] Deposit {checkout_request_id} verified as SUCCESS. KES {amount:.2f} credited.")
-                    db.lock_deposit(user_id)
                     items = db.get_budget_items(user_id)
-                    if items:
+                    has_schedule = bool(settings.get("end_date"))
+                    if items or has_schedule:
+                        db.lock_deposit(user_id)
                         db.lock_budget(user_id)
                         db.log_event(user_id, "INFO", "Budget automatically locked due to confirmed deposit.")
             elif status == "FAILED":

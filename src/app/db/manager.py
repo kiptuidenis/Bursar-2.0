@@ -711,6 +711,7 @@ class DatabaseManager:
         data["end_date"] = budget.end_date or (settings.end_date if settings else "")
         data["budget_locked_until"] = budget.locked_until or (settings.budget_locked_until if settings else "")
         data["is_budget_locked"] = self.is_budget_locked(user_id)
+        data["is_deposit_locked"] = self.is_deposit_locked(user_id)
         
         if decrypt_secrets and data:
             from app.core.encryption import decrypt_credential

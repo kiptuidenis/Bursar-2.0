@@ -438,10 +438,10 @@ def test_intasend_integration_flow(monkeypatch):
     assert res_status.status_code == 200
     assert res_status.json()["status"] == "SUCCESS"
 
-    # Confirm balance and locking
+    # Confirm balance and locking (not locked because no schedule is configured)
     settings = c.get("/api/settings").json()
     assert settings["balance"] == 3500.0
-    assert settings["is_deposit_locked"] is True
+    assert settings["is_deposit_locked"] is False
 
     # 4. Initiate another deposit to test the webhook callback
     res_init2 = c.post("/api/deposit/initiate", json={"amount": 4000.0})
