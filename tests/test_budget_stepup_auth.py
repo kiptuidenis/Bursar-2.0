@@ -40,13 +40,15 @@ def clean_db():
     app.dependency_overrides.pop(get_db, None)
     db.close()
 
-def _setup_client(phone_number="", email="", password="Str0ng!P@ssw0rd2026!"):
+def _setup_client(phone_number="", email="", password="Str0ng!P@ssw0rd2026!", balance=5000.0):
     c = TestClient(app)
     db = get_test_db()
     phone_clean = phone_number or ""
     email_clean = email or (f"user_{phone_number}@example.com" if phone_number else f"user_{datetime.datetime.now().microsecond}@example.com")
     pwd_hash, salt = db._hash_password(password)
     user_id = db.create_user_email(email_clean, pwd_hash, salt, payout_phone=phone_clean, phone_number=phone_clean)
+    if balance > 0:
+        db.adjust_balance(user_id, int(balance))
     token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
     c.cookies.set("session_token", token)
     csrf = generate_csrf_token()

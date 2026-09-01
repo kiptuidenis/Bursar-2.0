@@ -16,7 +16,7 @@ test.describe('Phase 2: Next Payout Tile Status E2E Tests', () => {
     test.setTimeout(60000);
 
     const userPhone = '254712345678';
-    await setupAuthenticatedUser(page, { phoneNumber: userPhone });
+    await setupAuthenticatedUser(page, { phoneNumber: userPhone, balance: 5000 });
 
     // Open Budget Modal
     await page.click('#open-budget-designer-btn');

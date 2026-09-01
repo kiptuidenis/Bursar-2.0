@@ -147,7 +147,9 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     settings = db.get_settings(user_id)
     daily_budget = float(settings.get("daily_budget", 0.0) or 0.0)
     balance = float(settings.get("balance", 0.0) or 0.0)
-    if daily_budget > balance and balance > 0:
+    if balance <= 0:
+        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
+    if daily_budget > balance:
         raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
 
     db.lock_budget(user_id)

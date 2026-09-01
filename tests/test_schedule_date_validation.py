@@ -97,6 +97,7 @@ def test_budget_lock_end_date_equal_to_start_date_rejected(client_and_db):
 
 def test_valid_schedule_dates_accepted(client_and_db):
     client, db, user_id = client_and_db
+    db.adjust_balance(user_id, 2000)
     db.add_or_update_budget_item(user_id, "Food", 200.0)
     
     today_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
