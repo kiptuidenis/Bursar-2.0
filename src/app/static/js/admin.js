@@ -613,7 +613,8 @@
             let budgetLockDisplay = '<span class="status-pill pill-success">Unlocked</span>';
             if (isLocked) {
                 if (wallet.end_date) {
-                    budgetLockDisplay = `<span class="status-pill pill-warning">Schedule active until ${escapeHtml(wallet.end_date)}</span>`;
+                    const startLabel = wallet.start_date ? `${escapeHtml(wallet.start_date)} to ` : '';
+                    budgetLockDisplay = `<span class="status-pill pill-warning">Schedule active (${startLabel}${escapeHtml(wallet.end_date)})</span>`;
                 } else {
                     budgetLockDisplay = `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.budget_locked_until || '')}</span>`;
                 }
@@ -622,7 +623,8 @@
             let depositLockDisplay = '<span class="status-pill pill-success">Unlocked</span>';
             if (isDepLocked) {
                 if (wallet.end_date) {
-                    depositLockDisplay = `<span class="status-pill pill-warning">Locked with schedule (ends ${escapeHtml(wallet.end_date)})</span>`;
+                    const startLabel = wallet.start_date ? `${escapeHtml(wallet.start_date)} to ` : '';
+                    depositLockDisplay = `<span class="status-pill pill-warning">Locked with schedule (${startLabel}${escapeHtml(wallet.end_date)})</span>`;
                 } else {
                     depositLockDisplay = `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.deposit_locked_until || '')}</span>`;
                 }
@@ -649,6 +651,7 @@
                             <div><strong>Available Balance:</strong> <span class="text-emerald font-bold font-mono">${formatCurrency(wallet.balance || 0)}</span></div>
                             <div><strong>Daily Budget:</strong> <span class="font-mono">${formatCurrency(wallet.daily_budget || 0)}</span> / day</div>
                             <div><strong>Payout Time:</strong> ${escapeHtml(wallet.payout_time || '12:00')}</div>
+                            <div><strong>Schedule Range:</strong> ${wallet.start_date || wallet.end_date ? `<span class="font-mono">${escapeHtml(wallet.start_date || 'Immediate')}</span> to <span class="font-mono">${escapeHtml(wallet.end_date || 'None')}</span>` : '<span class="text-dim">No active schedule</span>'}</div>
                             <div><strong>Budget Lock:</strong> ${budgetLockDisplay}</div>
                             <div><strong>Deposit Lock:</strong> ${depositLockDisplay}</div>
                         </div>
