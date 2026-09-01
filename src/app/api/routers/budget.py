@@ -143,9 +143,10 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
             detail="A target Safaricom M-Pesa phone number is required to receive your daily disbursements. Please provide a payout phone number."
         )
 
-    db.lock_budget(user_id)
     db.update_settings(user_id, start_date=start_date, end_date=end_date)
-    db.log_event(user_id, "INFO", f"Budget configuration locked until the end of the month with payout range {start_date or 'none'} to {end_date or 'none'}.")
+    db.lock_budget(user_id)
+    db.lock_deposit(user_id)
+    db.log_event(user_id, "INFO", f"Budget and deposit locked for schedule range {start_date or 'none'} to {end_date or 'none'}.")
     return {
         "status": "success", 
         "budget_locked_until": db.get_settings(user_id).get("budget_locked_until", ""),

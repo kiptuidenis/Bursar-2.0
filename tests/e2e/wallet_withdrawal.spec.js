@@ -112,11 +112,15 @@ test.describe('Wallet Cash Withdrawal E2E Flow', () => {
     await page.click('#budget-wizard-next-2');
     await page.waitForTimeout(300);
 
-    await page.click('#lock-budget-btn');
-    await page.waitForTimeout(500);
+    const [lockRes] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/budget/lock') && res.request().method() === 'POST'),
+      page.click('#lock-budget-btn')
+    ]);
+    expect(lockRes.status()).toBe(200);
 
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    // Verify budget lock badge is visible on the dashboard card
+    const lockBadge = page.locator('#budget-lock-badge');
+    await expect(lockBadge).toBeVisible();
 
     // Flip Debit Card
     await page.click('#debit-card-container');
