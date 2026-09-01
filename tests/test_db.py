@@ -161,6 +161,7 @@ def test_budget_items_operations(db):
 
 def test_budget_and_deposit_locking(db):
     user_id = db.create_user("254712345678", "pass1")
+    db.adjust_balance(user_id, 2000)
     
     # Initially unlocked
     assert db.is_budget_locked(user_id) is False
