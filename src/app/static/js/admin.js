@@ -610,6 +610,24 @@
             const isLocked = wallet.is_budget_locked;
             const isDepLocked = wallet.is_deposit_locked;
 
+            let budgetLockDisplay = '<span class="status-pill pill-success">Unlocked</span>';
+            if (isLocked) {
+                if (wallet.end_date) {
+                    budgetLockDisplay = `<span class="status-pill pill-warning">Schedule active until ${escapeHtml(wallet.end_date)}</span>`;
+                } else {
+                    budgetLockDisplay = `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.budget_locked_until || '')}</span>`;
+                }
+            }
+
+            let depositLockDisplay = '<span class="status-pill pill-success">Unlocked</span>';
+            if (isDepLocked) {
+                if (wallet.end_date) {
+                    depositLockDisplay = `<span class="status-pill pill-warning">Locked with schedule (ends ${escapeHtml(wallet.end_date)})</span>`;
+                } else {
+                    depositLockDisplay = `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.deposit_locked_until || '')}</span>`;
+                }
+            }
+
             modalBody.innerHTML = `
                 <!-- Identity & Status Cards -->
                 <div class="u360-grid">
@@ -619,7 +637,7 @@
                             <div><strong>Name:</strong> ${escapeHtml(prof.first_name || '')} ${escapeHtml(prof.last_name || '')}</div>
                             <div><strong>Email:</strong> ${escapeHtml(prof.email || 'N/A')}</div>
                             <div><strong>Phone:</strong> <span class="font-mono">${escapeHtml(prof.phone_number || 'N/A')}</span></div>
-                            <div><strong>Payout Phone:</strong> <span class="font-mono">${escapeHtml(prof.payout_phone_number || 'N/A')}</span></div>
+                            <div><strong>Payout Phone:</strong> <span class="font-mono">${escapeHtml(prof.payout_phone_number || prof.phone_number || 'N/A')}</span></div>
                             <div><strong>2FA Status:</strong> ${prof.two_factor_enabled ? '<span class="status-pill pill-success">Enabled</span>' : '<span class="status-pill pill-warning">Disabled</span>'}</div>
                             <div><strong>Active Sessions:</strong> ${sessionsCount} active</div>
                         </div>
@@ -631,8 +649,8 @@
                             <div><strong>Available Balance:</strong> <span class="text-emerald font-bold font-mono">${formatCurrency(wallet.balance || 0)}</span></div>
                             <div><strong>Daily Budget:</strong> <span class="font-mono">${formatCurrency(wallet.daily_budget || 0)}</span> / day</div>
                             <div><strong>Payout Time:</strong> ${escapeHtml(wallet.payout_time || '12:00')}</div>
-                            <div><strong>Budget Lock:</strong> ${isLocked ? `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.budget_locked_until || wallet.end_date || '')}</span>` : '<span class="status-pill pill-success">Unlocked</span>'}</div>
-                            <div><strong>Deposit Lock:</strong> ${isDepLocked ? `<span class="status-pill pill-warning">Locked until ${escapeHtml(wallet.deposit_locked_until || '')}</span>` : '<span class="status-pill pill-success">Unlocked</span>'}</div>
+                            <div><strong>Budget Lock:</strong> ${budgetLockDisplay}</div>
+                            <div><strong>Deposit Lock:</strong> ${depositLockDisplay}</div>
                         </div>
                     </div>
                 </div>
