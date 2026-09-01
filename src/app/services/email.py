@@ -19,8 +19,6 @@ def format_otp_email_html(otp_code: str, purpose: str) -> str:
         purpose_title = "Payout Step-Up Authorization Code"
     elif purpose == "phone_update":
         purpose_title = "Update Payout Phone Authorization Code"
-    elif purpose == "wallet_withdrawal":
-        purpose_title = "Cash Withdrawal Authorization Code"
 
     return f"""<!DOCTYPE html>
 <html>

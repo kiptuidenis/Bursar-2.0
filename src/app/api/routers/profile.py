@@ -247,26 +247,6 @@ def request_stepup_otp(request: Request, payload: StepUpOTPPayload, user_id: int
     if not profile or not profile.get("email"):
         raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link an email address in Profile first.")
 
-    # Pre-validation for wallet withdrawals: verify amount, unlock status, and balance BEFORE dispatching OTP
-    if payload.purpose == "wallet_withdrawal":
-        if payload.amount is not None:
-            if not float(payload.amount).is_integer():
-                raise HTTPException(status_code=400, detail="Withdrawal amount must be a whole positive integer KES amount.")
-            int_amount = int(payload.amount)
-            if int_amount < 10 or int_amount > 250000:
-                raise HTTPException(status_code=400, detail="Withdrawal amount must be between KES 10 and KES 250,000.")
-            
-            if db.is_deposit_locked(user_id):
-                raise HTTPException(status_code=400, detail="Cannot withdraw funds while deposit balance is locked.")
-            
-            settings = db.get_settings(user_id, decrypt_secrets=False)
-            current_balance = int(settings.get("balance", 0))
-            if int_amount > current_balance:
-                raise HTTPException(status_code=400, detail=f"Insufficient wallet balance. (Available: KES {current_balance}, Requested: KES {int_amount}).")
-        else:
-            if db.is_deposit_locked(user_id):
-                raise HTTPException(status_code=400, detail="Cannot withdraw funds while deposit balance is locked.")
-
     user_email = profile["email"].strip().lower()
     otp_code = db.create_otp_challenge(user_email, purpose=payload.purpose, ttl_seconds=300, user_id=user_id)
     send_otp_email(user_email, otp_code, purpose=payload.purpose)
