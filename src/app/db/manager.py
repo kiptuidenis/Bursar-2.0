@@ -1799,7 +1799,12 @@ class DatabaseManager:
             query = query.filter(Deposit.created_at <= date_to)
 
         total = query.count()
-        total_amount = sum(int(d[0] or 0) for d in query.with_entities(Deposit.amount).all())
+        if status:
+            total_amount = sum(int(d[0] or 0) for d in query.with_entities(Deposit.amount).all())
+        else:
+            # When viewing all statuses, total collected should strictly sum confirmed deposits
+            collected_query = query.filter(Deposit.status.in_(["SUCCESS", "COMPLETED"]))
+            total_amount = sum(int(d[0] or 0) for d in collected_query.with_entities(Deposit.amount).all())
 
         offset = (page - 1) * limit
         deposits = query.order_by(Deposit.created_at.desc(), Deposit.id.desc()).offset(offset).limit(limit).all()
