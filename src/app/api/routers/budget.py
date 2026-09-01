@@ -19,7 +19,10 @@ def list_budget_items(request: Request, user_id: int = Depends(get_current_user_
 @limiter.limit("20/minute")
 def add_or_update_budget_item(request: Request, payload: BudgetItemPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if db.is_budget_locked(user_id):
-        raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+        settings = db.get_settings(user_id)
+        balance = int(settings.get("balance", 0)) if settings else 0
+        if balance > 0:
+            raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
         
     if not float(payload.amount).is_integer():
         raise HTTPException(status_code=400, detail="Budget allocation amount must be a whole positive integer (no decimal places).")
@@ -44,7 +47,10 @@ def add_or_update_budget_item(request: Request, payload: BudgetItemPayload, user
 @limiter.limit("20/minute")
 def delete_budget_item(request: Request, item_id: int, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     if db.is_budget_locked(user_id):
-        raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+        settings = db.get_settings(user_id)
+        balance = int(settings.get("balance", 0)) if settings else 0
+        if balance > 0:
+            raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
         
     deleted = db.delete_budget_item(user_id, item_id)
     if not deleted:
@@ -93,15 +99,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if start_date and end_date and end_date <= start_date:
         raise HTTPException(status_code=400, detail="End date must be strictly after start date (cannot be the same day or earlier).")
         
-    settings = db.get_settings(user_id)
-    daily_budget = float(settings.get("daily_budget", 0.0) or 0.0)
-    balance = float(settings.get("balance", 0.0) or 0.0)
-    if balance <= 0:
-        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
-    if daily_budget > balance:
-        raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot exceed your available wallet balance (KES {balance:.2f}).")
-        
-    # Payout Phone Number Configuration & Budget Locking
+    # Payout Phone Number Configuration & Step-up Authentication
     current_payout_phone = db.get_payout_phone_number(user_id)
     if payload.payout_phone_number:
         from app.api.routers.auth import sanitize_phone_number
@@ -137,13 +135,20 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
                 reason="User updated payout destination line during budget lock",
                 ip_address=client_ip
             )
-        
-        db.update_payout_phone_number(user_id, sanitized_phone)
+            db.update_payout_phone_number(user_id, sanitized_phone)
+        elif not current_payout_phone:
+            db.update_payout_phone_number(user_id, sanitized_phone)
     elif not current_payout_phone:
         raise HTTPException(
             status_code=400,
             detail="A target Safaricom M-Pesa phone number is required to receive your daily disbursements. Please provide a payout phone number."
         )
+
+    settings = db.get_settings(user_id)
+    daily_budget = float(settings.get("daily_budget", 0.0) or 0.0)
+    balance = float(settings.get("balance", 0.0) or 0.0)
+    if daily_budget > balance and balance > 0:
+        raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
 
     db.lock_budget(user_id)
     db.update_settings(user_id, start_date=start_date, end_date=end_date)

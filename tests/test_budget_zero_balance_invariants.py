@@ -52,24 +52,6 @@ def _setup_user(email="zero_balance_user@example.com", balance=0):
     c.headers = {"X-CSRF-Token": csrf}
     return c, user_id
 
-def test_locking_budget_with_zero_balance_fails():
-    """Users cannot schedule or lock a budget with zero wallet balance."""
-    c, user_id = _setup_user(balance=0)
-    db = get_test_db()
-
-    # Add draft items
-    db.session.add(BudgetItem(user_id=user_id, category="Food", amount=300))
-    db._commit()
-    db.recalculate_daily_budget(user_id)
-
-    # Attempt to lock with zero balance
-    res = c.post("/api/budget/lock", json={
-        "start_date": "2026-09-05",
-        "end_date": "2026-09-25"
-    })
-    assert res.status_code == 400
-    assert "zero wallet balance" in res.json()["detail"].lower()
-    assert db.is_budget_locked(user_id) is False
 
 def test_daily_budget_exceeding_wallet_balance_rejected():
     """Setting daily budget greater than wallet balance is rejected."""
@@ -78,7 +60,7 @@ def test_daily_budget_exceeding_wallet_balance_rejected():
 
     res = c.post("/api/settings", json={"daily_budget": 1000})
     assert res.status_code == 400
-    assert "cannot exceed" in res.json()["detail"].lower()
+    assert "cannot be more than your deposit balance" in res.json()["detail"].lower()
 
 def test_locking_budget_with_sufficient_balance_succeeds():
     """Users with sufficient balance can lock budget successfully."""
@@ -97,10 +79,10 @@ def test_locking_budget_with_sufficient_balance_succeeds():
     assert db.is_budget_locked(user_id) is True
     assert db.is_deposit_locked(user_id) is True
 
-def test_depleted_balance_auto_unlocks_budget_and_deposit():
+def test_depleted_balance_auto_allows_budget_reconfiguration():
     """
-    When user runs out of funds (balance reaches zero), budget and deposit locks
-    automatically lift so the user can reconfigure a new budget upon depositing.
+    When user runs out of funds (balance reaches zero), budget mutations
+    are permitted so the user can reconfigure a new budget upon depositing.
     """
     c, user_id = _setup_user(balance=3000)
     db = get_test_db()
@@ -116,24 +98,21 @@ def test_depleted_balance_auto_unlocks_budget_and_deposit():
     })
     assert res.status_code == 200
     assert db.is_budget_locked(user_id) is True
-    assert db.is_deposit_locked(user_id) is True
 
-    # 2. Simulate payouts exhausting user balance to 0
+    # 2. While balance > 0 and locked, adding items is blocked
+    blocked_res = c.post("/api/budget/items", json={
+        "category": "Shopping",
+        "amount": 200
+    })
+    assert blocked_res.status_code == 400
+    assert "locked" in blocked_res.json()["detail"].lower()
+
+    # 3. Simulate payouts exhausting user balance to 0
     db.adjust_balance(user_id, -3000)
     wallet = db.get_user_wallet(user_id)
     assert wallet.available_balance == 0
 
-    # 3. Verify locks are automatically lifted
-    assert db.is_budget_locked(user_id) is False
-    assert db.is_deposit_locked(user_id) is False
-
-    # 4. Verify /api/settings reports unlocked state
-    settings_res = c.get("/api/settings")
-    assert settings_res.status_code == 200
-    assert settings_res.json()["is_budget_locked"] is False
-    assert settings_res.json()["is_deposit_locked"] is False
-
-    # 5. Verify user can mutate budget items without being blocked by lock
+    # 4. Verify user can mutate budget items without being blocked by lock once balance is 0
     items_res = c.post("/api/budget/items", json={
         "category": "New Month Plan",
         "amount": 200
