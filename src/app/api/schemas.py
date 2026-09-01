@@ -125,7 +125,8 @@ class BudgetLockPayload(BaseModel):
     otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for payout step-up")
 
 class StepUpOTPPayload(BaseModel):
-    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update)")
+    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update, wallet_withdrawal, password_change)")
+    amount: Optional[int] = Field(None, description="Optional withdrawal amount in whole KES to pre-validate before sending OTP")
 
 class PayoutPhonePayload(BaseModel):
     payout_phone_number: str = Field(..., description="Safaricom phone number for M-Pesa payouts")
@@ -143,6 +144,41 @@ class ProfileUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+class WithdrawRequest(BaseModel):
+    amount: int = Field(..., ge=10, le=250000, description="Amount to withdraw in whole KES (min KES 10, max KES 250,000)")
+    payout_phone_number: Optional[str] = Field(None, description="Optional Safaricom M-Pesa phone number (e.g. 0712345678 or 254712345678)")
+    password: str = Field(..., min_length=1, description="Account password for 2FA authorization")
+    otp_code: str = Field(..., pattern=r"^[0-9]{6}$", description="6-digit Email OTP code")
+
+    @field_validator("amount")
+    @classmethod
+    def validate_integer_amount(cls, v: int) -> int:
+        if not float(v).is_integer():
+            raise ValueError("Withdrawal amount must be a whole positive integer KES amount (no decimal places).")
+        return int(v)
+
+    @field_validator("payout_phone_number")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        clean = v.strip().replace(" ", "").replace("-", "")
+        if not clean:
+            return None
+        if clean.startswith("+"):
+            clean = clean[1:]
+        if clean.startswith("0") and len(clean) == 10:
+            clean = "254" + clean[1:]
+        elif clean.startswith("7") and len(clean) == 9:
+            clean = "254" + clean
+        elif clean.startswith("1") and len(clean) == 9:
+            clean = "254" + clean
+
+        import re
+        if not re.match(r"^254(7\d{8}|1\d{8})$", clean):
+            raise ValueError("Invalid phone number format. Must be a valid Kenyan Safaricom mobile number (e.g. 0712345678 or 254712345678).")
+        return clean
 
 class DeactivateRequest(BaseModel):
     password: str

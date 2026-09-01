@@ -768,6 +768,35 @@ class DatabaseManager:
                 setattr(settings, key, val)
         self._commit()
 
+    def debit_wallet_atomic(self, user_id: int, amount: int | float) -> bool:
+        """
+        Atomically debit amount from wallet and settings balance if available_balance >= amount.
+        Guarantees race-condition-proof deduction at the database engine layer.
+        Returns True if debited successfully, False if insufficient balance.
+        """
+        import sqlalchemy
+        int_amount = int(amount)
+        res = self.session.execute(
+            sqlalchemy.text(
+                "UPDATE wallets SET available_balance = available_balance - :amount "
+                "WHERE user_id = :user_id AND available_balance >= :amount"
+            ),
+            {"amount": int_amount, "user_id": user_id}
+        )
+        if res.rowcount == 0:
+            self.session.rollback()
+            return False
+            
+        self.session.execute(
+            sqlalchemy.text(
+                "UPDATE settings SET balance = balance - :amount "
+                "WHERE user_id = :user_id"
+            ),
+            {"amount": int_amount, "user_id": user_id}
+        )
+        self.session.commit()
+        return True
+
     def adjust_balance(self, user_id: int, amount: int | float) -> None:
         """Add or subtract from current wallet balance of a specific user using atomic SQL arithmetic."""
         int_amount = int(amount)
@@ -805,7 +834,7 @@ class DatabaseManager:
             self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
-        """Check if user's budget allocations are locked for the current calendar month or active schedule."""
+        """Check if user's budget allocations are locked for the active schedule or explicit lock."""
         budget = self.get_user_budget(user_id)
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
         if not budget and not settings:
@@ -817,8 +846,10 @@ class DatabaseManager:
         
         # 1. Check end_date across both Budget and Settings tables
         end_date = (budget.end_date if budget and budget.end_date else "") or (settings.end_date if settings and settings.end_date else "")
-        if end_date and ref_str > end_date:
-            return False
+        if end_date:
+            if ref_str > end_date:
+                return False
+            return True
 
         # 2. Check locked_until across both Budget and Settings tables
         locked_until = (budget.locked_until if budget and budget.locked_until else "") or (settings.budget_locked_until if settings and settings.budget_locked_until else "")
@@ -831,19 +862,32 @@ class DatabaseManager:
         except ValueError:
             return False
 
-    def is_deposit_locked(self, user_id: int) -> bool:
-        """Check if the user's deposited funds are locked for the current calendar month."""
-        settings = self.get_settings(user_id)
-        if not settings:
+    def is_deposit_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
+        """Check if user's deposited funds are locked for an active budget schedule or explicit lock."""
+        budget = self.get_user_budget(user_id)
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        if not budget and not settings:
             return False
-        locked_until = settings.get("deposit_locked_until", "")
+        
+        import datetime
+        ref_date = today or datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
+        ref_str = ref_date.strftime("%Y-%m-%d")
+        
+        # 1. Check end_date across Budget and Settings tables
+        end_date = (budget.end_date if budget and budget.end_date else "") or (settings.end_date if settings and settings.end_date else "")
+        if end_date:
+            if ref_str > end_date:
+                return False
+            return True
+
+        # 2. Check deposit_locked_until
+        locked_until = settings.deposit_locked_until if settings else ""
         if not locked_until:
             return False
-        import datetime
+            
         try:
             lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            ref_date = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
-            return ref_date < lock_date
+            return ref_date <= lock_date
         except ValueError:
             return False
 
@@ -858,13 +902,19 @@ class DatabaseManager:
         return next_month.strftime("%Y-%m-%d")
 
     def lock_budget(self, user_id: int) -> None:
-        """Lock the budget configuration until the first day of the next calendar month."""
-        lock_date = self._get_first_of_next_month()
+        """Lock the budget configuration for the active schedule duration or month."""
+        budget = self.get_user_budget(user_id)
+        settings = self.get_settings(user_id, decrypt_secrets=False)
+        end_date = (budget.end_date if budget and budget.end_date else "") or (settings.get("end_date", "") if settings else "")
+        lock_date = end_date or self._get_first_of_next_month()
         self.update_settings(user_id, budget_locked_until=lock_date)
 
     def lock_deposit(self, user_id: int) -> None:
-        """Lock the deposit balance until the first day of the next calendar month."""
-        lock_date = self._get_first_of_next_month()
+        """Lock deposit according to the user's active budget schedule or month."""
+        budget = self.get_user_budget(user_id)
+        settings = self.get_settings(user_id, decrypt_secrets=False)
+        end_date = (budget.end_date if budget and budget.end_date else "") or (settings.get("end_date", "") if settings else "")
+        lock_date = end_date or self._get_first_of_next_month()
         self.update_settings(user_id, deposit_locked_until=lock_date)
 
     # Payout Operations (Isolated per user)
@@ -1438,6 +1488,8 @@ class DatabaseManager:
             return None
 
         profile = self.get_profile(user_id) or {}
+        if not profile.get("payout_phone_number"):
+            profile["payout_phone_number"] = self.get_payout_phone_number(user_id)
         settings = self.get_settings(user_id, decrypt_secrets=False) or {}
         draft_items = self.get_budget_items(user_id)
         
