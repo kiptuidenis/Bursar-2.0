@@ -47,7 +47,7 @@ async def withdraw_funds(
     if not user.email or not user.email_verified:
         raise HTTPException(
             status_code=400,
-            detail="User account does not have a verified email address. Please link and verify an email address in Profile first."
+            detail="User account does not have a verified email address. Please link an email address in Profile first."
         )
 
     # 2. Deposit Lock Check (Disallow during active schedule)

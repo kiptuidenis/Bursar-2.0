@@ -245,7 +245,7 @@ from app.services.email import send_otp_email
 def request_stepup_otp(request: Request, payload: StepUpOTPPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     user = db.session.query(User).filter(User.id == user_id).first()
     if not user or not user.email or not user.email_verified:
-        raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link and verify an email address in Profile first.")
+        raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link an email address in Profile first.")
 
     user_email = user.email.strip().lower()
 
