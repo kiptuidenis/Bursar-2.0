@@ -81,6 +81,9 @@ body:not(.landing-body) {
     padding: 2rem;
     position: relative;
     z-index: 1;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Header */
@@ -3225,14 +3228,16 @@ body:not(.landing-body) {
     flex-direction: column;
     min-width: 0;
     overflow-y: auto;
+    overscroll-behavior-y: contain;
     position: relative;
     z-index: 1;
+    scroll-behavior: smooth;
 }
 
 /* Dashboard Footer Layout styling */
 .app-footer {
     margin-top: auto;
-    padding: 2rem 0;
+    padding: 1.75rem 0 1rem 0;
     border-top: 1px solid var(--border-glass);
     display: flex;
     justify-content: space-between;
@@ -3240,11 +3245,31 @@ body:not(.landing-body) {
     flex-wrap: wrap;
     gap: 1rem;
     width: 100%;
+    flex-shrink: 0;
 }
 
 .app-footer p {
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+.footer-support-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: var(--transition-smooth);
+}
+
+.footer-support-link:hover {
+    color: var(--color-accent-violet);
+}
+
+.footer-support-link i {
+    color: var(--color-accent-violet);
 }
 
 .system-status-indicator {
