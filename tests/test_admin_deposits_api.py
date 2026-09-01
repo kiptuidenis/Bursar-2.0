@@ -86,23 +86,25 @@ def test_admin_list_deposits(deposits_admin_client):
     """Admin can list deposits with filtering by status and search."""
     client, user_id = deposits_admin_client
 
-    # 1. List all deposits
+    # 1. List all deposits (total collected reflects confirmed completed deposits)
     res_all = client.get("/api/admin/deposits")
     assert res_all.status_code == 200
     data_all = res_all.json()
     assert data_all["total"] == 3
-    assert data_all["total_amount"] == 10000
+    assert data_all["total_amount"] == 3000
 
     # 2. Filter by status=COMPLETED
     res_comp = client.get("/api/admin/deposits?status=COMPLETED")
     assert res_comp.status_code == 200
     assert res_comp.json()["total"] == 1
+    assert res_comp.json()["total_amount"] == 3000
     assert res_comp.json()["deposits"][0]["checkout_request_id"] == "chk_comp_1001"
 
     # 3. Filter by status=PENDING
     res_pend = client.get("/api/admin/deposits?status=PENDING")
     assert res_pend.status_code == 200
     assert res_pend.json()["total"] == 1
+    assert res_pend.json()["total_amount"] == 5000
     assert res_pend.json()["deposits"][0]["checkout_request_id"] == "chk_pend_2002"
 
     # 4. Search by M-Pesa receipt
