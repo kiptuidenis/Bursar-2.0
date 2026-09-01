@@ -1676,6 +1676,12 @@ function setupEventHandlers() {
                 goToBudgetWizardStep(1);
                 return;
             }
+
+            const currentBal = currentSettings ? Number(currentSettings.balance || 0) : 0;
+            if (currentBal <= 0) {
+                alert("Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.");
+                return;
+            }
             
             if (!confirm("Are you sure you want to finalize and lock your budget? Once locked, you cannot add or delete allocation categories until the first day of next month.")) {
                 return;

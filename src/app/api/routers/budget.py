@@ -94,10 +94,12 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
         raise HTTPException(status_code=400, detail="End date must be strictly after start date (cannot be the same day or earlier).")
         
     settings = db.get_settings(user_id)
-    daily_budget = settings.get("daily_budget", 0.0)
-    balance = settings.get("balance", 0.0)
-    if daily_budget > balance and balance > 0:
-        raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+    daily_budget = float(settings.get("daily_budget", 0.0) or 0.0)
+    balance = float(settings.get("balance", 0.0) or 0.0)
+    if balance <= 0:
+        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
+    if daily_budget > balance:
+        raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot exceed your available wallet balance (KES {balance:.2f}).")
         
     # Payout Phone Number Configuration & Budget Locking
     current_payout_phone = db.get_payout_phone_number(user_id)

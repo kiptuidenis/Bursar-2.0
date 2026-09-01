@@ -64,8 +64,8 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
             raise HTTPException(status_code=400, detail="Daily budget is locked until the end of the month.")
             
         balance = int(current.get("balance", 0)) if current else 0
-        if new_val > balance and balance > 0:
-            raise HTTPException(status_code=400, detail=f"Daily budget (KES {new_val}) cannot be more than your deposit balance (KES {balance}).")
+        if new_val > balance:
+            raise HTTPException(status_code=400, detail=f"Daily budget (KES {new_val}) cannot exceed your available wallet balance (KES {balance}).")
             
     for field in ["mpesa_consumer_key", "mpesa_consumer_secret", "mpesa_initiator_password"]:
         if updates.get(field) == "********":

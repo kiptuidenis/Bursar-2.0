@@ -306,7 +306,9 @@ def test_locking_api_constraints():
     fail_lock = c2.post("/api/budget/lock")
     assert fail_lock.status_code == 400
     
-    # Add item and lock manually
+    # Add item and lock manually with available balance
+    db = get_test_db()
+    db.adjust_balance(user2_id, 2000)
     c2.post("/api/budget/items", json={"category": "Savings", "amount": 500.0})
     lock_res = c2.post("/api/budget/lock")
     assert lock_res.status_code == 200
@@ -352,7 +354,9 @@ def test_lock_disbursement_dates():
     future_str = (today_dt + datetime.timedelta(days=5)).strftime("%Y-%m-%d")
     far_future_str = (today_dt + datetime.timedelta(days=10)).strftime("%Y-%m-%d")
     
-    # Add a budget item to make locking allowed
+    # Set positive balance and add a budget item to make locking allowed
+    db = get_test_db()
+    db.adjust_balance(user_id, 2000)
     c.post("/api/budget/items", json={"category": "Groceries", "amount": 400.0})
     
     # 1. Test invalid start date format
