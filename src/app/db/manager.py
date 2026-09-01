@@ -805,7 +805,7 @@ class DatabaseManager:
             self._commit()
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
-        """Check if user's budget allocations are locked for the active schedule."""
+        """Check if user's budget allocations are locked for the active schedule or explicit lock."""
         budget = self.get_user_budget(user_id)
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
         if not budget and not settings:
@@ -834,7 +834,7 @@ class DatabaseManager:
             return False
 
     def is_deposit_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
-        """Check if user's deposited funds are locked for an active budget schedule."""
+        """Check if user's deposited funds are locked for an active budget schedule or explicit lock."""
         budget = self.get_user_budget(user_id)
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
         if not budget and not settings:
@@ -844,14 +844,23 @@ class DatabaseManager:
         ref_date = today or datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
         ref_str = ref_date.strftime("%Y-%m-%d")
         
+        # 1. Check end_date across Budget and Settings tables
         end_date = (budget.end_date if budget and budget.end_date else "") or (settings.end_date if settings and settings.end_date else "")
-        
-        # If no schedule is configured or if schedule has already ended, deposit is NOT locked
-        if not end_date or ref_str > end_date:
-            return False
+        if end_date:
+            if ref_str > end_date:
+                return False
+            return True
 
-        # During active schedule, deposit is locked
-        return True
+        # 2. Check deposit_locked_until
+        locked_until = settings.deposit_locked_until if settings else ""
+        if not locked_until:
+            return False
+            
+        try:
+            lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
+            return ref_date <= lock_date
+        except ValueError:
+            return False
 
     def _get_first_of_next_month(self) -> str:
         """Calculate the first day of the next calendar month as 'YYYY-MM-DD' in UTC+3 (Kenya Time)."""
@@ -864,7 +873,7 @@ class DatabaseManager:
         return next_month.strftime("%Y-%m-%d")
 
     def lock_budget(self, user_id: int) -> None:
-        """Lock the budget configuration for the active schedule duration."""
+        """Lock the budget configuration for the active schedule duration or month."""
         budget = self.get_user_budget(user_id)
         settings = self.get_settings(user_id, decrypt_secrets=False)
         end_date = (budget.end_date if budget and budget.end_date else "") or (settings.get("end_date", "") if settings else "")
@@ -872,11 +881,12 @@ class DatabaseManager:
         self.update_settings(user_id, budget_locked_until=lock_date)
 
     def lock_deposit(self, user_id: int) -> None:
-        """Lock deposit according to the user's active budget schedule end_date."""
+        """Lock deposit according to the user's active budget schedule or month."""
         budget = self.get_user_budget(user_id)
         settings = self.get_settings(user_id, decrypt_secrets=False)
         end_date = (budget.end_date if budget and budget.end_date else "") or (settings.get("end_date", "") if settings else "")
-        self.update_settings(user_id, deposit_locked_until=end_date)
+        lock_date = end_date or self._get_first_of_next_month()
+        self.update_settings(user_id, deposit_locked_until=lock_date)
 
     # Payout Operations (Isolated per user)
     def create_payout(self, user_id: int, payout_date: str, amount: float, phone_number: str, 
