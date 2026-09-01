@@ -2029,13 +2029,9 @@ function updateDashboardMetrics(settings) {
             
             if (bal < 10) {
                 openWithdrawBtn.disabled = true;
-                openWithdrawBtn.style.opacity = "0.5";
-                openWithdrawBtn.style.cursor = "not-allowed";
                 openWithdrawBtn.title = "Minimum balance of KES 10 required to withdraw";
             } else {
                 openWithdrawBtn.disabled = false;
-                openWithdrawBtn.style.opacity = "1";
-                openWithdrawBtn.style.cursor = "pointer";
                 openWithdrawBtn.title = "Withdraw available funds";
             }
         }
