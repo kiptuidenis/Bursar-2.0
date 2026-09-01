@@ -74,7 +74,7 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     page.on('dialog', async dialog => await dialog.accept());
 
     const userPhone = '254799554433';
-    await setupAuthenticatedUser(page, { phoneNumber: userPhone });
+    await setupAuthenticatedUser(page, { phoneNumber: userPhone, balance: 5000 });
 
     // Wait for dashboard to be fully loaded
     await expect(page.locator('#open-budget-designer-btn')).toBeVisible({ timeout: 10000 });
@@ -121,7 +121,7 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     const initialPhone = '254711998877';
     const newPayoutPhone = '254722334455';
     const userPassword = 'Str0ng!P@ssw0rd2026!';
-    const user = await setupAuthenticatedUser(page, { phoneNumber: initialPhone, password: userPassword });
+    const user = await setupAuthenticatedUser(page, { phoneNumber: initialPhone, password: userPassword, balance: 5000 });
 
     await expect(page.locator('#open-budget-designer-btn')).toBeVisible({ timeout: 10000 });
     await page.locator('#open-budget-designer-btn').click();

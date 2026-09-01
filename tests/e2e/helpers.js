@@ -12,7 +12,7 @@ async function setupAuthenticatedUser(page, options = {}) {
   const phone = options.phoneNumber || `2547${randomDigits}`;
   const email = options.email || `test_${phone}@bursar.co.ke`;
   const password = options.password || 'Str0ng!P@ssw0rd2026!';
-  const balance = options.balance !== undefined ? options.balance : 5000;
+  const balance = options.balance !== undefined ? options.balance : 0;
 
   // Navigate to a page on the same origin first so fetch() has the right context
   await page.goto('/admin');
@@ -67,6 +67,7 @@ async function setupEmailOnlyUser(page, options = {}) {
   const randomId = Math.floor(100000 + Math.random() * 900000);
   const email = options.email || `emailonly_${randomId}@bursar.co.ke`;
   const password = options.password || 'Str0ng!P@ssw0rd2026!';
+  const balance = options.balance !== undefined ? options.balance : 0;
 
   await page.goto('/admin');
   await page.evaluate(async (payload) => {
@@ -76,7 +77,7 @@ async function setupEmailOnlyUser(page, options = {}) {
       body: JSON.stringify(payload),
       credentials: 'include'
     });
-  }, { email_only: true, email, password });
+  }, { email_only: true, email, password, balance });
 
   await page.goto('/dashboard');
   await page.waitForLoadState('networkidle');

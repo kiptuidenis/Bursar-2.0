@@ -18,7 +18,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
       await dialog.accept();
     });
 
-    await setupAuthenticatedUser(page);
+    await setupAuthenticatedUser(page, { balance: 5000 });
 
     // 2. Add budget item & lock budget with future dates
     await page.click('#open-budget-designer-btn');

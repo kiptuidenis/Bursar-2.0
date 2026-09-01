@@ -24,7 +24,7 @@ test.describe('Phase 1: Scheduling Date Validation E2E Tests', () => {
     });
 
     // 1. Authenticated session
-    await setupAuthenticatedUser(page);
+    await setupAuthenticatedUser(page, { balance: 5000 });
 
     // 2. Open Budget Designer Modal
     await page.click('#open-budget-designer-btn');
