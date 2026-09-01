@@ -167,9 +167,12 @@
                                             <span class="currency">KES</span>
                                             <span class="amount-value" id="wallet-balance">0.00</span>
                                         </div>
-                                        <div class="card-back-actions">
+                                        <div class="card-back-actions" style="display: flex; gap: 0.5rem;">
                                             <button class="btn btn-primary" id="open-deposit-btn" style="flex: 1;">
                                                 <i data-lucide="plus-circle"></i> Deposit Funds
+                                            </button>
+                                            <button class="btn btn-secondary" id="open-withdraw-btn" style="flex: 1; display: none; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); align-items: center; justify-content: center; gap: 0.35rem;">
+                                                <i data-lucide="arrow-up-right"></i> Withdraw
                                             </button>
                                         </div>
                                     </div>
@@ -835,6 +838,104 @@
                     <button type="button" class="btn" id="session-extend-btn" style="background: var(--color-accent-violet); color: white; border: none; width: auto; padding: 0.55rem 1.25rem; font-weight: 600;">Stay Logged In</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Cash Withdrawal Modal -->
+    <div class="modal-overlay" id="withdraw-modal" style="z-index: 105;">
+        <div class="modal-content glass-panel" style="max-width: 460px; padding: 1.75rem;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin: 0; color: var(--text-primary); font-size: 1.15rem;">
+                    <i data-lucide="arrow-up-right" style="color: var(--color-accent-violet);"></i> Withdraw Cash
+                </h3>
+                <button class="close-btn" id="close-withdraw-btn">&times;</button>
+            </div>
+            <form id="withdraw-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: 0.5rem; padding: 0.85rem 1rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+                        <span>Available to Withdraw:</span>
+                        <strong style="color: var(--color-accent-emerald); font-size: 0.95rem;">KES <span id="withdraw-available-bal">0</span></strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted);">
+                        <span>Destination Line:</span>
+                        <strong id="withdraw-dest-phone" style="color: var(--text-primary); font-family: monospace;">254...</strong>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="withdraw-amount-input" style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.35rem;">
+                        <span>Withdrawal Amount (KES)</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Min KES 10 • Max KES 250,000</span>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="number" id="withdraw-amount-input" min="10" max="250000" step="1" inputmode="numeric" placeholder="e.g. 500" required style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.75rem; font-size: 1.1rem; font-weight: 600;">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-sm btn-quick-withdraw" data-amt="100" style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-secondary);">100</button>
+                        <button type="button" class="btn btn-sm btn-quick-withdraw" data-amt="500" style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-secondary);">500</button>
+                        <button type="button" class="btn btn-sm btn-quick-withdraw" data-amt="1000" style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-secondary);">1,000</button>
+                        <button type="button" class="btn btn-sm btn-quick-withdraw-max" id="btn-withdraw-max" style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.75rem; background: rgba(142, 68, 255, 0.15); border: 1px solid rgba(142, 68, 255, 0.4); color: var(--color-accent-violet); font-weight: 600;">MAX</button>
+                    </div>
+                </div>
+
+                <div id="withdraw-modal-error" class="info-alert" style="display: none; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); font-size: 0.85rem; padding: 0.75rem; border-radius: 0.5rem;"></div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" id="cancel-withdraw-btn" style="padding: 0.6rem 1.2rem;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="proceed-withdraw-btn" style="padding: 0.6rem 1.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <i data-lucide="arrow-up-right" style="width: 1rem; height: 1rem;"></i> Continue to 2FA
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cash Withdrawal 2FA Step-Up Modal -->
+    <div class="modal-overlay" id="withdraw-2fa-modal" style="z-index: 110;">
+        <div class="modal-content glass-panel" style="max-width: 440px; padding: 1.75rem;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin: 0; color: #f59e0b; font-size: 1.15rem;">
+                    <i data-lucide="shield-check" style="color: #f59e0b;"></i> Confirm Cash Withdrawal
+                </h3>
+                <button class="close-btn" id="close-withdraw-2fa-btn">&times;</button>
+            </div>
+            <form id="withdraw-2fa-form" style="display: flex; flex-direction: column; gap: 1.1rem;">
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 0.5rem; padding: 0.75rem 1rem;">
+                    <div style="font-size: 0.85rem; color: #f8fafc;">
+                        Authorize cash-out of <strong style="color: #f59e0b; font-size: 1.05rem;">KES <span id="withdraw-confirm-amount">0</span></strong> to <span id="withdraw-confirm-dest" style="font-family: monospace; font-weight: 600;">254...</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="withdraw-auth-password" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.35rem; display: block;">Account Password</label>
+                    <div class="password-input-wrapper" style="position: relative;">
+                        <input type="password" id="withdraw-auth-password" placeholder="Enter account password" required style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.75rem;">
+                        <button type="button" class="btn-toggle-password" data-target="withdraw-auth-password" aria-label="Toggle password visibility" tabindex="-1">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label for="withdraw-auth-otp" style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">6-Digit Email Verification Code</label>
+                        <button type="button" id="resend-withdraw-otp-btn" style="background: none; border: none; color: var(--color-accent-violet); font-size: 0.75rem; cursor: pointer; padding: 0; text-decoration: underline;">Resend Code</button>
+                    </div>
+                    <input type="text" id="withdraw-auth-otp" placeholder="••••••" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.75rem; font-size: 1.25rem; letter-spacing: 0.25em; text-align: center; font-family: monospace;">
+                    <small style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                        Code sent to your verified email address. Valid for 5 minutes.
+                    </small>
+                </div>
+
+                <div id="withdraw-2fa-error" class="info-alert" style="display: none; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); font-size: 0.85rem; padding: 0.75rem; border-radius: 0.5rem;"></div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" id="back-withdraw-2fa-btn" style="padding: 0.6rem 1.2rem;">Back</button>
+                    <button type="submit" class="btn btn-primary" id="confirm-withdraw-submit-btn" style="padding: 0.6rem 1.5rem; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+                        <i data-lucide="send" style="width: 1rem; height: 1rem;"></i> Confirm & Withdraw
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

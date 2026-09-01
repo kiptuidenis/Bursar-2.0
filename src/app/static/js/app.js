@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Setup Event Handlers
     setupEventHandlers();
+    setupWithdrawalHandlers();
 
     // Start countdown timer immediately (ticks client-side)
     startCountdownTimer();
@@ -1738,6 +1739,17 @@ function updateDashboardMetrics(settings) {
         if (depositPhoneBadge) depositPhoneBadge.style.display = "inline-block";
         if (depositPhoneHint) depositPhoneHint.innerText = "The STK push prompt will be sent to your saved Safaricom line.";
     }
+
+    // Update Withdraw Button Visibility (Only visible when deposit is NOT locked and balance >= 10)
+    const openWithdrawBtn = document.getElementById("open-withdraw-btn");
+    if (openWithdrawBtn) {
+        const bal = parseFloat(settings.balance || 0);
+        if (!settings.is_deposit_locked && bal >= 10) {
+            openWithdrawBtn.style.display = "inline-flex";
+        } else {
+            openWithdrawBtn.style.display = "none";
+        }
+    }
 }
 
 // Fetch historical payout transaction rows
@@ -2587,3 +2599,295 @@ document.addEventListener("click", (e) => {
         window.lucide.createIcons();
     }
 });
+
+// ==========================================
+// Cash Withdrawal & 2FA Flow
+// ==========================================
+let withdrawPendingData = {
+    amount: 0,
+    payout_phone_number: ""
+};
+let withdrawOtpCooldownTimer = null;
+
+function setupWithdrawalHandlers() {
+    const openWithdrawBtn = document.getElementById("open-withdraw-btn");
+    const withdrawModal = document.getElementById("withdraw-modal");
+    const closeWithdrawBtn = document.getElementById("close-withdraw-btn");
+    const cancelWithdrawBtn = document.getElementById("cancel-withdraw-btn");
+    const withdrawForm = document.getElementById("withdraw-form");
+    const withdrawAmountInput = document.getElementById("withdraw-amount-input");
+    const withdrawModalError = document.getElementById("withdraw-modal-error");
+    const withdrawAvailableBal = document.getElementById("withdraw-available-bal");
+    const withdrawDestPhone = document.getElementById("withdraw-dest-phone");
+    const proceedWithdrawBtn = document.getElementById("proceed-withdraw-btn");
+
+    const withdraw2faModal = document.getElementById("withdraw-2fa-modal");
+    const closeWithdraw2faBtn = document.getElementById("close-withdraw-2fa-btn");
+    const backWithdraw2faBtn = document.getElementById("back-withdraw-2fa-btn");
+    const withdraw2faForm = document.getElementById("withdraw-2fa-form");
+    const withdrawConfirmAmount = document.getElementById("withdraw-confirm-amount");
+    const withdrawConfirmDest = document.getElementById("withdraw-confirm-dest");
+    const withdrawAuthPassword = document.getElementById("withdraw-auth-password");
+    const withdrawAuthOtp = document.getElementById("withdraw-auth-otp");
+    const withdraw2faError = document.getElementById("withdraw-2fa-error");
+    const confirmWithdrawSubmitBtn = document.getElementById("confirm-withdraw-submit-btn");
+    const resendWithdrawOtpBtn = document.getElementById("resend-withdraw-otp-btn");
+
+    // Open Initial Withdrawal Modal
+    if (openWithdrawBtn) {
+        openWithdrawBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (withdrawModalError) withdrawModalError.style.display = "none";
+            if (withdrawAmountInput) withdrawAmountInput.value = "";
+
+            // Check if user has an email
+            try {
+                const profileRes = await fetch("/api/profile");
+                if (profileRes.status === 401) return showAuthScreen();
+                const profile = await profileRes.json();
+                if (!profile.email) {
+                    alert("Please link and verify an email address in Profile Settings before withdrawing cash.");
+                    switchTab("profile");
+                    return;
+                }
+                const currentBal = parseFloat(currentSettings.balance || 0);
+                if (withdrawAvailableBal) withdrawAvailableBal.innerText = currentBal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const destPhone = profile.payout_phone_number || profile.phone_number || currentSettings.phone_number || "";
+                if (withdrawDestPhone) withdrawDestPhone.innerText = destPhone || "N/A";
+                withdrawPendingData.payout_phone_number = destPhone;
+
+                if (withdrawModal) withdrawModal.classList.add("active");
+                if (withdrawAmountInput) withdrawAmountInput.focus();
+            } catch (err) {
+                console.error("Error preparing withdrawal modal:", err);
+            }
+        });
+    }
+
+    // Quick chip buttons
+    document.querySelectorAll(".btn-quick-withdraw").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const amt = parseInt(btn.getAttribute("data-amt"), 10);
+            if (withdrawAmountInput) withdrawAmountInput.value = amt;
+        });
+    });
+
+    const btnWithdrawMax = document.getElementById("btn-withdraw-max");
+    if (btnWithdrawMax) {
+        btnWithdrawMax.addEventListener("click", () => {
+            const maxAmt = Math.floor(parseFloat(currentSettings.balance || 0));
+            if (withdrawAmountInput) withdrawAmountInput.value = maxAmt;
+        });
+    }
+
+    // Close Withdrawal Modal
+    function closeWithdrawModal() {
+        if (withdrawModal) withdrawModal.classList.remove("active");
+        if (withdrawModalError) withdrawModalError.style.display = "none";
+    }
+
+    if (closeWithdrawBtn) closeWithdrawBtn.addEventListener("click", closeWithdrawModal);
+    if (cancelWithdrawBtn) cancelWithdrawBtn.addEventListener("click", closeWithdrawModal);
+
+    // Proceed from Amount to 2FA Confirmation Modal
+    if (withdrawForm) {
+        withdrawForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (withdrawModalError) withdrawModalError.style.display = "none";
+
+            const rawVal = withdrawAmountInput.value.trim();
+            const amount = parseInt(rawVal, 10);
+            const currentBal = parseFloat(currentSettings.balance || 0);
+
+            if (!rawVal || isNaN(amount) || amount < 10 || amount > 250000) {
+                if (withdrawModalError) {
+                    withdrawModalError.innerText = "Please enter a valid whole integer amount between KES 10 and KES 250,000.";
+                    withdrawModalError.style.display = "block";
+                }
+                return;
+            }
+
+            if (amount > currentBal) {
+                if (withdrawModalError) {
+                    withdrawModalError.innerText = `Insufficient balance. You have KES ${currentBal.toFixed(2)} available.`;
+                    withdrawModalError.style.display = "block";
+                }
+                return;
+            }
+
+            withdrawPendingData.amount = amount;
+
+            // Trigger Pre-OTP dispatch
+            if (proceedWithdrawBtn) {
+                proceedWithdrawBtn.disabled = true;
+                proceedWithdrawBtn.innerHTML = `<span class="spinner-sm"></span> Sending Code...`;
+            }
+
+            try {
+                const otpRes = await fetch("/api/profile/request-stepup-otp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        purpose: "wallet_withdrawal",
+                        amount: amount
+                    })
+                });
+                const otpData = await otpRes.json();
+                if (!otpRes.ok) throw new Error(otpData.detail || "Failed to dispatch verification code.");
+
+                // Switch modals
+                closeWithdrawModal();
+                if (withdrawConfirmAmount) withdrawConfirmAmount.innerText = amount.toLocaleString("en-US");
+                if (withdrawConfirmDest) withdrawConfirmDest.innerText = withdrawPendingData.payout_phone_number;
+                if (withdrawAuthPassword) withdrawAuthPassword.value = "";
+                if (withdrawAuthOtp) withdrawAuthOtp.value = "";
+                if (withdraw2faError) withdraw2faError.style.display = "none";
+
+                if (withdraw2faModal) withdraw2faModal.classList.add("active");
+                if (withdrawAuthPassword) withdrawAuthPassword.focus();
+
+                startWithdrawOtpCooldown();
+            } catch (err) {
+                if (withdrawModalError) {
+                    withdrawModalError.innerText = err.message || "Failed to initiate withdrawal.";
+                    withdrawModalError.style.display = "block";
+                }
+            } finally {
+                if (proceedWithdrawBtn) {
+                    proceedWithdrawBtn.disabled = false;
+                    proceedWithdrawBtn.innerHTML = `<i data-lucide="arrow-up-right" style="width: 1rem; height: 1rem;"></i> Continue to 2FA`;
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            }
+        });
+    }
+
+    // Close 2FA Modal
+    function closeWithdraw2faModal() {
+        if (withdraw2faModal) withdraw2faModal.classList.remove("active");
+        if (withdraw2faError) withdraw2faError.style.display = "none";
+    }
+
+    if (closeWithdraw2faBtn) closeWithdraw2faBtn.addEventListener("click", closeWithdraw2faModal);
+    if (backWithdraw2faBtn) {
+        backWithdraw2faBtn.addEventListener("click", () => {
+            closeWithdraw2faModal();
+            if (withdrawModal) withdrawModal.classList.add("active");
+        });
+    }
+
+    // Resend OTP in 2FA Modal
+    if (resendWithdrawOtpBtn) {
+        resendWithdrawOtpBtn.addEventListener("click", async () => {
+            if (resendWithdrawOtpBtn.disabled) return;
+            try {
+                resendWithdrawOtpBtn.innerText = "Sending...";
+                const res = await fetch("/api/profile/request-stepup-otp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        purpose: "wallet_withdrawal",
+                        amount: withdrawPendingData.amount
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Failed to resend code.");
+                startWithdrawOtpCooldown();
+            } catch (err) {
+                if (withdraw2faError) {
+                    withdraw2faError.innerText = err.message || "Failed to resend code.";
+                    withdraw2faError.style.display = "block";
+                }
+                resendWithdrawOtpBtn.innerText = "Resend Code";
+            }
+        });
+    }
+
+    function startWithdrawOtpCooldown() {
+        if (!resendWithdrawOtpBtn) return;
+        let seconds = 30;
+        resendWithdrawOtpBtn.disabled = true;
+        resendWithdrawOtpBtn.innerText = `Resend in ${seconds}s`;
+        if (withdrawOtpCooldownTimer) clearInterval(withdrawOtpCooldownTimer);
+        withdrawOtpCooldownTimer = setInterval(() => {
+            seconds--;
+            if (seconds <= 0) {
+                clearInterval(withdrawOtpCooldownTimer);
+                resendWithdrawOtpBtn.disabled = false;
+                resendWithdrawOtpBtn.innerText = "Resend Code";
+            } else {
+                resendWithdrawOtpBtn.innerText = `Resend in ${seconds}s`;
+            }
+        }, 1000);
+    }
+
+    // Submit 2FA and Execute Withdrawal
+    if (withdraw2faForm) {
+        withdraw2faForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (withdraw2faError) withdraw2faError.style.display = "none";
+
+            const password = withdrawAuthPassword.value;
+            const otpCode = withdrawAuthOtp.value.trim();
+
+            if (!password) {
+                if (withdraw2faError) {
+                    withdraw2faError.innerText = "Please enter your password.";
+                    withdraw2faError.style.display = "block";
+                }
+                return;
+            }
+
+            if (!/^[0-9]{6}$/.test(otpCode)) {
+                if (withdraw2faError) {
+                    withdraw2faError.innerText = "Please enter a valid 6-digit numeric OTP code.";
+                    withdraw2faError.style.display = "block";
+                }
+                return;
+            }
+
+            if (confirmWithdrawSubmitBtn) {
+                confirmWithdrawSubmitBtn.disabled = true;
+                confirmWithdrawSubmitBtn.innerHTML = `<span class="spinner-sm"></span> Processing Withdrawal...`;
+            }
+
+            try {
+                const idempotencyKey = "wd_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
+                const res = await fetch("/api/wallet/withdraw", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Idempotency-Key": idempotencyKey
+                    },
+                    body: JSON.stringify({
+                        amount: withdrawPendingData.amount,
+                        password: password,
+                        otp_code: otpCode,
+                        payout_phone_number: withdrawPendingData.payout_phone_number
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Withdrawal failed.");
+
+                closeWithdraw2faModal();
+                alert(`✅ Withdrawal Successful!\nKES ${withdrawPendingData.amount.toLocaleString()} has been sent to ${withdrawPendingData.payout_phone_number}.`);
+                
+                fetchSettings();
+                fetchPayouts();
+                fetchProfile();
+            } catch (err) {
+                if (withdraw2faError) {
+                    withdraw2faError.innerText = err.message || "Failed to process withdrawal.";
+                    withdraw2faError.style.display = "block";
+                }
+            } finally {
+                if (confirmWithdrawSubmitBtn) {
+                    confirmWithdrawSubmitBtn.disabled = false;
+                    confirmWithdrawSubmitBtn.innerHTML = `<i data-lucide="send" style="width: 1rem; height: 1rem;"></i> Confirm & Withdraw`;
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            }
+        });
+    }
+}
