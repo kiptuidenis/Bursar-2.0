@@ -115,7 +115,9 @@ def test_budget_lock_with_stepup_otp_and_payout_phone():
     client, email, password = setup_authenticated_client("budgetlock@bursar.co.ke")
     
     # 1. Deposit funds
-    client.post("/api/budget/deposit", json={"amount": 1000})
+    db = get_test_db()
+    user = db.get_user_by_email(email)
+    db.adjust_balance(user.id, 5000)
     
     # 2. Add budget item
     client.post("/api/budget/items", json={"category": "Food", "amount": 500})
