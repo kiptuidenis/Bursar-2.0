@@ -835,8 +835,18 @@ class DatabaseManager:
 
     def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if user's budget allocations are locked for the active schedule or explicit lock."""
-        budget = self.get_user_budget(user_id)
+        # Auto-unlock on depleted balance: If user has 0 balance, unlock so they can create a new budget
+        wallet = self.get_user_wallet(user_id)
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        balance = 0
+        if wallet:
+            balance = wallet.available_balance
+        elif settings:
+            balance = settings.balance or 0
+        if balance <= 0:
+            return False
+
+        budget = self.get_user_budget(user_id)
         if not budget and not settings:
             return False
 
@@ -864,8 +874,17 @@ class DatabaseManager:
 
     def is_deposit_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
         """Check if user's deposited funds are locked for an active budget schedule or explicit lock."""
-        budget = self.get_user_budget(user_id)
+        wallet = self.get_user_wallet(user_id)
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
+        balance = 0
+        if wallet:
+            balance = wallet.available_balance
+        elif settings:
+            balance = settings.balance or 0
+        if balance <= 0:
+            return False
+
+        budget = self.get_user_budget(user_id)
         if not budget and not settings:
             return False
         

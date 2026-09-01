@@ -12,6 +12,7 @@ async function setupAuthenticatedUser(page, options = {}) {
   const phone = options.phoneNumber || `2547${randomDigits}`;
   const email = options.email || `test_${phone}@bursar.co.ke`;
   const password = options.password || 'Str0ng!P@ssw0rd2026!';
+  const balance = options.balance !== undefined ? options.balance : 5000;
 
   // Navigate to a page on the same origin first so fetch() has the right context
   await page.goto('/admin');
@@ -24,7 +25,7 @@ async function setupAuthenticatedUser(page, options = {}) {
       body: JSON.stringify(payload),
       credentials: 'include'
     });
-  }, { phone_number: phone, email, password });
+  }, { phone_number: phone, email, password, balance });
 
   await page.goto('/dashboard');
   await page.waitForLoadState('networkidle');
