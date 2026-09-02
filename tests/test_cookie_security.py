@@ -20,7 +20,8 @@ def client_and_db():
     db = DatabaseManager(DB_FILE)
     db.initialize()
     
-    user_id = db.create_user("254712345678", "TestPassword123!")
+    pwd_hash, salt = db._hash_password("TestPassword123!")
+    user_id = db.create_user_email("test_cookie_sec@example.com", pwd_hash, salt, phone_number="254712345678")
     
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user_id] = lambda: user_id
