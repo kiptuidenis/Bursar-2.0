@@ -31,6 +31,7 @@ def clean_db():
     db.close()
 
 from app.api.dependencies import session_manager
+from app.core.csrf import generate_csrf_token
 
 def _create_user_client(phone="254711998877", password="TestPassword123!"):
     db = get_test_db()
@@ -38,6 +39,9 @@ def _create_user_client(phone="254711998877", password="TestPassword123!"):
     token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
     client = TestClient(app)
     client.cookies.set("session_token", token)
+    csrf = generate_csrf_token()
+    client.cookies.set("csrf_token", csrf)
+    client.headers = {"X-CSRF-Token": csrf}
     return client, user_id
 
 def test_settings_orm_model_has_no_financial_columns():
@@ -74,13 +78,14 @@ def test_settings_update_api_rejects_balance_and_daily_budget_injection():
     assert budget.daily_budget == 0
 
 def test_settings_update_api_accepts_valid_configuration_fields():
-    """Verify POST /api/settings accepts preferences and payout time."""
+    """Verify POST /api/settings accepts preferences and valid configurations."""
     client, user_id = _create_user_client()
     
-    res = client.post("/api/settings", json={"payout_time": "14:30"})
+    res = client.post("/api/settings", json={"mode": "sandbox", "mpesa_shortcode": "600000"})
     assert res.status_code == 200
     assert res.json()["status"] == "success"
     
     db = get_test_db()
     settings = db.get_settings(user_id)
-    assert settings["payout_time"] == "14:30"
+    assert settings["mode"] == "sandbox"
+    assert settings["mpesa_shortcode"] == "600000"
