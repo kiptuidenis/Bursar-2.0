@@ -121,6 +121,10 @@ test.describe('Profile Input Preservation & Email Change OTP Verification E2E Te
   });
 
   test('Should allow legacy user without email to link new email with OTP verification', async ({ page }) => {
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+    });
+
     const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
     const legacyPhone = `2547${randomDigits}`;
     const newTargetEmail = `linked_legacy_${randomDigits}@example.com`;
@@ -133,7 +137,9 @@ test.describe('Profile Input Preservation & Email Change OTP Verification E2E Te
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
 
-    // 3. Fill new email address
+    // 3. Fill required profile fields including new email address
+    await page.fill('#profile-first-name', 'LegacyFirst');
+    await page.fill('#profile-last-name', 'LegacyLast');
     await page.fill('#profile-email', newTargetEmail);
 
     // 4. Click Save Profile and wait for request-stepup-otp response
