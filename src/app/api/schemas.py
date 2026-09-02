@@ -35,7 +35,6 @@ class OTPResendPayload(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
-    daily_budget: Optional[int] = None
     phone_number: Optional[str] = None
     payout_time: Optional[str] = None
     mode: Optional[str] = None
@@ -50,15 +49,6 @@ class SettingsUpdate(BaseModel):
     end_date: Optional[str] = None
     password: Optional[str] = None
     otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for phone update verification")
-
-    @field_validator("daily_budget")
-    @classmethod
-    def validate_integer_daily_budget(cls, v: Optional[int]) -> Optional[int]:
-        if v is not None:
-            if not float(v).is_integer():
-                raise ValueError("Daily budget must be a whole integer KES amount (no decimal places).")
-            return int(v)
-        return v
 
 class DepositRequest(BaseModel):
     amount: int = Field(..., gt=0, description="Amount to deposit must be a positive whole integer KES amount")

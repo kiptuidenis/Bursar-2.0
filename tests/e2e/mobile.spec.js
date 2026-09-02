@@ -105,10 +105,10 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     await page.click('#toggle-settings-btn');
     await expect(page.locator('#settings-drawer')).toHaveClass(/active/);
 
-    const settingsBudget = page.locator('#settings-budget');
+    const settingsTime = page.locator('#settings-time');
     const settingsPhone = page.locator('#settings-phone');
 
-    await expect(settingsBudget).toHaveAttribute('inputmode', 'decimal');
+    await expect(settingsTime).toHaveAttribute('type', 'time');
     await expect(settingsPhone).toHaveAttribute('type', 'tel');
     await expect(settingsPhone).toHaveAttribute('inputmode', 'tel');
 

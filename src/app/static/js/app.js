@@ -366,10 +366,8 @@ function switchTab(tabId) {
         if (currentSettings) {
             const phoneEl = document.getElementById("settings-phone");
             const timeEl = document.getElementById("settings-time");
-            const budgetEl = document.getElementById("settings-budget");
             if (phoneEl) phoneEl.value = currentSettings.phone_number || "";
             if (timeEl) timeEl.value = currentSettings.payout_time || "08:00";
-            if (budgetEl) budgetEl.value = currentSettings.daily_budget || 0;
         }
     } else {
         // Return to drawer overlay if not on settings tab
@@ -897,10 +895,8 @@ function setupEventHandlers() {
             if (currentSettings) {
                 const phoneEl = document.getElementById("settings-phone");
                 const timeEl = document.getElementById("settings-time");
-                const budgetEl = document.getElementById("settings-budget");
                 if (phoneEl) phoneEl.value = currentSettings.phone_number || "";
                 if (timeEl) timeEl.value = currentSettings.payout_time || "08:00";
-                if (budgetEl) budgetEl.value = currentSettings.daily_budget || 0;
             }
             settingsDrawer.classList.add("active");
         }
@@ -1022,7 +1018,6 @@ function setupEventHandlers() {
     document.getElementById("settings-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        const daily_budget = parseFloat(document.getElementById("settings-budget").value);
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value.trim();
         
@@ -1039,7 +1034,6 @@ function setupEventHandlers() {
         }
         
         const payload = {
-            daily_budget,
             payout_time,
             phone_number
         };
@@ -1999,23 +1993,8 @@ function updateDashboardMetrics(settings) {
     const inFlatTabMode = viewSettings && !viewSettings.classList.contains("hidden") && viewSettings.classList.contains("active");
     const isEditingSettings = isSettingsDrawerOpen || inFlatTabMode || [
         document.getElementById("settings-phone"),
-        document.getElementById("settings-time"),
-        document.getElementById("settings-budget")
+        document.getElementById("settings-time")
     ].some(el => el && el === document.activeElement);
-
-    const settingsBudgetInput = document.getElementById("settings-budget");
-    if (settingsBudgetInput) {
-        if (!isEditingSettings) {
-            settingsBudgetInput.value = settings.daily_budget || 0;
-        }
-        if (settings.is_budget_locked) {
-            settingsBudgetInput.disabled = true;
-            settingsBudgetInput.title = "Budget is locked until the end of the month.";
-        } else {
-            settingsBudgetInput.disabled = false;
-            settingsBudgetInput.title = "";
-        }
-    }
 
     const editBudgetBtn = document.getElementById("edit-budget-btn");
     const budgetLockBadge = document.getElementById("budget-lock-badge");

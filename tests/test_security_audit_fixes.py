@@ -76,7 +76,7 @@ def test_balance_injection_prevented():
     # Attempt to inject balance = 100000.0 via POST /api/settings
     res_update = client.post(
         "/api/settings",
-        json={"balance": 100000.0, "daily_budget": 500.0},
+        json={"mode": "sandbox", "balance": 100000.0},
         headers=headers
     )
     assert res_update.status_code == 200
@@ -85,7 +85,6 @@ def test_balance_injection_prevented():
     res_get_after = client.get("/api/settings")
     assert res_get_after.status_code == 200
     assert res_get_after.json()["balance"] == 0.0
-    assert res_get_after.json()["daily_budget"] == 500.0
 
 
 def test_webhook_signature_verification_fail_closed(monkeypatch):

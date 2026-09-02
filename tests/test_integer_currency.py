@@ -1,11 +1,11 @@
 import os
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Integer
+from sqlalchemy import Integer, BigInteger
 
 from app.main import app, get_db
 from app.db.manager import DatabaseManager
-from app.db.models import Settings, Payout, BudgetItem, Deposit
+from app.db.models import Wallet, Budget, Payout, BudgetItem, Deposit
 from app.core.currency import validate_kes_amount
 
 DB_FILE = "test_integer_currency.db"
@@ -60,8 +60,8 @@ def test_currency_utility_validation():
 
 def test_model_columns_are_integer_type():
     """Verify that all monetary model columns are defined as Integer in SQLAlchemy models."""
-    assert isinstance(Settings.balance.type, Integer)
-    assert isinstance(Settings.daily_budget.type, Integer)
+    assert isinstance(Wallet.available_balance.type, (Integer, BigInteger))
+    assert isinstance(Budget.daily_budget.type, (Integer, BigInteger))
     assert isinstance(Payout.amount.type, Integer)
     assert isinstance(BudgetItem.amount.type, Integer)
     assert isinstance(Deposit.amount.type, Integer)
@@ -95,25 +95,24 @@ def test_api_rejects_decimal_currency_amounts():
     res_budget = client.post("/api/budget/items", json={"category": "Food", "amount": 200.50}, headers=headers)
     assert res_budget.status_code in (400, 422)
 
-    # 3. Settings daily budget rejects 500.25
-    res_settings = client.post("/api/settings", json={"daily_budget": 500.25}, headers=headers)
-    assert res_settings.status_code in (400, 422)
-
 
 def test_api_accepts_whole_integer_kes_amounts():
     """Verify that API endpoints accept positive whole integer KES amounts."""
     client, headers = _setup_auth_client("254711777111")
+    db = get_test_db()
 
     # 1. Budget item with whole KES 200
     res_budget = client.post("/api/budget/items", json={"category": "Transport", "amount": 200}, headers=headers)
     assert res_budget.status_code == 200
 
-    # 2. Settings daily budget with whole KES 200
-    res_settings = client.post("/api/settings", json={"daily_budget": 200}, headers=headers)
-    assert res_settings.status_code == 200
-
-    # 3. Deposit initiate with whole KES 1000
+    # 2. Deposit initiate with whole KES 1000
     client.post("/api/settings", json={"phone_number": "254711777111"}, headers=headers)
     res_dep = client.post("/api/deposit/initiate", json={"amount": 1000}, headers=headers)
     assert res_dep.status_code == 200
     assert isinstance(res_dep.json()["checkout_request_id"], str)
+
+    # 3. Budget lock with whole KES budget items (balance is funded)
+    user = db.get_user_by_email("user_254711777111@example.com")
+    db.adjust_balance(user.id, 2000)
+    res_lock = client.post("/api/budget/lock", json={"items": [{"category": "Transport", "amount": 200}]}, headers=headers)
+    assert res_lock.status_code == 200

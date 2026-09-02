@@ -80,8 +80,6 @@ class Settings(Base):
     __tablename__ = "settings"
     
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    balance = Column(Integer, default=0)
-    daily_budget = Column(Integer, default=0)
     phone_number = Column(String(50), default="")
     payout_time = Column(String(10), default="08:00")
     mode = Column(String(50), default="sandbox")
