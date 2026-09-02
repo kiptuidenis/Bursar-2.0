@@ -40,7 +40,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     // 3. Fill profile info details
     await page.fill('#profile-first-name', 'Jane');
     await page.fill('#profile-last-name', 'Doe');
-    await page.fill('#profile-email', 'jane.doe@example.com');
+    await page.fill('#profile-email', testEmail);
     await page.fill('#profile-bio', 'Doing E2E tests for Bursar 2.0');
 
     await page.click('#profile-info-form button[type="submit"]');
@@ -56,7 +56,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     
     await expect(page.locator('#profile-first-name')).toHaveValue('Jane');
     await expect(page.locator('#profile-last-name')).toHaveValue('Doe');
-    await expect(page.locator('#profile-email')).toHaveValue('jane.doe@example.com');
+    await expect(page.locator('#profile-email')).toHaveValue(testEmail);
     await expect(page.locator('#profile-bio')).toHaveValue('Doing E2E tests for Bursar 2.0');
 
     // 5. Test Password PIN change

@@ -50,7 +50,7 @@ def _create_authenticated_client(phone_number, password, email=None, user_agent=
     return c, user_id
 
 def test_profile_endpoints():
-    c, user_id = _create_authenticated_client("254711223344", "Str0ng!P@ssw0rd")
+    c, user_id = _create_authenticated_client("254711223344", "Str0ng!P@ssw0rd", email="alice.smith@example.com")
 
     # Get empty profile initially
     res_get = c.get("/api/profile")

@@ -46,10 +46,38 @@ def update_profile(request: Request, payload: ProfileUpdate, user_id: int = Depe
     if "email" in updates and (updates["email"] is None or not updates["email"].strip()):
         raise HTTPException(status_code=400, detail="Email address cannot be empty.")
         
+    user = db.session.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
     if "email" in updates and updates["email"]:
-        if not re.match(EMAIL_REGEX, updates["email"]):
+        email_clean = updates["email"].strip().lower()
+        if not re.match(EMAIL_REGEX, email_clean):
             raise HTTPException(status_code=400, detail="Invalid email address format.")
             
+        current_email = (user.email or "").strip().lower()
+        if email_clean != current_email:
+            existing = db.session.query(User).filter(User.email == email_clean, User.id != user_id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="An account with this email address already exists.")
+            
+            if current_email and user.email_verified:
+                if not payload.otp_code:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Verification code is required to change your email address. Please enter the code sent to your current registered email ({current_email})."
+                    )
+                is_valid = db.verify_otp_challenge(current_email, payload.otp_code, purpose="email_change")
+                if not is_valid:
+                    raise HTTPException(status_code=400, detail="Invalid or expired verification code for email change.")
+            
+            updates["email"] = email_clean
+            user.email = email_clean
+            user.email_verified = True
+            
+    updates.pop("otp_code", None)
+    updates.pop("password", None)
+
     db.update_profile(user_id, **updates)
     db.log_event(user_id, "INFO", "User profile details updated.")
     
@@ -244,7 +272,30 @@ from app.services.email import send_otp_email
 @limiter.limit("5/minute")
 def request_stepup_otp(request: Request, payload: StepUpOTPPayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
     user = db.session.query(User).filter(User.id == user_id).first()
-    if not user or not user.email or not user.email_verified:
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if payload.purpose == "email_change":
+        if not user.email or not user.email_verified:
+            raise HTTPException(status_code=400, detail="User account does not have a verified current email address.")
+        if not payload.new_email:
+            raise HTTPException(status_code=400, detail="New email address is required.")
+        new_email_clean = payload.new_email.strip().lower()
+        if not re.match(EMAIL_REGEX, new_email_clean):
+            raise HTTPException(status_code=400, detail="Invalid email address format.")
+        existing = db.session.query(User).filter(User.email == new_email_clean, User.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="An account with this email address already exists.")
+            
+        current_email = user.email.strip().lower()
+        otp_code = db.create_otp_challenge(current_email, purpose="email_change", ttl_seconds=300, user_id=user_id)
+        send_otp_email(current_email, otp_code, purpose="email_change")
+        return {
+            "status": "success",
+            "message": f"Authorization code sent to your current registered email ({current_email})."
+        }
+
+    if not user.email or not user.email_verified:
         raise HTTPException(status_code=400, detail="User account does not have a verified email address. Please link an email address in Profile first.")
 
     user_email = user.email.strip().lower()

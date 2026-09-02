@@ -125,8 +125,9 @@ class BudgetLockPayload(BaseModel):
     otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for payout step-up")
 
 class StepUpOTPPayload(BaseModel):
-    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update, wallet_withdrawal, password_change)")
+    purpose: str = Field("payout_stepup", description="Purpose for step-up OTP challenge (e.g. payout_stepup, phone_update, wallet_withdrawal, password_change, email_change, account_deactivation)")
     amount: Optional[int] = Field(None, description="Optional withdrawal amount in whole KES to pre-validate before sending OTP")
+    new_email: Optional[str] = Field(None, description="New email address when requesting OTP for email change")
 
 class PayoutPhonePayload(BaseModel):
     payout_phone_number: str = Field(..., description="Safaricom phone number for M-Pesa payouts")
@@ -140,6 +141,8 @@ class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
     theme: Optional[str] = None
     notifications_enabled: Optional[bool] = None
+    password: Optional[str] = None
+    otp_code: Optional[str] = Field(None, pattern=r"^[0-9]{6}$", description="6-digit Email OTP for email change verification")
 
 class PasswordChange(BaseModel):
     current_password: str
