@@ -1389,6 +1389,7 @@ function setupEventHandlers() {
     let stepupContext = "budget_lock"; // "budget_lock", "settings", or "profile_email"
     let stepupTimer = null;
 
+    window.triggerStepupFlow = triggerStepupFlow;
     async function triggerStepupFlow(payload, context, triggerBtn, errorEl = null) {
         let originalHtml = "";
         if (triggerBtn) {
@@ -2610,7 +2611,11 @@ function setupProfileHandlers() {
             const submitBtn = profileForm.querySelector('button[type="submit"]');
 
             if (emailChanged) {
-                await triggerStepupFlow(payload, "profile_email", submitBtn);
+                if (typeof window.triggerStepupFlow === "function") {
+                    await window.triggerStepupFlow(payload, "profile_email", submitBtn);
+                } else if (typeof triggerStepupFlow === "function") {
+                    await triggerStepupFlow(payload, "profile_email", submitBtn);
+                }
                 return;
             }
             
