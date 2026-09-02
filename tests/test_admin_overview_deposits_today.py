@@ -3,7 +3,7 @@ import datetime
 from fastapi.testclient import TestClient
 from app.main import app, get_db
 from app.db.manager import DatabaseManager
-from app.db.models import Admin, Deposit, Session as DbSession, User, Wallet
+from app.db.models import AdminUser, Deposit, Session as DbSession, User, Wallet
 from app.api.dependencies import admin_session_manager
 
 DB_FILE = "test_admin_overview_deposits_today.db"
@@ -24,7 +24,7 @@ def clean_db():
     db.session.query(DbSession).delete()
     db.session.query(Wallet).delete()
     db.session.query(User).delete()
-    db.session.query(Admin).delete()
+    db.session.query(AdminUser).delete()
     db.session.commit()
     yield
     db.session.rollback()
@@ -32,20 +32,17 @@ def clean_db():
 def _create_admin_client(role="superadmin"):
     db = get_test_db()
     pwd_hash, salt = db._hash_password("Admin!P@ss2026Secure")
-    admin = Admin(
+    admin_id = db.create_admin_user(
         email=f"admin_{role}@bursar.co.ke",
         password_hash=pwd_hash,
         salt=salt,
-        role=role,
-        is_active=True
+        role=role
     )
-    db.session.add(admin)
-    db.session.commit()
 
-    token = admin_session_manager.create_session(admin.id, role=role, db=db)
+    token = admin_session_manager.create_session(admin_id, role=role, db=db)
     client = TestClient(app)
     client.cookies.set("admin_session_token", token)
-    return client, admin.id
+    return client, admin_id
 
 def test_admin_overview_aggregates_today_deposits_in_eat_timezone_accurately():
     """Verify get_admin_overview_metrics computes today's deposit inflow separately from all-time cumulative deposits."""
