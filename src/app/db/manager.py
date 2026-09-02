@@ -1414,9 +1414,25 @@ class DatabaseManager:
         wallets = self.session.query(Wallet).all()
         total_user_balance = sum(int(w.available_balance or 0) for w in wallets)
         
-        # 2. Total Deposits All Time & Pending Deposits
+        # 2. Total Deposits All Time, Today's Inflow, and Pending Deposits
         deposits = self.session.query(Deposit).all()
-        total_deposited_all_time = sum(int(d.amount or 0) for d in deposits if d.status in ('COMPLETED', 'SUCCESS'))
+        completed_deposits = [d for d in deposits if d.status in ('COMPLETED', 'SUCCESS')]
+        total_deposited_all_time = sum(int(d.amount or 0) for d in completed_deposits)
+        
+        eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+        today_date = datetime.datetime.now(eat_tz).date()
+        today_str = datetime.datetime.now(eat_tz).strftime("%Y-%m-%d")
+        
+        today_completed_deposits = []
+        for d in completed_deposits:
+            if d.created_at:
+                d_eat = (d.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(eat_tz)).date() if d.created_at.tzinfo is None else d.created_at.astimezone(eat_tz).date()
+                if d_eat == today_date:
+                    today_completed_deposits.append(d)
+        
+        today_deposited_amount = sum(int(d.amount or 0) for d in today_completed_deposits)
+        today_deposited_count = len(today_completed_deposits)
+
         pending_deposits = [d for d in deposits if d.status == 'PENDING']
         pending_deposits_count = len(pending_deposits)
         pending_deposits_amount = sum(int(d.amount or 0) for d in pending_deposits)
@@ -1429,9 +1445,6 @@ class DatabaseManager:
         failed_payouts = [p for p in payouts if p.status == 'FAILED']
         failed_payouts_count = len(failed_payouts)
 
-        # Today's date in EAT timezone (UTC+3)
-        eat_tz = datetime.timezone(datetime.timedelta(hours=3))
-        today_str = datetime.datetime.now(eat_tz).strftime("%Y-%m-%d")
         today_completed = [p for p in completed_payouts if p.payout_date == today_str]
         today_disbursed_amount = sum(int(p.amount or 0) for p in today_completed)
         today_disbursed_count = len(today_completed)
@@ -1461,7 +1474,13 @@ class DatabaseManager:
                 "total_locked_funds": 0,
                 "total_platform_float": total_user_balance,
                 "total_deposited_all_time": total_deposited_all_time,
+                "today_deposited_amount": today_deposited_amount,
+                "today_deposited_count": today_deposited_count,
                 "total_disbursed_all_time": total_disbursed_all_time
+            },
+            "deposit_velocity": {
+                "today_deposited_amount": today_deposited_amount,
+                "today_deposited_count": today_deposited_count
             },
             "users": {
                 "total_registered_users": total_users,

@@ -93,4 +93,15 @@ test.describe('Sub-Phase 3.2: Executive Dashboard & Float Visualizations E2E', (
     await expect(lockoutsAlertTitle).toContainText('Locked Out Users:');
   });
 
+  test('7. Today\'s deposit inflow accurately reflects today\'s completed deposits', async ({ page }) => {
+    await setupAuthenticatedAdmin(page, { role: 'superadmin' });
+
+    // Verify today's deposits KPI element
+    const todayDepositsVal = page.locator('#kpi-today-deposits');
+    const todayDepositsCount = page.locator('#kpi-today-deposit-count');
+    await expect(todayDepositsVal).toBeVisible();
+    await expect(todayDepositsVal).toContainText('KES');
+    await expect(todayDepositsCount).toContainText('successful STK deposits today');
+  });
+
 });
