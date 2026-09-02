@@ -65,8 +65,11 @@ def test_logout_cookie_deletion_attributes(client_and_db):
 def test_deactivate_cookie_deletion_attributes(client_and_db):
     """Verify /api/profile/deactivate deletes session_token and csrf_token cookies with path=/ (SEC-006)."""
     client, db, user_id = client_and_db
+    from app.db.models import User
+    user = db.session.query(User).filter(User.id == user_id).first()
+    otp_code = db.create_otp_challenge(user.email, purpose="account_deactivation", ttl_seconds=300, user_id=user_id)
     
-    res = client.post("/api/profile/deactivate", json={"password": "TestPassword123!", "confirmation": "DELETE"})
+    res = client.post("/api/profile/deactivate", json={"password": "TestPassword123!", "confirmation": "DELETE", "otp_code": otp_code})
     assert res.status_code == 200
     
     session_cookie_header = next((h for h in res.headers.raw if b"session_token=" in h[1]), None)

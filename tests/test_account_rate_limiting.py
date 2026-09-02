@@ -69,13 +69,13 @@ def test_account_rate_limiting_spans_multiple_ips(client_and_db, enable_limiter)
     headers_ip2 = {"X-Forwarded-For": "10.0.0.2", "X-CSRF-Token": csrf_token}
     
     # 3 requests allowed per minute on profile deactivation
-    res1 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE"}, headers=headers_ip1)
+    res1 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE", "otp_code": "123456"}, headers=headers_ip1)
     assert res1.status_code == 401 # password wrong, but passed auth/csrf/rate-limit check
     
-    res2 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE"}, headers=headers_ip1)
-    res3 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE"}, headers=headers_ip2) # Switch IP!
+    res2 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE", "otp_code": "123456"}, headers=headers_ip1)
+    res3 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE", "otp_code": "123456"}, headers=headers_ip2) # Switch IP!
     
     # 4th attempt from IP 2 (rotating IP) should STILL be blocked with 429 Too Many Requests because key is bound to session/user
-    res4 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE"}, headers=headers_ip2)
+    res4 = client.post("/api/profile/deactivate", json={"password": "WrongPassword", "confirmation": "DELETE", "otp_code": "123456"}, headers=headers_ip2)
     
     assert res4.status_code == 429, "Rotating IP MUST NOT bypass account-level rate limits"
