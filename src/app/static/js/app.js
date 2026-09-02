@@ -110,7 +110,7 @@ async function checkAuth() {
 
             // Load user data
             pollDashboardData();
-            fetchProfile();
+            fetchProfile(true);
             initActivityTracking();
 
             // Hash routing on load
@@ -413,7 +413,7 @@ function switchTab(tabId) {
     });
 
     if (tabId === "profile") {
-        fetchProfile();
+        fetchProfile(true);
         fetchSessions();
     }
     
@@ -2537,6 +2537,16 @@ async function openBudgetDesignerModal() {
 
 // Profile Settings Frontend Controllers
 function setupProfileHandlers() {
+    const profileInputs = ["profile-first-name", "profile-last-name", "profile-email", "profile-bio"];
+    profileInputs.forEach(id => {
+        const inputEl = document.getElementById(id);
+        if (inputEl) {
+            inputEl.addEventListener("input", () => {
+                inputEl.dataset.dirty = "true";
+            });
+        }
+    });
+
     const profileForm = document.getElementById("profile-info-form");
     if (profileForm) {
         profileForm.addEventListener("submit", async (e) => {
@@ -2560,8 +2570,14 @@ function setupProfileHandlers() {
                 if (res.status === 401) return showAuthScreen();
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || "Failed to update profile.");
+                
+                profileInputs.forEach(id => {
+                    const inputEl = document.getElementById(id);
+                    if (inputEl) delete inputEl.dataset.dirty;
+                });
+
                 alert("Profile details saved successfully!");
-                fetchProfile();
+                fetchProfile(true);
             } catch (err) {
                 alert(err.message || "Failed to save profile.");
             }
@@ -2721,17 +2737,29 @@ function setupProfileHandlers() {
     }
 }
 
-async function fetchProfile() {
+async function fetchProfile(force = false) {
     try {
         const res = await fetch("/api/profile");
         if (res.status === 401) return showAuthScreen();
         const profile = await res.json();
         
-        document.getElementById("profile-first-name").value = profile.first_name || "";
-        document.getElementById("profile-last-name").value = profile.last_name || "";
-        document.getElementById("profile-email").value = profile.email || "";
-        document.getElementById("profile-bio").value = profile.bio || "";
-        document.getElementById("notifications-toggle").checked = !!profile.notifications_enabled;
+        const updateField = (id, val) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (force || (document.activeElement !== el && el.dataset.dirty !== "true")) {
+                el.value = val || "";
+            }
+        };
+
+        updateField("profile-first-name", profile.first_name);
+        updateField("profile-last-name", profile.last_name);
+        updateField("profile-email", profile.email);
+        updateField("profile-bio", profile.bio);
+
+        const notifToggle = document.getElementById("notifications-toggle");
+        if (notifToggle && (force || document.activeElement !== notifToggle)) {
+            notifToggle.checked = !!profile.notifications_enabled;
+        }
         
         setTheme(profile.theme || "dark");
         
