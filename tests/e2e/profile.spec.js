@@ -156,15 +156,24 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     // 3. Attempt with wrong phrase or wrong PIN
     await page.fill('#deactivate-confirm-phrase', 'DELET');
     await page.fill('#deactivate-password', 'Str0ng!P@ssw0rd');
+    await page.fill('#deactivate-otp', '123456');
     await page.click('#deactivate-form button[type="submit"]');
     await expect.poll(() => dialogMessages).toContain('Please type the confirmation phrase exactly: DELETE');
     
     // Clear captured messages
     dialogMessages.length = 0;
 
-    // 4. Successful deactivation
+    // Fetch latest OTP code from test backend
+    const otpRes = await page.evaluate(async (email) => {
+      const res = await fetch(`/api/test/latest-otp?email=${encodeURIComponent(email)}&purpose=account_deactivation`);
+      return await res.json();
+    }, testEmail);
+    const validOtp = otpRes.otp_code;
+
+    // 4. Successful deactivation with correct phrase, password, and OTP
     await page.fill('#deactivate-confirm-phrase', 'DELETE');
     await page.fill('#deactivate-password', 'Str0ng!P@ssw0rd');
+    await page.fill('#deactivate-otp', validOtp);
     await page.click('#deactivate-form button[type="submit"]');
     await page.waitForSelector('#nav-login-btn');
     expect(page.url()).not.toContain('/dashboard');

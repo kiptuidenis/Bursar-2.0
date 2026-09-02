@@ -186,6 +186,7 @@ class WithdrawRequest(BaseModel):
 class DeactivateRequest(BaseModel):
     password: str
     confirmation: str
+    otp_code: str = Field(..., pattern=r"^[0-9]{6}$", description="6-digit authorization OTP code")
 
 class AdminLoginPayload(BaseModel):
     email: str = Field(..., description="Administrator email address")

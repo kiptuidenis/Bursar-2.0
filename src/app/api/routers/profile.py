@@ -254,6 +254,13 @@ def deactivate_account(
     if not db._verify_password(payload.password, user.password_hash, user.salt):
         raise HTTPException(status_code=401, detail="Incorrect password PIN.")
         
+    if not user.email or not user.email_verified:
+        raise HTTPException(status_code=400, detail="User account does not have a verified email address to authorize deactivation.")
+        
+    is_otp_valid = db.verify_otp_challenge(user.email, payload.otp_code, purpose="account_deactivation")
+    if not is_otp_valid:
+        raise HTTPException(status_code=400, detail="Invalid or expired authorization code for account deactivation.")
+        
     settings = db.get_settings(user_id)
     if settings and settings.get("balance", 0.0) > 0.0:
         raise HTTPException(status_code=400, detail="Cannot deactivate account with a non-zero wallet balance. Please distribute or withdraw your remaining balance first.")

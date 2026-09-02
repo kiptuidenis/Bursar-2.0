@@ -2747,13 +2747,53 @@ function setupProfileHandlers() {
     const deactivateModal = document.getElementById("deactivate-modal");
     const closeDeactivateBtn = document.getElementById("close-deactivate-btn");
     const deactivateForm = document.getElementById("deactivate-form");
+    const deactivateResendBtn = document.getElementById("deactivate-resend-otp-btn");
+    const deactivateErrorEl = document.getElementById("deactivate-error");
+    const deactivateEmailText = document.getElementById("deactivate-email-text");
     
+    async function requestDeactivationOtp() {
+        try {
+            if (deactivateErrorEl) {
+                deactivateErrorEl.style.display = "none";
+                deactivateErrorEl.innerText = "";
+            }
+            if (deactivateEmailText && window._currentProfileEmail) {
+                deactivateEmailText.innerText = `A 6-digit authorization code was sent to ${window._currentProfileEmail} to confirm deletion.`;
+            }
+            const res = await fetch("/api/profile/request-stepup-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ purpose: "account_deactivation" })
+            });
+            if (res.status === 401) {
+                showAuthScreen();
+                return;
+            }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.detail || "Failed to dispatch authorization code.");
+            }
+        } catch (err) {
+            console.error("Deactivation OTP error:", err);
+            if (deactivateErrorEl) {
+                deactivateErrorEl.innerText = err.message || "Failed to dispatch authorization code.";
+                deactivateErrorEl.style.display = "block";
+            }
+        }
+    }
+
     if (openDeactivateBtn) {
         openDeactivateBtn.addEventListener("click", () => {
             if (deactivateModal) {
-                document.getElementById("deactivate-confirm-phrase").value = "";
-                document.getElementById("deactivate-password").value = "";
+                const phraseInput = document.getElementById("deactivate-confirm-phrase");
+                const pwdInput = document.getElementById("deactivate-password");
+                const otpInput = document.getElementById("deactivate-otp");
+                if (phraseInput) phraseInput.value = "";
+                if (pwdInput) pwdInput.value = "";
+                if (otpInput) otpInput.value = "";
+                if (deactivateErrorEl) deactivateErrorEl.style.display = "none";
                 deactivateModal.classList.add("active");
+                requestDeactivationOtp();
             }
         });
     }
@@ -2762,34 +2802,78 @@ function setupProfileHandlers() {
             if (deactivateModal) deactivateModal.classList.remove("active");
         });
     }
+    if (deactivateResendBtn) {
+        deactivateResendBtn.addEventListener("click", async () => {
+            deactivateResendBtn.disabled = true;
+            const origText = deactivateResendBtn.innerText;
+            deactivateResendBtn.innerText = "Sending...";
+            await requestDeactivationOtp();
+            deactivateResendBtn.innerText = "Code Sent!";
+            setTimeout(() => {
+                deactivateResendBtn.disabled = false;
+                deactivateResendBtn.innerText = origText;
+            }, 3000);
+        });
+    }
     if (deactivateForm) {
         deactivateForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const confirmation = document.getElementById("deactivate-confirm-phrase").value.trim();
+            const confirmation = (document.getElementById("deactivate-confirm-phrase").value || "").trim();
             const password = document.getElementById("deactivate-password").value;
+            const otp_code = (document.getElementById("deactivate-otp").value || "").trim();
             
             if (confirmation !== "DELETE") {
-                alert("Please type the confirmation phrase exactly: DELETE");
+                if (deactivateErrorEl) {
+                    deactivateErrorEl.innerText = "Please type the confirmation phrase exactly: DELETE";
+                    deactivateErrorEl.style.display = "block";
+                } else {
+                    alert("Please type the confirmation phrase exactly: DELETE");
+                }
+                return;
+            }
+
+            if (!/^\d{6}$/.test(otp_code)) {
+                if (deactivateErrorEl) {
+                    deactivateErrorEl.innerText = "Please enter the valid 6-digit authorization code sent to your email.";
+                    deactivateErrorEl.style.display = "block";
+                } else {
+                    alert("Please enter the valid 6-digit authorization code sent to your email.");
+                }
                 return;
             }
             
             if (!confirm("This is your last warning! Are you absolutely sure you want to deactivate and permanently delete your account? This cannot be undone.")) {
                 return;
             }
+
+            const submitBtn = document.getElementById("confirm-deactivate-btn");
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Deleting Account...";
+            }
             
             try {
                 const res = await fetch("/api/profile/deactivate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ password, confirmation })
+                    body: JSON.stringify({ password, confirmation, otp_code })
                 });
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.detail || "Deactivation failed.");
                 
                 alert("Your account has been permanently deleted. Goodbye!");
                 window.location.href = "/";
             } catch (err) {
-                alert(err.message || "Failed to delete account.");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Permanently Delete My Account";
+                }
+                if (deactivateErrorEl) {
+                    deactivateErrorEl.innerText = err.message || "Failed to delete account.";
+                    deactivateErrorEl.style.display = "block";
+                } else {
+                    alert(err.message || "Failed to delete account.");
+                }
             }
         });
     }

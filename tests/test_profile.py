@@ -168,26 +168,31 @@ def test_session_tracking_and_revocation():
 def test_account_deactivation():
     c, user_id = _create_authenticated_client("254700112233", "Str0ng!P@ssw0rd")
     db = get_test_db()
+    user = db.session.query(User).filter(User.id == user_id).first()
+    otp_code = db.create_otp_challenge(user.email, purpose="account_deactivation", ttl_seconds=300, user_id=user_id)
 
     # Mismatched confirmation phrase fails
-    res_err1 = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELET"})
+    res_err1 = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELET", "otp_code": otp_code})
     assert res_err1.status_code == 400
 
     # Incorrect password fails
-    res_err2 = c.post("/api/profile/deactivate", json={"password": "WrongP@ssw0rd!", "confirmation": "DELETE"})
+    res_err2 = c.post("/api/profile/deactivate", json={"password": "WrongP@ssw0rd!", "confirmation": "DELETE", "otp_code": otp_code})
     assert res_err2.status_code == 401
 
     # Deactivation with positive balance should fail
     db.adjust_balance(user_id, 500.0)
-    res_err_balance = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELETE"})
+    res_err_balance = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELETE", "otp_code": otp_code})
     assert res_err_balance.status_code == 400
     assert "balance" in res_err_balance.json()["detail"].lower()
     
     # Reset balance to 0 and verify deactivation succeeds
     db.adjust_balance(user_id, -500.0)
 
+    # Generate fresh OTP code since previous OTP was consumed
+    fresh_otp = db.create_otp_challenge(user.email, purpose="account_deactivation", ttl_seconds=300, user_id=user_id)
+
     # Successful deactivation
-    res_ok = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELETE"})
+    res_ok = c.post("/api/profile/deactivate", json={"password": "Str0ng!P@ssw0rd", "confirmation": "DELETE", "otp_code": fresh_otp})
     assert res_ok.status_code == 200
 
     # Verify user is completely removed from DB
