@@ -48,14 +48,14 @@ def admin_exact_time_env(tmp_path, monkeypatch):
     # 1. Completed payout with completed_at
     p1 = db.create_payout(
         user_id=user_id,
-        payout_date="2026-09-02",
+        payout_date="2026-09-01",
         amount=500,
         phone_number="254711999888",
         status="COMPLETED",
         conversation_id="conv_p1_time",
         originator_conversation_id="orig_p1_time"
     )
-    eat_time_p1 = "2026-09-02 08:00:15"
+    eat_time_p1 = "2026-09-01 08:00:15"
     db.update_payout_status("conv_p1_time", status="COMPLETED", transaction_id="MPESA_TX_TIME_01", completed_at=eat_time_p1)
 
     # 2. Failed payout with failed_at
@@ -124,7 +124,7 @@ def test_admin_payouts_list_contains_exact_timestamps(admin_exact_time_env):
     # Find completed payout
     comp_payout = next(p for p in payouts if p["conversation_id"] == "conv_p1_time")
     assert comp_payout["status"] == "COMPLETED"
-    assert comp_payout["completed_at"] == "2026-09-02 08:00:15"
+    assert comp_payout["completed_at"] == "2026-09-01 08:00:15"
     assert "created_at" in comp_payout and comp_payout["created_at"]
 
     # Find failed payout
