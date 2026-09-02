@@ -1,10 +1,11 @@
 import pytest
 import datetime
+import secrets
+import time
 from fastapi.testclient import TestClient
 from app.main import app, get_db
 from app.db.manager import DatabaseManager
-from app.db.models import AdminUser, Deposit, Session as DbSession, User, Wallet
-from app.api.dependencies import admin_session_manager
+from app.db.models import AdminUser, AdminSession, Deposit, Session as DbSession, User, Wallet
 
 DB_FILE = "test_admin_overview_deposits_today.db"
 test_db = None
@@ -21,6 +22,7 @@ def clean_db():
     app.dependency_overrides[get_db] = get_test_db
     db = get_test_db()
     db.session.query(Deposit).delete()
+    db.session.query(AdminSession).delete()
     db.session.query(DbSession).delete()
     db.session.query(Wallet).delete()
     db.session.query(User).delete()
@@ -39,7 +41,14 @@ def _create_admin_client(role="superadmin"):
         role=role
     )
 
-    token = admin_session_manager.create_session(admin_id, role=role, db=db)
+    token = secrets.token_urlsafe(32)
+    db.create_admin_session(
+        admin_id=admin_id,
+        token=token,
+        ip_address="127.0.0.1",
+        user_agent="TestClient",
+        expires_at=int(time.time()) + 86400
+    )
     client = TestClient(app)
     client.cookies.set("admin_session_token", token)
     return client, admin_id
