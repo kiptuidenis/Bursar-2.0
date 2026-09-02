@@ -58,8 +58,9 @@ def test_atomic_budget_lock_with_items_persists_and_locks_in_one_step():
     items_initial = db.get_budget_items(user_id)
     assert len(items_initial) == 0
 
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    next_week = (today_eat + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
 
     payload = {
         "items": [
@@ -91,8 +92,9 @@ def test_atomic_budget_lock_fails_validation_leaves_database_untouched():
     c, user_id, phone, email = _create_user_with_balance(balance=200) # Only 200 balance
     db = get_test_db()
 
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    next_week = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    next_week = (today_eat + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
 
     # Items total 500 > balance 200 -> should fail
     payload = {
