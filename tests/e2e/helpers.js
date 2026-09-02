@@ -25,7 +25,7 @@ async function setupAuthenticatedUser(page, options = {}) {
       body: JSON.stringify(payload),
       credentials: 'include'
     });
-  }, { phone_number: phone, email, password, balance });
+  }, { phone_number: phone, email: options.legacyPhoneOnly ? null : email, password, balance, legacy_phone_only: !!options.legacyPhoneOnly });
 
   await page.goto('/dashboard');
   await page.waitForLoadState('networkidle');

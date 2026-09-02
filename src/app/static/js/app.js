@@ -1474,7 +1474,11 @@ function setupEventHandlers() {
         }
         if (subtitleEl) {
             if (context === "profile_email") {
-                subtitleEl.innerText = `For your security, a 6-digit verification code has been sent to your current registered email (${window._currentProfileEmail}). Enter the code below to authorize changing your email address to ${payload.email}.`;
+                if (window._currentProfileEmail) {
+                    subtitleEl.innerText = `For your security, a 6-digit verification code has been sent to your current registered email (${window._currentProfileEmail}). Enter the code below to authorize changing your email address to ${payload.email}.`;
+                } else {
+                    subtitleEl.innerText = `A 6-digit verification code has been sent to ${payload.email}. Enter the code below to verify and link your email address.`;
+                }
             } else if (context === "settings") {
                 subtitleEl.innerText = "For your financial protection, updating your account phone number requires your account password and email verification.";
             } else {
