@@ -119,4 +119,60 @@ test.describe('Profile Input Preservation & Email Change OTP Verification E2E Te
 
     expect(pageErrors).toHaveLength(0);
   });
+
+  test('Should allow legacy user without email to link new email with OTP verification', async ({ page }) => {
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+    });
+
+    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+    const legacyPhone = `2547${randomDigits}`;
+    const newTargetEmail = `linked_legacy_${randomDigits}@example.com`;
+
+    // 1. Setup legacy user with no email
+    await setupAuthenticatedUser(page, { phoneNumber: legacyPhone, legacyPhoneOnly: true });
+
+    // 2. Go to Profile Settings
+    await page.click('[data-tab="profile"]');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+
+    // 3. Fill required profile fields including new email address
+    await page.fill('#profile-first-name', 'LegacyFirst');
+    await page.fill('#profile-last-name', 'LegacyLast');
+    await page.fill('#profile-email', newTargetEmail);
+
+    // 4. Click Save Profile and wait for request-stepup-otp response
+    const [otpRes] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/profile/request-stepup-otp') && res.request().method() === 'POST'),
+      page.click('#profile-info-form button[type="submit"]')
+    ]);
+    expect(otpRes.status()).toBe(200);
+
+    // 5. Verify step-up modal opens with target email linking message
+    const modal = page.locator('#stepup-payout-modal');
+    await expect(modal).toHaveClass(/active/);
+    await expect(page.locator('#stepup-payout-subtitle')).toContainText(newTargetEmail);
+
+    // 6. Fetch OTP code from backend test endpoint
+    const mockOtpRes = await page.evaluate(async (email) => {
+      const res = await fetch(`/api/test/latest-otp?email=${encodeURIComponent(email)}&purpose=email_change`);
+      return await res.json();
+    }, newTargetEmail);
+    const validOtp = mockOtpRes.otp_code;
+
+    // 7. Submit OTP and verify profile save succeeds
+    await page.fill('#stepup-payout-otp', validOtp);
+    const [saveRes] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/profile') && res.request().method() === 'POST'),
+      page.click('#confirm-stepup-payout-btn')
+    ]);
+    expect(saveRes.status()).toBe(200);
+
+    // 8. Verify modal closes and email is preserved
+    await expect(modal).not.toHaveClass(/active/);
+    await expect(page.locator('#profile-email')).toHaveValue(newTargetEmail);
+
+    expect(pageErrors).toHaveLength(0);
+  });
 });

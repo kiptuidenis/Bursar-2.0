@@ -181,6 +181,10 @@ if config.IS_TEST_MODE:
         
         if payload.get("user_id"):
             user_id = int(payload["user_id"])
+        elif payload.get("legacy_phone_only"):
+            phone = payload.get("phone_number") or f"2547{datetime.datetime.now().microsecond:06d}0"
+            password = payload.get("password") or "Str0ng!P@ssw0rd2026!"
+            user_id = db.create_user(phone, password)
         else:
             phone = payload.get("phone_number") or ("" if payload.get("email_only") else f"2547{datetime.datetime.now().microsecond:06d}0")
             email = payload.get("email") or f"user_{datetime.datetime.now().microsecond:06d}@example.com"
