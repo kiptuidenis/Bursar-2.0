@@ -2609,7 +2609,7 @@ function setupProfileHandlers() {
 
             const currentEmail = (window._currentProfileEmail || "").trim().toLowerCase();
             const newEmail = email.trim().toLowerCase();
-            const emailChanged = currentEmail && newEmail && newEmail !== currentEmail;
+            const emailChanged = newEmail !== currentEmail;
 
             const payload = { first_name, last_name, email: newEmail, bio };
             const submitBtn = profileForm.querySelector('button[type="submit"]');
