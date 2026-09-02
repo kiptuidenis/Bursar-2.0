@@ -1021,18 +1021,6 @@ function setupEventHandlers() {
         const payout_time = document.getElementById("settings-time").value;
         const phone_number = document.getElementById("settings-phone").value.trim();
         
-        // Validate payout_time is not in the past today if changed
-        if (payout_time !== currentSettings.payout_time) {
-            const [hour, minute] = payout_time.split(":").map(Number);
-            const now = new Date();
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
-            if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
-                alert("Payout time cannot be in the past today. Please choose a future time.");
-                return;
-            }
-        }
-        
         const payload = {
             payout_time,
             phone_number

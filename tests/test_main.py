@@ -374,31 +374,18 @@ def test_lock_disbursement_dates():
 def test_settings_payout_time_validation():
     c, user_id = _setup_client("254700000006")
     
-    # 1. Successful update with a future time (e.g. 15 minutes in the future)
-    import datetime
-    eat_tz = datetime.timezone(datetime.timedelta(hours=3))
-    now = datetime.datetime.now(eat_tz).replace(tzinfo=None)
-    future_time = now + datetime.timedelta(minutes=15)
-    
-    # Handle overflow to next day safely by capping to 23:59 if it rolls over
-    if future_time.date() > now.date():
-        future_time_str = "23:59"
-    else:
-        future_time_str = future_time.strftime("%H:%M")
-        
-    res = c.post("/api/settings", json={"payout_time": future_time_str})
-    assert res.status_code == 200
-    
-    # 2. Failed update with a past time (if not at 00:00)
-    if now.hour > 0 or now.minute > 0:
-        if now.minute > 0:
-            past_time_str = f"{now.hour:02d}:00"
-        else:
-            past_time_str = f"{(now.hour - 1):02d}:59"
-            
-        res_past = c.post("/api/settings", json={"payout_time": past_time_str})
-        assert res_past.status_code == 400
-        assert "past" in res_past.json()["detail"].lower()
+    # 1. Any valid HH:MM time is accepted regardless of current clock time
+    for valid_time in ["06:00", "08:00", "12:30", "18:45", "23:59", "00:00"]:
+        res = c.post("/api/settings", json={"payout_time": valid_time})
+        assert res.status_code == 200, f"Expected {valid_time} to be accepted"
+        settings = c.get("/api/settings").json()
+        assert settings["payout_time"] == valid_time
+
+    # 2. Invalid formats and out-of-range hours/minutes are rejected with HTTP 400
+    for invalid_time in ["24:00", "25:00", "12:60", "8:00", "invalid", "12-30"]:
+        res_bad = c.post("/api/settings", json={"payout_time": invalid_time})
+        assert res_bad.status_code == 400, f"Expected {invalid_time} to be rejected"
+        assert "payout time" in res_bad.json()["detail"].lower()
 
 
 def test_intasend_integration_flow(monkeypatch):
