@@ -51,7 +51,7 @@ def admin_exact_time_env(tmp_path, monkeypatch):
         payout_date="2026-09-01",
         amount=500,
         phone_number="254711999888",
-        status="COMPLETED",
+        status="PENDING",
         conversation_id="conv_p1_time",
         originator_conversation_id="orig_p1_time"
     )
@@ -64,7 +64,7 @@ def admin_exact_time_env(tmp_path, monkeypatch):
         payout_date="2026-09-02",
         amount=500,
         phone_number="254711999888",
-        status="FAILED",
+        status="PENDING",
         conversation_id="conv_p2_failed",
         originator_conversation_id="orig_p2_failed"
     )
