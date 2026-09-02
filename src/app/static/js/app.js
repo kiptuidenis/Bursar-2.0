@@ -527,8 +527,8 @@ function setupEventHandlers() {
         designerList.addEventListener("click", (e) => {
             const btn = e.target.closest('[data-action="delete-category"]');
             if (btn) {
-                const itemId = parseInt(btn.getAttribute("data-id"), 10);
-                if (!isNaN(itemId)) {
+                const itemId = btn.getAttribute("data-id");
+                if (itemId !== null && itemId !== undefined && itemId !== "") {
                     deleteCategory(itemId);
                 }
             }
@@ -1357,7 +1357,7 @@ function setupEventHandlers() {
             if (existingIndex >= 0) {
                 wizardDraftItems[existingIndex].amount = amount;
             } else {
-                wizardDraftItems.push({ id: Date.now() + Math.random(), category, amount });
+                wizardDraftItems.push({ id: `draft_${Date.now()}_${Math.floor(Math.random() * 1000)}`, category, amount });
             }
             
             document.getElementById("new-category-name").value = "";
