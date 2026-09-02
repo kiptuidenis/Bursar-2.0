@@ -57,8 +57,8 @@ def test_settings_accepts_and_normalizes_various_phone_formats():
         ("254112345678", "254112345678"),
     ]
 
-    for input_phone, expected_normalized in test_cases:
-        c, user_id, email, pwd = _setup_client(phone_number="", email=f"test_{input_phone.replace('+', '')}@example.com")
+    for idx, (input_phone, expected_normalized) in enumerate(test_cases):
+        c, user_id, email, pwd = _setup_client(phone_number="", email=f"test_phone_{idx}_{datetime.datetime.now().microsecond}@example.com")
         res = c.post("/api/settings", json={"phone_number": input_phone})
         assert res.status_code == 200, f"Expected {input_phone} to be accepted, got {res.status_code}: {res.text}"
         
