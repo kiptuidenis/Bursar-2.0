@@ -67,7 +67,7 @@ def test_profile_api_update_and_retrieval():
     payload = {
         "first_name": "Alice",
         "last_name": "Smith",
-        "email": "alice.smith@example.com",
+        "email": "profile_test@example.com",
         "bio": "Saving for college education."
     }
     res = c.post("/api/profile", json=payload)
@@ -79,5 +79,5 @@ def test_profile_api_update_and_retrieval():
     data = get_res.json()
     assert data["first_name"] == "Alice"
     assert data["last_name"] == "Smith"
-    assert data["email"] == "alice.smith@example.com"
+    assert data["email"] == "profile_test@example.com"
     assert data["bio"] == "Saving for college education."

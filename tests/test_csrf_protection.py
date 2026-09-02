@@ -96,7 +96,7 @@ def test_csrf_valid_token_accepted():
     client, csrf_token = _setup_session("254711122244")
 
     # State-mutating request with matching csrf_token cookie & X-CSRF-Token header succeeds
-    res_ok = client.post("/api/profile", json={"first_name": "Jane", "last_name": "Doe", "email": "jane@example.com"}, headers={"X-CSRF-Token": csrf_token})
+    res_ok = client.post("/api/profile", json={"first_name": "Jane", "last_name": "Doe", "email": "user_254711122244@example.com"}, headers={"X-CSRF-Token": csrf_token})
     assert res_ok.status_code == 200
 
 def test_csrf_safe_methods_exempt():

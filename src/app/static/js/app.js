@@ -1386,9 +1386,10 @@ function setupEventHandlers() {
     }
 
     let pendingStepupPayload = null;
-    let stepupContext = "budget_lock"; // "budget_lock" or "settings"
+    let stepupContext = "budget_lock"; // "budget_lock", "settings", or "profile_email"
     let stepupTimer = null;
 
+    window.triggerStepupFlow = triggerStepupFlow;
     async function triggerStepupFlow(payload, context, triggerBtn, errorEl = null) {
         let originalHtml = "";
         if (triggerBtn) {
@@ -1402,11 +1403,15 @@ function setupEventHandlers() {
         }
 
         try {
+            const reqBody = context === "profile_email"
+                ? { purpose: "email_change", new_email: payload.email }
+                : { purpose: "payout_stepup" };
+
             // Request OTP before opening modal
             const res = await fetch("/api/profile/request-stepup-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ purpose: "payout_stepup" })
+                body: JSON.stringify(reqBody)
             });
 
             if (res.status === 401) {
@@ -1453,23 +1458,39 @@ function setupEventHandlers() {
         const subtitleEl = document.getElementById("stepup-payout-subtitle");
         const errorEl = document.getElementById("stepup-payout-error");
         const passwordInput = document.getElementById("stepup-payout-password");
+        const passwordGroup = passwordInput ? passwordInput.closest(".form-group") : null;
         const otpInput = document.getElementById("stepup-payout-otp");
         const resendBtn = document.getElementById("stepup-resend-otp-btn");
         const confirmBtn = document.getElementById("confirm-stepup-payout-btn");
 
         if (titleEl) {
-            titleEl.innerHTML = context === "settings"
-                ? '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Phone Number Change'
-                : '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Payout Line Change';
+            if (context === "profile_email") {
+                titleEl.innerHTML = '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Verify New Email Address';
+            } else if (context === "settings") {
+                titleEl.innerHTML = '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Phone Number Change';
+            } else {
+                titleEl.innerHTML = '<i data-lucide="shield-alert" style="color: #f59e0b; width: 1.3rem; height: 1.3rem;"></i> Confirm Payout Line Change';
+            }
         }
         if (subtitleEl) {
-            subtitleEl.innerText = context === "settings"
-                ? "For your financial protection, updating your account phone number requires your account password and email verification."
-                : "For your financial protection, modifying your automated daily payout destination requires your account password and email verification.";
+            if (context === "profile_email") {
+                subtitleEl.innerText = `For your security, a 6-digit verification code has been sent to your current registered email (${window._currentProfileEmail}). Enter the code below to authorize changing your email address to ${payload.email}.`;
+            } else if (context === "settings") {
+                subtitleEl.innerText = "For your financial protection, updating your account phone number requires your account password and email verification.";
+            } else {
+                subtitleEl.innerText = "For your financial protection, modifying your automated daily payout destination requires your account password and email verification.";
+            }
+        }
+
+        if (passwordGroup) {
+            passwordGroup.style.display = context === "profile_email" ? "none" : "block";
+            if (passwordInput) passwordInput.required = context !== "profile_email";
         }
 
         if (confirmBtn) {
-            if (context === "settings") {
+            if (context === "profile_email") {
+                confirmBtn.innerHTML = '<i data-lucide="check" style="width: 1rem; height: 1rem;"></i> Verify & Save Email';
+            } else if (context === "settings") {
                 confirmBtn.innerHTML = '<i data-lucide="check" style="width: 1rem; height: 1rem;"></i> Save';
             } else {
                 confirmBtn.innerHTML = '<i data-lucide="lock" style="width: 1rem; height: 1rem;"></i> Lock Budget';
@@ -1500,7 +1521,7 @@ function setupEventHandlers() {
         }
 
         if (modal) modal.classList.add("active");
-        if (passwordInput) passwordInput.focus();
+        if (otpInput) otpInput.focus();
     }
 
     async function requestStepupOtp() {
@@ -1525,10 +1546,14 @@ function setupEventHandlers() {
                 }, 1000);
             }
 
+            const reqBody = stepupContext === "profile_email" && pendingStepupPayload
+                ? { purpose: "email_change", new_email: pendingStepupPayload.email }
+                : { purpose: "payout_stepup" };
+
             const res = await fetch("/api/profile/request-stepup-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ purpose: "payout_stepup" })
+                body: JSON.stringify(reqBody)
             });
             if (res.status === 401) return showAuthScreen();
             if (res.status === 429) {
@@ -1581,9 +1606,11 @@ function setupEventHandlers() {
             const errorEl = document.getElementById("stepup-payout-error");
             const confirmBtn = document.getElementById("confirm-stepup-payout-btn");
 
-            if (!password || !otp_code || otp_code.length !== 6) {
+            if (!otp_code || otp_code.length !== 6 || (stepupContext !== "profile_email" && !password)) {
                 if (errorEl) {
-                    errorEl.innerText = "Please enter your password and complete 6-digit verification code.";
+                    errorEl.innerText = stepupContext === "profile_email"
+                        ? "Please enter the complete 6-digit verification code."
+                        : "Please enter your password and complete 6-digit verification code.";
                     errorEl.style.display = "block";
                 }
                 return;
@@ -1595,11 +1622,18 @@ function setupEventHandlers() {
 
                 const finalPayload = {
                     ...pendingStepupPayload,
-                    password,
                     otp_code
                 };
+                if (stepupContext !== "profile_email") {
+                    finalPayload.password = password;
+                }
 
-                const endpoint = stepupContext === "settings" ? "/api/settings" : "/api/budget/lock";
+                let endpoint = "/api/budget/lock";
+                if (stepupContext === "settings") {
+                    endpoint = "/api/settings";
+                } else if (stepupContext === "profile_email") {
+                    endpoint = "/api/profile";
+                }
 
                 const res = await fetch(endpoint, {
                     method: "POST",
@@ -1615,7 +1649,14 @@ function setupEventHandlers() {
                 if (stepupModal) stepupModal.classList.remove("active");
                 clearInterval(stepupTimer);
 
-                if (stepupContext === "settings") {
+                if (stepupContext === "profile_email") {
+                    ["profile-first-name", "profile-last-name", "profile-email", "profile-bio"].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) delete el.dataset.dirty;
+                    });
+                    alert("Profile details and email address updated successfully!");
+                    fetchProfile(true);
+                } else if (stepupContext === "settings") {
                     alert("Settings successfully updated!");
                     const viewSettings = document.getElementById("view-settings");
                     const inFlatTabMode = viewSettings && !viewSettings.classList.contains("hidden") && viewSettings.classList.contains("active");
@@ -1627,7 +1668,6 @@ function setupEventHandlers() {
                     }
                 } else {
                     alert("Budget successfully finalized and locked for this month! 🔒");
-                    // Close Budget Designer Modal
                     const budgetModal = document.getElementById("budget-designer-modal");
                     const budgetContent = document.getElementById("budget-designer-modal-content");
                     if (budgetContent && budgetModal && budgetContent.parentNode !== budgetModal) {
@@ -1643,6 +1683,8 @@ function setupEventHandlers() {
                 if (errorEl) {
                     errorEl.innerText = err.message || "Invalid credentials or verification code.";
                     errorEl.style.display = "block";
+                } else {
+                    alert(err.message || "Invalid credentials or verification code.");
                 }
             } finally {
                 if (confirmBtn) confirmBtn.disabled = false;
@@ -2560,12 +2602,28 @@ function setupProfileHandlers() {
                 alert("First Name, Last Name, and Email are required and cannot be empty.");
                 return;
             }
+
+            const currentEmail = (window._currentProfileEmail || "").trim().toLowerCase();
+            const newEmail = email.trim().toLowerCase();
+            const emailChanged = currentEmail && newEmail && newEmail !== currentEmail;
+
+            const payload = { first_name, last_name, email: newEmail, bio };
+            const submitBtn = profileForm.querySelector('button[type="submit"]');
+
+            if (emailChanged) {
+                if (typeof window.triggerStepupFlow === "function") {
+                    await window.triggerStepupFlow(payload, "profile_email", submitBtn);
+                } else if (typeof triggerStepupFlow === "function") {
+                    await triggerStepupFlow(payload, "profile_email", submitBtn);
+                }
+                return;
+            }
             
             try {
                 const res = await fetch("/api/profile", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ first_name, last_name, email, bio })
+                    body: JSON.stringify(payload)
                 });
                 if (res.status === 401) return showAuthScreen();
                 const data = await res.json();
@@ -2742,6 +2800,7 @@ async function fetchProfile(force = false) {
         const res = await fetch("/api/profile");
         if (res.status === 401) return showAuthScreen();
         const profile = await res.json();
+        window._currentProfileEmail = (profile.email || "").trim().toLowerCase();
         
         const updateField = (id, val) => {
             const el = document.getElementById(id);

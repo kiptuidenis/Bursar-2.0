@@ -215,10 +215,10 @@ def verify_otp(request: Request, payload: OTPVerificationPayload, response: Resp
 
         existing = db.get_user_by_email(email_clean)
         if existing:
-            user = existing
-        else:
-            user_id = db.create_user_email(email_clean, password_hash, salt)
-            user = db.get_user_by_email(email_clean)
+            raise HTTPException(status_code=400, detail="An account with this email address already exists.")
+        
+        user_id = db.create_user_email(email_clean, password_hash, salt)
+        user = db.get_user_by_email(email_clean)
     else:
         is_valid = db.verify_otp_challenge(email_clean, payload.otp_code, payload.purpose)
         if not is_valid:
