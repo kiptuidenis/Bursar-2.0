@@ -311,7 +311,7 @@ test.describe('Bursar 2.0 End-to-End Visual & Functional Tests', () => {
     page.on('pageerror', err => pageErrors.push(err.message));
 
     // 1. Setup authenticated session
-    const { phone: testPhoneNumber } = await setupAuthenticatedUser(page);
+    const { phone: testPhoneNumber } = await setupAuthenticatedUser(page, { email: 'denis.kiptui@example.com' });
 
     // 2. Verify profile mini-card exists on the dashboard
     await expect(page.locator('#dashboard-profile-card')).toBeVisible();

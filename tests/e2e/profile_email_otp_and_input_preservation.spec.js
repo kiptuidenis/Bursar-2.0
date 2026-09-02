@@ -73,8 +73,12 @@ test.describe('Profile Input Preservation & Email Change OTP Verification E2E Te
     await page.fill('#profile-last-name', 'Hopper');
     await page.fill('#profile-email', targetEmail);
 
-    // Click Save Profile
-    await page.click('#profile-info-form button[type="submit"]');
+    // Click Save Profile and wait for request-stepup-otp response
+    const [otpRes] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/profile/request-stepup-otp') && res.request().method() === 'POST'),
+      page.click('#profile-info-form button[type="submit"]')
+    ]);
+    expect(otpRes.status()).toBe(200);
 
     // Step-up verification modal should open for new email
     const stepupModal = page.locator('#stepup-payout-modal');
@@ -99,18 +103,19 @@ test.describe('Profile Input Preservation & Email Change OTP Verification E2E Te
     await page.waitForLoadState('networkidle');
 
     // 3. Try to register a new account with the same email
-    const registerTabBtn = page.locator('#auth-tab-register, [data-auth-tab="register"]');
-    if (await registerTabBtn.count() > 0) {
-      await registerTabBtn.first().click();
+    const loginNavBtn = page.locator('#nav-login-btn, #hero-cta-btn');
+    if (await loginNavBtn.count() > 0) {
+      await loginNavBtn.first().click();
     }
-
-    await page.fill('#register-email', existingEmail);
-    await page.fill('#register-password', 'Another!P@ssw0rd1');
-    await page.click('#register-submit-btn, #register-form button[type="submit"]');
+    await page.click('#tab-signup');
+    await page.fill('#auth-phone', existingEmail);
+    await page.fill('#auth-password', 'Another!P@ssw0rd1');
+    await page.fill('#auth-confirm-password', 'Another!P@ssw0rd1');
+    await page.click('#auth-submit-btn');
 
     // Verify error message is shown
-    await expect(page.locator('#auth-error, .auth-error, #register-error')).toBeVisible();
-    await expect(page.locator('#auth-error, .auth-error, #register-error')).toContainText(/already exists/i);
+    await expect(page.locator('#auth-error-msg')).toBeVisible();
+    await expect(page.locator('#auth-error-msg')).toContainText(/already exists/i);
 
     expect(pageErrors).toHaveLength(0);
   });

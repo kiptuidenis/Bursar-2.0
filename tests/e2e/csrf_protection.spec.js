@@ -5,7 +5,7 @@ test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
 
   test('1. Normal user browser flow attaches X-CSRF-Token header on state-mutating requests', async ({ page }) => {
     // 1. Authenticated session
-    await setupAuthenticatedUser(page);
+    const { email } = await setupAuthenticatedUser(page);
 
     // 2. Verify csrf_token cookie exists in browser context
     const cookies = await page.context().cookies();
@@ -28,7 +28,7 @@ test.describe('Bursar 2.0 Rigorous CSRF Protection E2E Tests (H-05)', () => {
 
     await page.fill('#profile-first-name', 'CSRF');
     await page.fill('#profile-last-name', 'Tester');
-    await page.fill('#profile-email', 'csrf.tester@example.com');
+    await page.fill('#profile-email', email);
     await page.click('#profile-info-form button[type="submit"]');
 
     await page.waitForTimeout(500);
