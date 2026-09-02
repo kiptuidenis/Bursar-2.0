@@ -340,9 +340,11 @@
             document.getElementById("kpi-platform-float").textContent = formatCurrency(platformFloat);
             document.getElementById("kpi-locked-deposits").textContent = `${formatCurrency(lockedBalance)} locked in active savings`;
 
-            const todayDepAmount = fl.total_deposited_all_time || 0;
+            const depVel = data.deposit_velocity || {};
+            const todayDepAmount = depVel.today_deposited_amount !== undefined ? depVel.today_deposited_amount : (fl.today_deposited_amount || 0);
+            const todayDepCount = depVel.today_deposited_count !== undefined ? depVel.today_deposited_count : (fl.today_deposited_count || 0);
             document.getElementById("kpi-today-deposits").textContent = formatCurrency(todayDepAmount);
-            document.getElementById("kpi-today-deposit-count").textContent = `${q.pending_deposits_count || 0} pending STK reconciliation`;
+            document.getElementById("kpi-today-deposit-count").textContent = `${todayDepCount} successful STK deposits today`;
 
             const todayDisbAmount = pv.today_disbursed_amount || 0;
             document.getElementById("kpi-today-disbursed").textContent = formatCurrency(todayDisbAmount);

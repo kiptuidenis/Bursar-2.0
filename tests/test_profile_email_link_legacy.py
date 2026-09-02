@@ -29,6 +29,8 @@ def clean_db():
     db.session.commit()
     yield
     db.session.rollback()
+    app.dependency_overrides.pop(get_db, None)
+    db.close()
 
 def _create_legacy_user_client(phone_number="254711223344", password="Str0ng!P@ssw0rd"):
     """Create a legacy user with ONLY a phone number (no email address)."""
