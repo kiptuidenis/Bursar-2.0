@@ -93,9 +93,9 @@ def test_profile_rate_limits_trigger_429(enable_limiter):
 
     # 2. Deactivate limit (3/minute) -> 4th attempt returns 429
     for i in range(3):
-        client.post("/api/profile/deactivate", json={"password": "WrongPassword!", "confirmation": "DELETE"}, headers=headers)
+        client.post("/api/profile/deactivate", json={"password": "WrongPassword!", "confirmation": "DELETE", "otp_code": "123456"}, headers=headers)
 
-    res_deact = client.post("/api/profile/deactivate", json={"password": "WrongPassword!", "confirmation": "DELETE"}, headers=headers)
+    res_deact = client.post("/api/profile/deactivate", json={"password": "WrongPassword!", "confirmation": "DELETE", "otp_code": "123456"}, headers=headers)
     assert res_deact.status_code == 429
 
 

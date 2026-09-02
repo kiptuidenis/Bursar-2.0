@@ -851,20 +851,34 @@
             </div>
             <form id="deactivate-form" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
                 <p class="text-muted" style="font-size: 0.85rem; line-height: 1.45; margin: 0;">Are you absolutely sure you want to deactivate your account? This will permanently delete your profile, budget configurations, transaction histories, and locked balance.</p>
+                <div id="deactivate-email-notice" style="background: rgba(142, 68, 255, 0.08); border: 1px solid rgba(142, 68, 255, 0.25); border-radius: 0.5rem; padding: 0.65rem 0.85rem; font-size: 0.82rem; color: #cbd5e1; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="shield-alert" style="color: var(--color-accent-violet); width: 1.1rem; height: 1.1rem; flex-shrink: 0;"></i>
+                    <span id="deactivate-email-text">A 6-digit authorization code was sent to your email to confirm deletion.</span>
+                </div>
                 <div class="form-group">
                     <label for="deactivate-confirm-phrase">To confirm, type <strong>DELETE</strong> below:</label>
                     <input type="text" id="deactivate-confirm-phrase" placeholder="DELETE" required autocomplete="off" style="width: 100%;">
                 </div>
                 <div class="form-group">
-                    <label for="deactivate-password">Password:</label>
+                    <label for="deactivate-password">Account Password:</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="deactivate-password" placeholder="••••" required style="width: 100%;">
+                        <input type="password" id="deactivate-password" placeholder="••••••••" required style="width: 100%;">
                         <button type="button" class="btn-toggle-password" data-target="deactivate-password" aria-label="Toggle password visibility" tabindex="-1">
                             <i data-lucide="eye"></i>
                         </button>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-block" style="background: var(--color-accent-rose); color: white; font-weight: 600; border: none; padding: 0.75rem; margin-top: 0.5rem;">
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label for="deactivate-otp" style="margin-bottom: 0;">6-Digit Authorization Code:</label>
+                        <button type="button" id="deactivate-resend-otp-btn" class="text-link-btn" style="font-size: 0.78rem; background: none; border: none; color: var(--color-accent-violet); cursor: pointer; padding: 0;">
+                            Resend code
+                        </button>
+                    </div>
+                    <input type="text" id="deactivate-otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autocomplete="one-time-code" style="letter-spacing: 0.25rem; font-size: 1.1rem; font-weight: 700; text-align: center; width: 100%;">
+                </div>
+                <div id="deactivate-error" class="info-alert" style="display: none; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); font-size: 0.85rem; padding: 0.65rem 0.85rem; border-radius: 0.5rem;"></div>
+                <button type="submit" id="confirm-deactivate-btn" class="btn btn-block" style="background: var(--color-accent-rose); color: white; font-weight: 600; border: none; padding: 0.75rem; margin-top: 0.25rem;">
                     Permanently Delete My Account
                 </button>
             </form>

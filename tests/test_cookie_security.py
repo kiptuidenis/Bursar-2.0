@@ -20,7 +20,8 @@ def client_and_db():
     db = DatabaseManager(DB_FILE)
     db.initialize()
     
-    user_id = db.create_user("254712345678", "TestPassword123!")
+    pwd_hash, salt = db._hash_password("TestPassword123!")
+    user_id = db.create_user_email("test_cookie_sec@example.com", pwd_hash, salt, phone_number="254712345678")
     
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user_id] = lambda: user_id
@@ -65,8 +66,11 @@ def test_logout_cookie_deletion_attributes(client_and_db):
 def test_deactivate_cookie_deletion_attributes(client_and_db):
     """Verify /api/profile/deactivate deletes session_token and csrf_token cookies with path=/ (SEC-006)."""
     client, db, user_id = client_and_db
+    from app.db.models import User
+    user = db.session.query(User).filter(User.id == user_id).first()
+    otp_code = db.create_otp_challenge(user.email, purpose="account_deactivation", ttl_seconds=300, user_id=user_id)
     
-    res = client.post("/api/profile/deactivate", json={"password": "TestPassword123!", "confirmation": "DELETE"})
+    res = client.post("/api/profile/deactivate", json={"password": "TestPassword123!", "confirmation": "DELETE", "otp_code": otp_code})
     assert res.status_code == 200
     
     session_cookie_header = next((h for h in res.headers.raw if b"session_token=" in h[1]), None)

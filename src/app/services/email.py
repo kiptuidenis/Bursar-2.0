@@ -23,6 +23,8 @@ def format_otp_email_html(otp_code: str, purpose: str) -> str:
         purpose_title = "Authorize Cash Withdrawal"
     elif purpose == "password_change":
         purpose_title = "Authorize Password Change"
+    elif purpose == "account_deactivation":
+        purpose_title = "Authorize Account Deactivation"
 
     return f"""<!DOCTYPE html>
 <html>
