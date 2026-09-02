@@ -27,6 +27,7 @@ window.fetch = function (url, options = {}) {
 let currentSettings = {};
 let currentPayouts = [];
 let budgetItems = [];
+let wizardDraftItems = [];
 let countdownInterval = null;
 let pollInterval = null;
 let currentAuthAction = "login"; // "login" or "signup"
@@ -1302,7 +1303,7 @@ function setupEventHandlers() {
     const wizardNext1 = document.getElementById("budget-wizard-next-1");
     if (wizardNext1) {
         wizardNext1.addEventListener("click", () => {
-            if (budgetItems.length === 0) {
+            if (wizardDraftItems.length === 0) {
                 alert("Please add at least one budget category allocation before proceeding to schedule.");
                 const catInput = document.getElementById("new-category-name");
                 if (catInput) catInput.focus();
@@ -1339,10 +1340,10 @@ function setupEventHandlers() {
         });
     }
     
-    // Add Category Form Submit
+    // Add Category Form Submit (In-memory Draft)
     const addCatForm = document.getElementById("add-category-form");
     if (addCatForm) {
-        addCatForm.addEventListener("submit", async (e) => {
+        addCatForm.addEventListener("submit", (e) => {
             e.preventDefault();
             const category = document.getElementById("new-category-name").value.trim();
             const amount = parseFloat(document.getElementById("new-category-amount").value);
@@ -1352,28 +1353,19 @@ function setupEventHandlers() {
                 return;
             }
             
-            try {
-                const res = await fetch("/api/budget/items", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ category, amount })
-                });
-                if (res.status === 401) return showAuthScreen();
-                if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.detail || "Failed to add category.");
-                }
-                
-                document.getElementById("new-category-name").value = "";
-                document.getElementById("new-category-amount").value = "";
-                
-                await pollDashboardData();
-                const newCatName = document.getElementById("new-category-name");
-                if (newCatName) newCatName.focus();
-            } catch (err) {
-                console.error(err);
-                alert(err.message || "Failed to save category.");
+            const existingIndex = wizardDraftItems.findIndex(it => it.category.toLowerCase() === category.toLowerCase());
+            if (existingIndex >= 0) {
+                wizardDraftItems[existingIndex].amount = amount;
+            } else {
+                wizardDraftItems.push({ id: Date.now() + Math.random(), category, amount });
             }
+            
+            document.getElementById("new-category-name").value = "";
+            document.getElementById("new-category-amount").value = "";
+            
+            renderBudgetBreakdown();
+            const newCatName = document.getElementById("new-category-name");
+            if (newCatName) newCatName.focus();
         });
     }
 
@@ -1717,7 +1709,7 @@ function setupEventHandlers() {
                 return;
             }
 
-            if (budgetItems.length === 0) {
+            if (wizardDraftItems.length === 0) {
                 alert("Cannot lock an empty budget. Please add budget items first.");
                 goToBudgetWizardStep(1);
                 return;
@@ -1733,17 +1725,18 @@ function setupEventHandlers() {
                 return;
             }
 
+            const itemsPayload = wizardDraftItems.map(it => ({ category: it.category, amount: it.amount }));
             const currentSavedPhone = currentSettings && (currentSettings.payout_phone_number || currentSettings.phone_number);
             const hasChangedPhone = currentSavedPhone && payout_phone && (normalizePhone(payout_phone) !== normalizePhone(currentSavedPhone));
 
             if (hasChangedPhone) {
-                const lockPayload = { start_date, end_date, payout_phone_number: payout_phone };
+                const lockPayload = { items: itemsPayload, start_date, end_date, payout_phone_number: payout_phone };
                 await triggerStepupFlow(lockPayload, "budget_lock", lockBudgetBtn);
                 return;
             }
             
             try {
-                const lockPayload = { start_date, end_date };
+                const lockPayload = { items: itemsPayload, start_date, end_date };
                 if (payout_phone) {
                     lockPayload.payout_phone_number = payout_phone;
                 }
@@ -2423,15 +2416,16 @@ function renderBudgetBreakdown() {
     }
 
     // Render rows inside the designer modal list
+    const activeItems = isLocked ? budgetItems : wizardDraftItems;
     if (designerList) {
-        if (budgetItems.length === 0) {
+        if (activeItems.length === 0) {
             designerList.innerHTML = `<div class="empty-state" style="padding: 1.5rem 0; color: var(--text-muted); text-align: center; font-style: italic;">No categories defined. Add one below to start.</div>`;
         } else {
-            designerList.innerHTML = budgetItems.map(item => `
+            designerList.innerHTML = activeItems.map(item => `
                 <div class="designer-row">
                     <div class="designer-row-info">
                         <span class="designer-category-name">${escapeHTML(item.category)}</span>
-                        <span class="designer-category-val">Daily allocation: <span>KES ${item.amount.toFixed(2)}</span></span>
+                        <span class="designer-category-val">Daily allocation: <span>KES ${Number(item.amount).toFixed(2)}</span></span>
                     </div>
                     ${isLocked ? '' : `
                     <button class="icon-link-btn cancel-btn" data-action="delete-category" data-id="${item.id}" title="Delete allocation category">
@@ -2449,7 +2443,7 @@ function renderBudgetBreakdown() {
     
     // Render total sum in modal
     if (designerTotal) {
-        const totalSum = budgetItems.reduce((acc, curr) => acc + curr.amount, 0);
+        const totalSum = activeItems.reduce((acc, curr) => acc + Number(curr.amount), 0);
         designerTotal.innerText = `KES ${totalSum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     
@@ -2508,8 +2502,8 @@ function escapeHTML(str) {
     );
 }
 
-// Call API to delete budget category allocation item
-async function deleteCategory(itemId) {
+// Delete budget category allocation item (In-memory Draft)
+function deleteCategory(itemId) {
     const isLocked = currentSettings && currentSettings.is_budget_locked;
     if (isLocked) {
         alert("Budget is locked until the end of the month.");
@@ -2518,16 +2512,8 @@ async function deleteCategory(itemId) {
     
     if (!window.__SKIP_CONFIRM__ && !confirm("Are you sure you want to delete this category?")) return;
     
-    try {
-        const res = await fetch(`/api/budget/items/${itemId}`, { method: "DELETE" });
-        if (res.status === 401) return showAuthScreen();
-        if (!res.ok) throw new Error("Deletion failed");
-        
-        await pollDashboardData();
-    } catch (err) {
-        console.error(err);
-        alert("Failed to delete category.");
-    }
+    wizardDraftItems = wizardDraftItems.filter(it => String(it.id) !== String(itemId));
+    renderBudgetBreakdown();
 }
 
 // Attach to window so onclick attribute can bind successfully
@@ -2561,6 +2547,9 @@ async function openBudgetDesignerModal() {
 
     // Fetch fresh settings before rendering so lock state is always current
     await fetchSettings();
+
+    // Initialize draft items from saved items if budget is unlocked
+    wizardDraftItems = budgetItems.map((item, idx) => ({ id: item.id || `draft_${idx}_${Date.now()}`, category: item.category, amount: item.amount }));
 
     // Fill date fields now that currentSettings is refreshed
     const startDateInput = document.getElementById("lock-start-date");

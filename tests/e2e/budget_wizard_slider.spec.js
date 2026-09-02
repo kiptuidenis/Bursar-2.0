@@ -322,4 +322,36 @@ test.describe('Budget Creation 3-Step Sliding Wizard', () => {
     expect(lockBtnBox.x + lockBtnBox.width).toBeLessThanOrEqual(cBox.x + cBox.width + 5);
   });
 
+  test('Should not persist draft budget items to server if user cancels wizard before locking', async ({ page }) => {
+    await setupAuthenticatedUser(page);
+
+    // 1. Open Budget Designer Modal
+    await page.locator('#open-budget-designer-btn').click();
+    const budgetModal = page.locator('#budget-designer-modal');
+    await expect(budgetModal).toHaveClass(/active/, { timeout: 8000 });
+
+    // 2. Add draft categories
+    await page.locator('#new-category-name').fill('Draft Groceries');
+    await page.locator('#new-category-amount').fill('450');
+    await page.locator('#add-category-form button[type="submit"]').click();
+
+    // Verify row appears in modal table
+    await expect(page.locator('#designer-category-list')).toContainText('Draft Groceries');
+    await expect(page.locator('#designer-total-budget')).toContainText('450');
+
+    // 3. Close modal without locking
+    await page.locator('#close-budget-designer-btn').click();
+    await expect(budgetModal).not.toHaveClass(/active/);
+
+    // 4. Verify server items endpoint returned 0 items
+    const serverItems = await page.evaluate(async () => {
+      const res = await fetch('/api/budget/items');
+      return await res.json();
+    });
+    expect(serverItems).toHaveLength(0);
+
+    // 5. Verify main dashboard Daily Budget card shows no configured categories
+    await expect(page.locator('#budget-breakdown-list')).toContainText('No categories configured');
+  });
+
 });

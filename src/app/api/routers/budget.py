@@ -63,26 +63,41 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if payload is None:
         payload = BudgetLockPayload()
         
+    if db.is_budget_locked(user_id):
+        raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+
+    # 1. Determine incoming items and validate structure
+    items_to_persist = None
     if payload.items is not None:
-        if db.is_budget_locked(user_id):
-            raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
+        if not payload.items:
+            raise HTTPException(status_code=400, detail="Cannot lock an empty budget. Please create budget items first.")
         
-        db.session.query(BudgetItem).filter(BudgetItem.user_id == user_id).delete(synchronize_session=False)
+        parsed_items = []
         for item in payload.items:
-            if not float(item.amount).is_integer():
+            if not float(item.amount).is_integer() or int(item.amount) <= 0:
                 raise HTTPException(status_code=400, detail="Budget allocation amount must be a whole positive integer (no decimal places).")
             category = item.category.strip()
             if not category:
-                raise HTTPException(status_code=400, detail="Category name cannot be empty")
-            db_item = BudgetItem(user_id=user_id, category=category, amount=float(int(item.amount)))
-            db.session.add(db_item)
-        db._commit()
-        db.recalculate_daily_budget(user_id)
+                raise HTTPException(status_code=400, detail="Category name cannot be empty.")
+            parsed_items.append({"category": category, "amount": int(item.amount)})
         
-    items = db.get_budget_items(user_id)
-    if not items:
-        raise HTTPException(status_code=400, detail="Cannot lock an empty budget. Please create budget items first.")
-        
+        items_to_persist = parsed_items
+        effective_daily_budget = sum(it["amount"] for it in parsed_items)
+    else:
+        existing_items = db.get_budget_items(user_id)
+        if not existing_items:
+            raise HTTPException(status_code=400, detail="Cannot lock an empty budget. Please create budget items first.")
+        effective_daily_budget = sum(int(it["amount"]) for it in existing_items)
+
+    # 2. Validate wallet balance against effective daily budget
+    settings = db.get_settings(user_id)
+    balance = float(settings.get("balance", 0.0) or 0.0)
+    if balance <= 0:
+        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
+    if effective_daily_budget > balance:
+        raise HTTPException(status_code=400, detail=f"Daily budget (KES {effective_daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+
+    # 3. Validate schedule dates
     start_date = payload.start_date.strip() if payload.start_date else ""
     end_date = payload.end_date.strip() if payload.end_date else ""
     
@@ -99,8 +114,9 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if start_date and end_date and end_date <= start_date:
         raise HTTPException(status_code=400, detail="End date must be strictly after start date (cannot be the same day or earlier).")
         
-    # Payout Phone Number Configuration & Step-up Authentication
+    # 4. Payout Phone Number Configuration & Step-up Authentication
     current_payout_phone = db.get_payout_phone_number(user_id)
+    sanitized_phone = None
     if payload.payout_phone_number:
         from app.api.routers.auth import sanitize_phone_number
         sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
@@ -122,7 +138,23 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
             is_valid_otp = db.verify_otp_challenge(user.email, payload.otp_code, purpose="payout_stepup")
             if not is_valid_otp:
                 raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
-            
+    elif not current_payout_phone:
+        raise HTTPException(
+            status_code=400,
+            detail="A target Safaricom M-Pesa phone number is required to receive your daily disbursements. Please provide a payout phone number."
+        )
+
+    # 5. ALL VALIDATIONS PASSED -> ATOMIC PERSISTENCE
+    if items_to_persist is not None:
+        db.session.query(BudgetItem).filter(BudgetItem.user_id == user_id).delete(synchronize_session=False)
+        for it in items_to_persist:
+            db_item = BudgetItem(user_id=user_id, category=it["category"], amount=float(it["amount"]))
+            db.session.add(db_item)
+        db._commit()
+        db.recalculate_daily_budget(user_id)
+
+    if sanitized_phone:
+        if current_payout_phone and current_payout_phone != sanitized_phone:
             client_ip = request.client.host if request.client else "127.0.0.1"
             db.log_event(user_id, "SECURITY", f"Payout phone number updated from '{current_payout_phone}' to '{sanitized_phone}' via step-up authentication.")
             db.create_admin_audit_log(
@@ -135,22 +167,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
                 reason="User updated payout destination line during budget lock",
                 ip_address=client_ip
             )
-            db.update_payout_phone_number(user_id, sanitized_phone)
-        elif not current_payout_phone:
-            db.update_payout_phone_number(user_id, sanitized_phone)
-    elif not current_payout_phone:
-        raise HTTPException(
-            status_code=400,
-            detail="A target Safaricom M-Pesa phone number is required to receive your daily disbursements. Please provide a payout phone number."
-        )
-
-    settings = db.get_settings(user_id)
-    daily_budget = float(settings.get("daily_budget", 0.0) or 0.0)
-    balance = float(settings.get("balance", 0.0) or 0.0)
-    if balance <= 0:
-        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
-    if daily_budget > balance:
-        raise HTTPException(status_code=400, detail=f"Daily budget (KES {daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
+        db.update_payout_phone_number(user_id, sanitized_phone)
 
     db.lock_budget(user_id)
     db.update_settings(user_id, start_date=start_date, end_date=end_date)
