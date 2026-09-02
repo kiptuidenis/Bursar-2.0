@@ -31,6 +31,8 @@ def clean_db():
     db.session.commit()
     yield
     db.session.rollback()
+    app.dependency_overrides.pop(get_db, None)
+    db.close()
 
 def _create_user_with_balance(balance=5000, phone="254711223344", email="atomic_budget@example.com"):
     db = get_test_db()

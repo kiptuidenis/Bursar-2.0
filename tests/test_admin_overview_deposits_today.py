@@ -30,6 +30,8 @@ def clean_db():
     db.session.commit()
     yield
     db.session.rollback()
+    app.dependency_overrides.pop(get_db, None)
+    db.close()
 
 def _create_admin_client(role="superadmin"):
     db = get_test_db()
