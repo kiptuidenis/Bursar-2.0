@@ -63,7 +63,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if payload is None:
         payload = BudgetLockPayload()
         
-    if db.is_budget_locked(user_id):
+    if payload.items is not None and db.is_budget_locked(user_id):
         raise HTTPException(status_code=400, detail="Budget is locked until the end of the month.")
 
     # 1. Determine incoming items and validate structure
