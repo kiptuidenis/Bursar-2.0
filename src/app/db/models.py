@@ -152,6 +152,7 @@ class Deposit(Base):
     amount = Column(Integer, nullable=False)
     status = Column(String(50), default="PENDING", nullable=False)
     mpesa_receipt = Column(String(100), default="")
+    completed_at = Column(String(50), default="")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     user = relationship("User", back_populates="deposits")

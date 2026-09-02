@@ -129,12 +129,40 @@
         try {
             const d = new Date(dateStr);
             return d.toLocaleString("en-KE", {
+                timeZone: "Africa/Nairobi",
                 year: "numeric",
                 month: "short",
                 day: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
             });
+        } catch {
+            return dateStr;
+        }
+    }
+
+    function formatExactDateTime(dateStr) {
+        if (!dateStr) return "-";
+        // If already formatted as "YYYY-MM-DD HH:MM:SS", format with EAT
+        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+            return `${dateStr} EAT`;
+        }
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const parts = new Intl.DateTimeFormat("en-GB", {
+                timeZone: "Africa/Nairobi",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false
+            }).format(d);
+            const [datePart, timePart] = parts.split(", ");
+            const [day, month, year] = datePart.split("/");
+            return `${year}-${month}-${day} ${timePart} EAT`;
         } catch {
             return dateStr;
         }
@@ -686,11 +714,12 @@
                         ${deposits.length === 0 ? '<p class="text-dim text-xs">No deposits recorded yet.</p>' : `
                         <div class="table-responsive">
                             <table class="data-table text-xs">
-                                <thead><tr><th>Receipt</th><th>Amount</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Receipt</th><th>Deposit Time (EAT)</th><th>Amount</th><th>Status</th></tr></thead>
                                 <tbody>
                                     ${deposits.map(d => `
                                         <tr>
                                             <td><span class="font-mono">${escapeHtml(d.mpesa_receipt || d.checkout_request_id || '')}</span></td>
+                                            <td class="font-mono text-dim text-xs">${escapeHtml(formatExactDateTime(d.completed_at || d.created_at))}</td>
                                             <td class="text-emerald font-mono font-bold">${formatCurrency(d.amount)}</td>
                                             <td><span class="status-pill pill-${d.status === 'COMPLETED' ? 'success' : d.status === 'PENDING' ? 'warning' : 'danger'}">${d.status}</span></td>
                                         </tr>
@@ -705,11 +734,12 @@
                         ${payouts.length === 0 ? '<p class="text-dim text-xs">No payouts recorded yet.</p>' : `
                         <div class="table-responsive">
                             <table class="data-table text-xs">
-                                <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Date</th><th>Disbursed At (EAT)</th><th>Amount</th><th>Status</th></tr></thead>
                                 <tbody>
                                     ${payouts.map(p => `
                                         <tr>
                                             <td>${escapeHtml(p.payout_date || '')}</td>
+                                            <td class="font-mono text-dim text-xs">${escapeHtml(p.completed_at ? formatExactDateTime(p.completed_at) : (p.failed_at ? formatExactDateTime(p.failed_at) : 'Pending'))}</td>
                                             <td class="text-amber font-mono font-bold">${formatCurrency(p.amount)}</td>
                                             <td><span class="status-pill pill-${p.status === 'COMPLETED' ? 'success' : p.status === 'PENDING' ? 'warning' : 'danger'}">${p.status}</span></td>
                                         </tr>
@@ -1037,7 +1067,14 @@
                         <td class="font-mono font-bold text-emerald">${formatCurrency(d.amount)}</td>
                         <td><span class="status-pill ${pillClass}">${d.status}</span></td>
                         <td class="font-mono">${escapeHtml(d.mpesa_receipt || "-")}</td>
-                        <td class="text-dim text-xs">${formatDate(d.created_at)}</td>
+                        <td class="text-dim text-xs font-mono">
+                            ${d.completed_at ? `
+                                <div class="text-emerald font-bold" title="Completed at">${escapeHtml(formatExactDateTime(d.completed_at))}</div>
+                                <div class="text-dim" style="font-size: 0.68rem;" title="Initiated at">Init: ${escapeHtml(formatExactDateTime(d.created_at))}</div>
+                            ` : `
+                                <div class="font-bold" title="Initiated at">${escapeHtml(formatExactDateTime(d.created_at))}</div>
+                            `}
+                        </td>
                         <td>
                             <div class="btn-group rbac-finops">
                                 ${d.status === "PENDING" ? `
@@ -1112,7 +1149,7 @@
     // --- VIEW: PAYOUTS & DISBURSEMENTS ---
     async function loadPayoutsData() {
         const tbody = document.getElementById("payouts-table-body");
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">Loading disbursement records...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-8">Loading disbursement records...</td></tr>`;
 
         const searchInput = document.getElementById("payouts-search-input");
         const search = searchInput ? searchInput.value.trim() : "";
@@ -1134,7 +1171,7 @@
             }
 
             if (!data.payouts || data.payouts.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-8">No payout transactions found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-8">No payout transactions found.</td></tr>`;
                 return;
             }
 
@@ -1148,9 +1185,14 @@
                 const trackingDisplay = p.transaction_id || p.conversation_id || "-";
                 const errorSubtext = p.error_message ? `<div class="text-danger text-xs truncate max-w-xs" title="${escapeHtml(p.error_message)}">${escapeHtml(p.error_message)}</div>` : "";
 
+                const disbursedTimeDisplay = p.completed_at ? 
+                    `<span class="font-mono text-xs text-emerald font-bold" title="Completed timestamp">${escapeHtml(formatExactDateTime(p.completed_at))}</span>` : 
+                    (p.failed_at ? `<span class="font-mono text-xs text-danger" title="Failed timestamp">${escapeHtml(formatExactDateTime(p.failed_at))}</span>` : `<span class="text-dim text-xs font-mono">Pending execution</span>`);
+
                 return `
                     <tr>
                         <td class="font-mono text-xs font-bold">${escapeHtml(p.payout_date || "-")}</td>
+                        <td>${disbursedTimeDisplay}</td>
                         <td>
                             <strong>${escapeHtml(customerDisplay)}</strong>
                             <div class="text-dim text-xs">${escapeHtml(p.user_email || "")}</div>
@@ -1166,7 +1208,7 @@
                             <div class="btn-group rbac-finops">
                                 ${p.status === "FAILED" ? `
                                     <button class="btn btn-primary btn-xs btn-payout-retry mr-1" data-id="${p.id}" data-customer="${escapeHtml(customerDisplay)}" data-amount="${p.amount}">
-                                        <i data-lucide="refresh-cw"></i> Retry
+                                         <i data-lucide="refresh-cw"></i> Retry
                                     </button>
                                     <button class="btn btn-secondary btn-xs btn-payout-settle" data-id="${p.id}" data-customer="${escapeHtml(customerDisplay)}" data-amount="${p.amount}">
                                         <i data-lucide="check-circle-2"></i> Reconcile
@@ -1206,7 +1248,7 @@
             if (window.lucide) window.lucide.createIcons();
         } catch (err) {
             console.error("loadPayoutsData error:", err);
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-8">Error loading payouts pipeline: ${escapeHtml(err.message || '')}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-8">Error loading payouts pipeline: ${escapeHtml(err.message || '')}</td></tr>`;
         }
     }
 

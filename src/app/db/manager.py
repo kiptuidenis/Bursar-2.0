@@ -1115,15 +1115,22 @@ class DatabaseManager:
         deposit = self.session.query(Deposit).filter(Deposit.checkout_request_id == checkout_request_id).first()
         return _row_to_dict(deposit) if deposit else None
 
-    def update_deposit_status(self, checkout_request_id: str, status: str, mpesa_receipt: str = "") -> bool:
+    def update_deposit_status(self, checkout_request_id: str, status: str, mpesa_receipt: str = "", completed_at: str = "") -> bool:
         """Atomically update the status and M-Pesa receipt of a deposit transaction ONLY if current status is PENDING."""
+        update_data = {
+            Deposit.status: status,
+            Deposit.mpesa_receipt: mpesa_receipt
+        }
+        if status in ("SUCCESS", "COMPLETED"):
+            if not completed_at:
+                eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+                completed_at = datetime.datetime.now(eat_tz).strftime("%Y-%m-%d %H:%M:%S")
+            update_data[Deposit.completed_at] = completed_at
+
         rows_updated = self.session.query(Deposit).filter(
             Deposit.checkout_request_id == checkout_request_id,
             Deposit.status == 'PENDING'
-        ).update({
-            Deposit.status: status,
-            Deposit.mpesa_receipt: mpesa_receipt
-        }, synchronize_session=False)
+        ).update(update_data, synchronize_session=False)
         self._commit()
         return rows_updated > 0
 
@@ -1869,6 +1876,12 @@ class DatabaseManager:
         results = []
         for d in deposits:
             user = self.session.query(User).filter(User.id == d.user_id).first()
+            created_str = ""
+            if d.created_at:
+                created_str = d.created_at.isoformat() if hasattr(d.created_at, "isoformat") else str(d.created_at)
+                if not created_str.endswith("Z") and "+" not in created_str:
+                    created_str += "Z"
+
             results.append({
                 "id": d.id,
                 "user_id": d.user_id,
@@ -1879,7 +1892,8 @@ class DatabaseManager:
                 "amount": int(d.amount or 0),
                 "status": d.status,
                 "mpesa_receipt": d.mpesa_receipt or "",
-                "created_at": d.created_at.isoformat() if hasattr(d.created_at, "isoformat") else str(d.created_at)
+                "completed_at": d.completed_at or "",
+                "created_at": created_str
             })
 
         return results, total, total_amount
@@ -1903,6 +1917,8 @@ class DatabaseManager:
         prev_status = deposit.status
         deposit.status = "COMPLETED"
         deposit.mpesa_receipt = mpesa_receipt.strip().upper()
+        eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+        deposit.completed_at = datetime.datetime.now(eat_tz).strftime("%Y-%m-%d %H:%M:%S")
 
         user_id = deposit.user_id
         amount = int(deposit.amount or 0)
@@ -1995,6 +2011,12 @@ class DatabaseManager:
         results = []
         for p in payouts:
             user = self.session.query(User).filter(User.id == p.user_id).first()
+            created_str = ""
+            if p.created_at:
+                created_str = p.created_at.isoformat() if hasattr(p.created_at, "isoformat") else str(p.created_at)
+                if not created_str.endswith("Z") and "+" not in created_str:
+                    created_str += "Z"
+
             results.append({
                 "id": p.id,
                 "user_id": p.user_id,
@@ -2008,7 +2030,9 @@ class DatabaseManager:
                 "originator_conversation_id": p.originator_conversation_id or "",
                 "transaction_id": p.transaction_id or "",
                 "error_message": p.error_message or "",
-                "created_at": p.created_at.isoformat() if hasattr(p.created_at, "isoformat") else str(p.created_at)
+                "completed_at": p.completed_at or "",
+                "failed_at": p.failed_at or "",
+                "created_at": created_str
             })
 
         return results, total, total_disbursed
