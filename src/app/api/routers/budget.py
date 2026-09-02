@@ -89,15 +89,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
             raise HTTPException(status_code=400, detail="Cannot lock an empty budget. Please create budget items first.")
         effective_daily_budget = sum(int(it["amount"]) for it in existing_items)
 
-    # 2. Validate wallet balance against effective daily budget
-    settings = db.get_settings(user_id)
-    balance = float(settings.get("balance", 0.0) or 0.0)
-    if balance <= 0:
-        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
-    if effective_daily_budget > balance:
-        raise HTTPException(status_code=400, detail=f"Daily budget (KES {effective_daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
-
-    # 3. Validate schedule dates
+    # 2. Validate schedule dates
     start_date = payload.start_date.strip() if payload.start_date else ""
     end_date = payload.end_date.strip() if payload.end_date else ""
     
@@ -114,7 +106,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     if start_date and end_date and end_date <= start_date:
         raise HTTPException(status_code=400, detail="End date must be strictly after start date (cannot be the same day or earlier).")
         
-    # 4. Payout Phone Number Configuration & Step-up Authentication
+    # 3. Payout Phone Number Configuration & Step-up Authentication
     current_payout_phone = db.get_payout_phone_number(user_id)
     sanitized_phone = None
     if payload.payout_phone_number:
@@ -143,6 +135,14 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
             status_code=400,
             detail="A target Safaricom M-Pesa phone number is required to receive your daily disbursements. Please provide a payout phone number."
         )
+
+    # 4. Validate wallet balance against effective daily budget
+    settings = db.get_settings(user_id)
+    balance = float(settings.get("balance", 0.0) or 0.0)
+    if balance <= 0:
+        raise HTTPException(status_code=400, detail="Cannot schedule or lock budget with zero wallet balance. Please deposit funds first.")
+    if effective_daily_budget > balance:
+        raise HTTPException(status_code=400, detail=f"Daily budget (KES {effective_daily_budget:.2f}) cannot be more than your deposit balance (KES {balance:.2f}).")
 
     # 5. ALL VALIDATIONS PASSED -> ATOMIC PERSISTENCE
     if items_to_persist is not None:
