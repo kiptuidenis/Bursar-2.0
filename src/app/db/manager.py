@@ -833,7 +833,47 @@ class DatabaseManager:
                     notif.is_read = True
             self._commit()
 
-    def is_budget_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
+    def _is_schedule_lock_active(
+        self,
+        target_date_str: str,
+        payout_time_str: str = "08:00",
+        now: Optional[datetime.datetime] = None,
+        today: Optional[datetime.date] = None
+    ) -> bool:
+        """
+        Check if a schedule date lock is still active.
+        Lock ends on the target date once the configured payout_time has passed.
+        """
+        if not target_date_str:
+            return False
+        import datetime
+        eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+        now_dt = now or datetime.datetime.now(eat_tz)
+        if now_dt.tzinfo is None:
+            now_dt = now_dt.replace(tzinfo=eat_tz)
+        ref_date = today or now_dt.date()
+        
+        try:
+            target_date = datetime.datetime.strptime(target_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return False
+            
+        if ref_date > target_date:
+            return False
+        if ref_date < target_date:
+            return True
+            
+        # ref_date == target_date: Check if payout_time has passed today
+        try:
+            time_parts = (payout_time_str or "08:00").split(":")
+            h, m = int(time_parts[0]), int(time_parts[1])
+            payout_time_obj = datetime.time(h, m, 0)
+        except (ValueError, IndexError, AttributeError):
+            payout_time_obj = datetime.time(8, 0, 0)
+            
+        return now_dt.time() < payout_time_obj
+
+    def is_budget_locked(self, user_id: int, now: Optional[datetime.datetime] = None, today: Optional[datetime.date] = None) -> bool:
         """Check if user's budget allocations are locked for the active schedule or explicit lock."""
         # Auto-unlock on depleted balance: If user has 0 balance, unlock so they can create a new budget
         wallet = self.get_user_wallet(user_id)
@@ -850,29 +890,21 @@ class DatabaseManager:
         if not budget and not settings:
             return False
 
-        import datetime
-        ref_date = today or datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
-        ref_str = ref_date.strftime("%Y-%m-%d")
+        payout_time_str = (budget.payout_time if budget and budget.payout_time else "") or (settings.payout_time if settings and settings.payout_time else "") or "08:00"
         
         # 1. Check end_date across both Budget and Settings tables
         end_date = (budget.end_date if budget and budget.end_date else "") or (settings.end_date if settings and settings.end_date else "")
         if end_date:
-            if ref_str > end_date:
-                return False
-            return True
+            return self._is_schedule_lock_active(end_date, payout_time_str, now=now, today=today)
 
         # 2. Check locked_until across both Budget and Settings tables
         locked_until = (budget.locked_until if budget and budget.locked_until else "") or (settings.budget_locked_until if settings and settings.budget_locked_until else "")
-        if not locked_until:
-            return False
-            
-        try:
-            lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            return ref_date <= lock_date
-        except ValueError:
-            return False
+        if locked_until:
+            return self._is_schedule_lock_active(locked_until, payout_time_str, now=now, today=today)
 
-    def is_deposit_locked(self, user_id: int, today: Optional[datetime.date] = None) -> bool:
+        return False
+
+    def is_deposit_locked(self, user_id: int, now: Optional[datetime.datetime] = None, today: Optional[datetime.date] = None) -> bool:
         """Check if user's deposited funds are locked for an active budget schedule or explicit lock."""
         wallet = self.get_user_wallet(user_id)
         settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
@@ -888,27 +920,19 @@ class DatabaseManager:
         if not budget and not settings:
             return False
         
-        import datetime
-        ref_date = today or datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
-        ref_str = ref_date.strftime("%Y-%m-%d")
-        
+        payout_time_str = (budget.payout_time if budget and budget.payout_time else "") or (settings.payout_time if settings and settings.payout_time else "") or "08:00"
+
         # 1. Check end_date across Budget and Settings tables
         end_date = (budget.end_date if budget and budget.end_date else "") or (settings.end_date if settings and settings.end_date else "")
         if end_date:
-            if ref_str > end_date:
-                return False
-            return True
+            return self._is_schedule_lock_active(end_date, payout_time_str, now=now, today=today)
 
         # 2. Check deposit_locked_until
         locked_until = settings.deposit_locked_until if settings else ""
-        if not locked_until:
-            return False
-            
-        try:
-            lock_date = datetime.datetime.strptime(locked_until, "%Y-%m-%d").date()
-            return ref_date <= lock_date
-        except ValueError:
-            return False
+        if locked_until:
+            return self._is_schedule_lock_active(locked_until, payout_time_str, now=now, today=today)
+
+        return False
 
     def _get_first_of_next_month(self) -> str:
         """Calculate the first day of the next calendar month as 'YYYY-MM-DD' in UTC+3 (Kenya Time)."""
