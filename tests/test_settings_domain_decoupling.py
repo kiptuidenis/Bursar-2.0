@@ -30,12 +30,12 @@ def clean_db():
     app.dependency_overrides.pop(get_db, None)
     db.close()
 
+from app.api.dependencies import session_manager
+
 def _create_user_client(phone="254711998877", password="TestPassword123!"):
     db = get_test_db()
     user_id = db.create_user(phone, password)
-    token = "domain_test_tok_12345"
-    import time
-    db.create_session(user_id, token, "127.0.0.1", "TestClient", int(time.time()) + 3600)
+    token = session_manager.create_session(user_id, expires_in_seconds=86400, db=db)
     client = TestClient(app)
     client.cookies.set("session_token", token)
     return client, user_id

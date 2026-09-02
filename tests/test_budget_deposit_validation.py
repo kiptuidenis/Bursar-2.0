@@ -60,27 +60,28 @@ def test_daily_budget_cannot_exceed_balance_on_settings_update():
 
     # Set balance to 500 via DB
     db = get_test_db()
-    db.update_settings(user_id, balance=500.0)
+    db.adjust_balance(user_id, 500.0)
 
-    # Try setting daily budget to 600 (should fail because 600 > 500)
-    res_fail = c.post("/api/settings", json={"daily_budget": 600.0})
+    # Try locking budget with daily total of 600 (should fail because 600 > 500)
+    res_fail = c.post("/api/budget/lock", json={"items": [{"category": "Living", "amount": 600}]})
     assert res_fail.status_code == 400
     assert "cannot be more than your deposit balance" in res_fail.json()["detail"].lower()
 
-    # Set daily budget to 400 (should succeed)
-    res_ok = c.post("/api/settings", json={"daily_budget": 400.0})
+    # Lock budget with daily total of 400 (should succeed)
+    res_ok = c.post("/api/budget/lock", json={"items": [{"category": "Living", "amount": 400}]})
     assert res_ok.status_code == 200
 
 def test_deposit_amount_cannot_be_less_than_daily_budget():
     # 1. Setup authenticated client
     c, user_id = _setup_client("254700000022")
+    db = get_test_db()
 
     # Setup phone number in settings so deposit is allowed
     c.post("/api/settings", json={"phone_number": "254700000022"})
 
-    # Set daily budget to 300 (balance is 0, so this is allowed)
-    res_budget = c.post("/api/settings", json={"daily_budget": 300.0})
-    assert res_budget.status_code == 200
+    # Set daily budget to 300 via Budget domain item
+    db.add_or_update_budget_item(user_id, "Daily Essentials", 300.0)
+    db.recalculate_daily_budget(user_id)
 
     # Try initiating deposit of 200 (less than daily budget of 300, balance is 0) -> should fail
     res_dep_fail = c.post("/api/deposit/initiate", json={"amount": 200.0})
@@ -88,7 +89,6 @@ def test_deposit_amount_cannot_be_less_than_daily_budget():
     assert "cannot be less than your daily budget" in res_dep_fail.json()["detail"].lower()
 
     # Set balance to 250 directly in DB (simulating subsequent balance state after payouts)
-    db = get_test_db()
     db.adjust_balance(user_id, 250.0)
 
     # Subsequent deposit of 100 (total balance would be 350 >= 300) -> should succeed

@@ -112,7 +112,7 @@ def test_mask_sensitive_settings():
     db.adjust_balance(user_id, 200.0)
 
     payload = {
-        "payout_time": "09:00",
+        "mode": "sandbox",
         "mpesa_consumer_secret": "secret_key"
     }
     c.post("/api/settings", json=payload)
@@ -122,10 +122,10 @@ def test_mask_sensitive_settings():
     assert res1["mpesa_consumer_secret"] == "********"
     
     # Update settings with mask submitted (should preserve secret)
-    c.post("/api/settings", json={"payout_time": "10:00", "mpesa_consumer_secret": "********"})
+    c.post("/api/settings", json={"mode": "production", "mpesa_consumer_secret": "********"})
     
     settings = db.get_settings(user_id=user_id)
-    assert settings["payout_time"] == "10:00"
+    assert settings["mode"] == "production"
     assert settings["mpesa_consumer_secret"] == "secret_key"
 
 def test_b2c_callbacks_success_and_failure():

@@ -80,11 +80,13 @@ def test_e2e_user_journey_and_security_boundary(monkeypatch):
         "mpesa_consumer_key": "my_live_consumer_key_123",
         "mpesa_consumer_secret": "my_live_consumer_secret_456",
         "mpesa_initiator_password": "my_initiator_password_789",
-        "daily_budget": 300.0,
         "balance": 999999.0  # Malicious attempt to inject balance
     }
     update_res = client.post("/api/settings", json=settings_payload, headers={"X-CSRF-Token": csrf_token})
     assert update_res.status_code == 200
+
+    # Add budget item via Budget domain endpoint
+    client.post("/api/budget/items", json={"category": "Living", "amount": 300}, headers={"X-CSRF-Token": csrf_token})
 
     # 5. Fetch Settings & Verify Masking + Balance Protection
     settings_res = client.get("/api/settings")
