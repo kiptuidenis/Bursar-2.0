@@ -848,21 +848,41 @@ class DatabaseManager:
             return False
         import datetime
         eat_tz = datetime.timezone(datetime.timedelta(hours=3))
-        now_dt = now or datetime.datetime.now(eat_tz)
-        if now_dt.tzinfo is None:
-            now_dt = now_dt.replace(tzinfo=eat_tz)
-        ref_date = today or now_dt.date()
         
         try:
             target_date = datetime.datetime.strptime(target_date_str, "%Y-%m-%d").date()
         except ValueError:
             return False
-            
+
+        if now is not None:
+            now_dt = now if now.tzinfo is not None else now.replace(tzinfo=eat_tz)
+            ref_date = now_dt.date()
+            if ref_date > target_date:
+                return False
+            if ref_date < target_date:
+                return True
+            # ref_date == target_date: Check if payout_time has passed
+            try:
+                time_parts = (payout_time_str or "08:00").split(":")
+                h, m = int(time_parts[0]), int(time_parts[1])
+                payout_time_obj = datetime.time(h, m, 0)
+            except (ValueError, IndexError, AttributeError):
+                payout_time_obj = datetime.time(8, 0, 0)
+            return now_dt.time() < payout_time_obj
+
+        if today is not None:
+            if today > target_date:
+                return False
+            # When an explicit date object is checked without a time, the schedule day is active
+            return True
+
+        # Default real-time production flow (neither now nor today provided)
+        now_dt = datetime.datetime.now(eat_tz)
+        ref_date = now_dt.date()
         if ref_date > target_date:
             return False
         if ref_date < target_date:
             return True
-            
         # ref_date == target_date: Check if payout_time has passed today
         try:
             time_parts = (payout_time_str or "08:00").split(":")
@@ -870,7 +890,6 @@ class DatabaseManager:
             payout_time_obj = datetime.time(h, m, 0)
         except (ValueError, IndexError, AttributeError):
             payout_time_obj = datetime.time(8, 0, 0)
-            
         return now_dt.time() < payout_time_obj
 
     def is_budget_locked(self, user_id: int, now: Optional[datetime.datetime] = None, today: Optional[datetime.date] = None) -> bool:
