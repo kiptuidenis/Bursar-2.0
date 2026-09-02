@@ -26,11 +26,7 @@ test.describe('Phase 3: Budget Unlock after End Date E2E Tests', () => {
 
     await page.fill('#new-category-name', 'Food');
     await page.fill('#new-category-amount', '200');
-
-    await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/budget/items') && res.request().method() === 'POST'),
-      page.click('#add-category-form button[type="submit"]')
-    ]);
+    await page.click('#add-category-form button[type="submit"]');
 
     await expect(page.locator('#designer-category-list')).toContainText('Food');
 

@@ -193,14 +193,11 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
     const tile2 = page.locator('#budget-wizard-tile-2');
     const tile3 = page.locator('#budget-wizard-tile-3');
 
-    // Add a category item
+    // Add a category item (in-memory draft)
     await page.fill('#new-category-name', 'Snacks');
     await page.fill('#new-category-amount', '150');
-    await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/budget/items') && res.request().method() === 'POST'),
-      page.click('#add-category-form button[type="submit"]')
-    ]);
-    await page.waitForTimeout(500);
+    await page.click('#add-category-form button[type="submit"]');
+    await expect(page.locator('#designer-category-list')).toContainText('Snacks');
 
     // Step 1 title check
     await expect(page.locator('#budget-wizard-step-title')).toContainText('Step 1 of 3');
