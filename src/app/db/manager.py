@@ -735,12 +735,8 @@ class DatabaseManager:
                 continue
             if key == "balance":
                 wallet.available_balance = int(val)
-                if settings:
-                    settings.balance = int(val)
             elif key == "daily_budget":
                 budget.daily_budget = int(val)
-                if settings:
-                    settings.daily_budget = int(val)
             elif key == "payout_time":
                 budget.payout_time = str(val)
                 if settings:
@@ -770,7 +766,7 @@ class DatabaseManager:
 
     def debit_wallet_atomic(self, user_id: int, amount: int | float) -> bool:
         """
-        Atomically debit amount from wallet and settings balance if available_balance >= amount.
+        Atomically debit amount from wallet if available_balance >= amount.
         Guarantees race-condition-proof deduction at the database engine layer.
         Returns True if debited successfully, False if insufficient balance.
         """
@@ -787,13 +783,6 @@ class DatabaseManager:
             self.session.rollback()
             return False
             
-        self.session.execute(
-            sqlalchemy.text(
-                "UPDATE settings SET balance = balance - :amount "
-                "WHERE user_id = :user_id"
-            ),
-            {"amount": int_amount, "user_id": user_id}
-        )
         self.session.commit()
         return True
 
@@ -802,11 +791,6 @@ class DatabaseManager:
         int_amount = int(amount)
         wallet = self.get_user_wallet(user_id)
         wallet.available_balance += int_amount
-        
-        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        if settings:
-            settings.balance += int_amount
-            
         self._commit()
         if int_amount > 0:
             self.resolve_low_balance_warnings(user_id)
@@ -896,16 +880,12 @@ class DatabaseManager:
         """Check if user's budget allocations are locked for the active schedule or explicit lock."""
         # Auto-unlock on depleted balance: If user has 0 balance, unlock so they can create a new budget
         wallet = self.get_user_wallet(user_id)
-        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        balance = 0
-        if wallet:
-            balance = wallet.available_balance
-        elif settings:
-            balance = settings.balance or 0
+        balance = wallet.available_balance if wallet else 0
         if balance <= 0:
             return False
 
         budget = self.get_user_budget(user_id)
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
         if not budget and not settings:
             return False
 
@@ -926,16 +906,12 @@ class DatabaseManager:
     def is_deposit_locked(self, user_id: int, now: Optional[datetime.datetime] = None, today: Optional[datetime.date] = None) -> bool:
         """Check if user's deposited funds are locked for an active budget schedule or explicit lock."""
         wallet = self.get_user_wallet(user_id)
-        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
-        balance = 0
-        if wallet:
-            balance = wallet.available_balance
-        elif settings:
-            balance = settings.balance or 0
+        balance = wallet.available_balance if wallet else 0
         if balance <= 0:
             return False
 
         budget = self.get_user_budget(user_id)
+        settings = self.session.query(Settings).filter(Settings.user_id == user_id).first()
         if not budget and not settings:
             return False
         

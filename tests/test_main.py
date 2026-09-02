@@ -106,26 +106,13 @@ def test_user_data_isolation_via_api():
     assert client_a.get("/api/settings").json()["balance"] == 1000.0
     assert client_b.get("/api/settings").json()["balance"] == 500.0
 
-def test_settings_masked_updates_multi_tenant():
+def test_mask_sensitive_settings():
     c, user_id = _setup_client("254712345678")
     db = get_test_db()
-    db.update_settings(user_id=user_id, balance=200.0)
+    db.adjust_balance(user_id, 200.0)
 
     payload = {
-        "daily_budget": 50.0,
-        "mpesa_consumer_secret": "secret_key"
-    }
-    c.post("/api/settings", json=payload)
-    
-    # Check mask
-    res1 = c.get("/api/settings").json()
-    assert res1["mpesa_consumer_secret"] == "********"
-    
-    db = get_test_db()
-    db.update_settings(user_id=user_id, balance=200.0)
-
-    payload = {
-        "daily_budget": 50.0,
+        "payout_time": "09:00",
         "mpesa_consumer_secret": "secret_key"
     }
     c.post("/api/settings", json=payload)
@@ -135,10 +122,10 @@ def test_settings_masked_updates_multi_tenant():
     assert res1["mpesa_consumer_secret"] == "********"
     
     # Update settings with mask submitted (should preserve secret)
-    c.post("/api/settings", json={"daily_budget": 60.0, "mpesa_consumer_secret": "********"})
+    c.post("/api/settings", json={"payout_time": "10:00", "mpesa_consumer_secret": "********"})
     
     settings = db.get_settings(user_id=user_id)
-    assert settings["daily_budget"] == 60.0
+    assert settings["payout_time"] == "10:00"
     assert settings["mpesa_consumer_secret"] == "secret_key"
 
 def test_b2c_callbacks_success_and_failure():

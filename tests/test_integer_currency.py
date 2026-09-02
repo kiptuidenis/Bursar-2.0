@@ -108,9 +108,9 @@ def test_api_accepts_whole_integer_kes_amounts():
     res_budget = client.post("/api/budget/items", json={"category": "Transport", "amount": 200}, headers=headers)
     assert res_budget.status_code == 200
 
-    # 2. Settings daily budget with whole KES 200
-    res_settings = client.post("/api/settings", json={"daily_budget": 200}, headers=headers)
-    assert res_settings.status_code == 200
+    # 2. Budget lock with whole KES budget items
+    res_lock = client.post("/api/budget/lock", json={"items": [{"category": "Transport", "amount": 200}]}, headers=headers)
+    assert res_lock.status_code == 200
 
     # 3. Deposit initiate with whole KES 1000
     client.post("/api/settings", json={"phone_number": "254711777111"}, headers=headers)
