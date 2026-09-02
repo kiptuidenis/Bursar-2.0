@@ -158,7 +158,8 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await page.fill('#deactivate-password', 'Str0ng!P@ssw0rd');
     await page.fill('#deactivate-otp', '123456');
     await page.click('#deactivate-form button[type="submit"]');
-    await expect.poll(() => dialogMessages).toContain('Please type the confirmation phrase exactly: DELETE');
+    await expect(page.locator('#deactivate-error')).toBeVisible();
+    await expect(page.locator('#deactivate-error')).toContainText('Please type the confirmation phrase exactly: DELETE');
     
     // Clear captured messages
     dialogMessages.length = 0;
