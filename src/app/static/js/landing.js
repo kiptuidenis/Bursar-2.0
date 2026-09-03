@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnAcceptDisclaimer) {
         btnAcceptDisclaimer.addEventListener("click", () => {
             sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+            localStorage.setItem("bursar_disclaimer_agreed", "true");
             hideDisclaimer();
         });
     }
@@ -41,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnDeclineDisclaimer) {
         btnDeclineDisclaimer.addEventListener("click", () => {
             sessionStorage.removeItem("bursar_disclaimer_agreed");
+            localStorage.removeItem("bursar_disclaimer_agreed");
             // Exit application immediately
             try {
                 window.close();
@@ -49,8 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Check disclaimer status
-    const isSessionAgreed = sessionStorage.getItem("bursar_disclaimer_agreed");
+    // Check disclaimer status across session and local storage
+    const isSessionAgreed = sessionStorage.getItem("bursar_disclaimer_agreed") === "true" || localStorage.getItem("bursar_disclaimer_agreed") === "true";
 
     // 2. Auth Status Check (Redirect to dashboard if already authenticated)
     fetch("/api/auth/me")

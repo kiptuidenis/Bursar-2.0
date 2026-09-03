@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupAuthenticatedUser } = require('./helpers');
+const { setupAuthenticatedUser, dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('Profile Input Preservation & Email Change OTP Verification E2E Tests', () => {
   let pageErrors = [];
@@ -101,6 +101,7 @@ test.describe('Profile Input Preservation & Email Change OTP Verification E2E Te
     await logoutBtn.first().click({ force: true });
     await page.waitForURL(url => !url.toString().includes('dashboard'));
     await page.waitForLoadState('networkidle');
+    await dismissDisclaimerIfVisible(page);
 
     // 3. Try to register a new account with the same email
     const loginNavBtn = page.locator('#nav-login-btn, #hero-cta-btn');

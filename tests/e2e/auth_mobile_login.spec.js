@@ -1,10 +1,12 @@
 const { test, expect } = require('@playwright/test');
+const { dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('Mobile Alphanumeric Auth & Tab Switching', () => {
 
   test('Auth modal defaults to text input and switches attributes on tabs', async ({ page }) => {
     test.setTimeout(30000);
     await page.goto('/');
+    await dismissDisclaimerIfVisible(page);
 
     // Open login modal
     await page.click('a[href="#login"]');

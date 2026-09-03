@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupAuthenticatedUser } = require('./helpers');
+const { setupAuthenticatedUser, dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
   let pageErrors = [];
@@ -71,6 +71,7 @@ test.describe('Bursar 2.0 Mobile Layout E2E Tests (Phase 1)', () => {
   test('Should verify mobile input types and keyboard configurations (Phase 2)', async ({ page }) => {
     // 1. Visit landing page
     await page.goto('/');
+    await dismissDisclaimerIfVisible(page);
     
     // 2. Click signup to open form overlay
     await page.click('#nav-signup-btn');
