@@ -212,6 +212,20 @@ class DatabaseManager:
                     if "failed_at" not in pay_cols:
                         conn.execute(text("ALTER TABLE payouts ADD COLUMN failed_at VARCHAR(50) DEFAULT ''"))
 
+            if inspector.has_table("deposits"):
+                dep_cols = [c["name"] for c in inspector.get_columns("deposits")]
+                with self.engine.begin() as conn:
+                    if "completed_at" not in dep_cols:
+                        conn.execute(text("ALTER TABLE deposits ADD COLUMN completed_at VARCHAR(50) DEFAULT ''"))
+
+            if inspector.has_table("payouts"):
+                pay_cols = [c["name"] for c in inspector.get_columns("payouts")]
+                with self.engine.begin() as conn:
+                    if "completed_at" not in pay_cols:
+                        conn.execute(text("ALTER TABLE payouts ADD COLUMN completed_at VARCHAR(50) DEFAULT ''"))
+                    if "failed_at" not in pay_cols:
+                        conn.execute(text("ALTER TABLE payouts ADD COLUMN failed_at VARCHAR(50) DEFAULT ''"))
+
             if inspector.has_table("otp_codes"):
                 otp_cols = [c["name"] for c in inspector.get_columns("otp_codes")]
                 with self.engine.begin() as conn:
