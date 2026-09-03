@@ -598,7 +598,7 @@
                 <div id="withdraw-otp-group" class="form-group" style="display: none; margin-bottom: 1.25rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                         <label for="withdraw-otp" style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">6-Digit Email Verification Code</label>
-                        <button type="button" id="withdraw-resend-otp-btn" style="background: none; border: none; color: var(--color-accent-teal); font-size: 0.75rem; cursor: pointer; text-decoration: underline; padding: 0;">Resend Code</button>
+                        <button type="button" id="withdraw-resend-otp-btn" style="background: none; border: none; color: #FF5B22; font-size: 0.75rem; cursor: pointer; text-decoration: underline; padding: 0; font-weight: 500;">Resend Code</button>
                     </div>
                     <input type="text" id="withdraw-otp" placeholder="e.g. 123456" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" style="padding: 0.55rem 0.75rem; font-size: 1.15rem; letter-spacing: 0.25em; text-align: center; width: 100%; box-sizing: border-box; font-family: monospace;">
                     <small style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 0.35rem;">
@@ -608,10 +608,8 @@
 
                 <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
                     <button type="button" id="cancel-withdraw-btn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
-                    <button type="button" id="request-withdraw-otp-btn" class="btn btn-primary" style="flex: 2;">
-                        <i data-lucide="mail"></i> Get Authorization Code
-                    </button>
-                    <button type="submit" id="confirm-withdraw-submit-btn" class="btn btn-primary" style="flex: 2; display: none; background: var(--color-accent-teal); color: #0f172a; font-weight: 700;">
+                    <button type="button" id="request-withdraw-otp-btn" style="display: none;"></button>
+                    <button type="submit" id="confirm-withdraw-submit-btn" class="btn btn-primary" style="flex: 2; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">
                         <i data-lucide="check"></i> Confirm Withdrawal
                     </button>
                 </div>

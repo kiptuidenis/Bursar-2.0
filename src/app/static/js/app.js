@@ -680,15 +680,12 @@ function setupEventHandlers() {
         const otpGroup = document.getElementById("withdraw-otp-group");
         if (otpGroup) otpGroup.style.display = "none";
 
-        const reqOtpBtn = document.getElementById("request-withdraw-otp-btn");
-        if (reqOtpBtn) {
-            reqOtpBtn.style.display = "inline-flex";
-            reqOtpBtn.disabled = false;
-            reqOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
-        }
-
         const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
-        if (confirmBtn) confirmBtn.style.display = "none";
+        if (confirmBtn) {
+            confirmBtn.style.display = "inline-flex";
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
+        }
 
         const errBox = document.getElementById("withdraw-error");
         if (errBox) {
@@ -775,9 +772,10 @@ function setupEventHandlers() {
             return;
         }
 
-        if (requestWithdrawOtpBtn) {
-            requestWithdrawOtpBtn.disabled = true;
-            requestWithdrawOtpBtn.innerHTML = `<span class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.3rem;"></span> Sending Code...`;
+        const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `<span class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.3rem;"></span> Sending Code...`;
         }
 
         try {
@@ -793,9 +791,9 @@ function setupEventHandlers() {
                     errBox.innerText = data.detail || "Failed to send authorization code.";
                     errBox.style.display = "block";
                 }
-                if (requestWithdrawOtpBtn) {
-                    requestWithdrawOtpBtn.disabled = false;
-                    requestWithdrawOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
                     if (window.lucide) window.lucide.createIcons();
                 }
                 return;
@@ -805,9 +803,11 @@ function setupEventHandlers() {
             const otpGroup = document.getElementById("withdraw-otp-group");
             if (otpGroup) otpGroup.style.display = "block";
 
-            if (requestWithdrawOtpBtn) requestWithdrawOtpBtn.style.display = "none";
-            const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
-            if (confirmBtn) confirmBtn.style.display = "inline-flex";
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
+                if (window.lucide) window.lucide.createIcons();
+            }
 
             const otpInput = document.getElementById("withdraw-otp");
             if (otpInput) {
@@ -822,9 +822,9 @@ function setupEventHandlers() {
                 errBox.innerText = "Network error requesting authorization code. Please try again.";
                 errBox.style.display = "block";
             }
-            if (requestWithdrawOtpBtn) {
-                requestWithdrawOtpBtn.disabled = false;
-                requestWithdrawOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
                 if (window.lucide) window.lucide.createIcons();
             }
         }
@@ -858,7 +858,12 @@ function setupEventHandlers() {
             const otpInput = document.getElementById("withdraw-otp");
             const otpCode = otpInput ? otpInput.value.trim() : "";
 
-            if (!otpCode || !/^[0-9]{6}$/.test(otpCode)) {
+            if (!otpCode) {
+                await handleRequestWithdrawalOtp();
+                return;
+            }
+
+            if (!/^[0-9]{6}$/.test(otpCode)) {
                 if (errBox) {
                     errBox.innerText = "Please enter the 6-digit verification code sent to your email.";
                     errBox.style.display = "block";

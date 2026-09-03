@@ -689,15 +689,29 @@ body:not(.landing-body) {
 }
 
 .btn-primary {
-    background: var(--color-accent-violet);
-    color: var(--text-primary);
-    box-shadow: 0 4px 15px var(--color-accent-violet-glow);
+    background: linear-gradient(135deg, #FF7A45 0%, #FF5B22 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(255, 91, 34, 0.25);
+    font-weight: 600;
 }
 
-.btn-primary:hover {
-    background: hsl(263, 85%, 68%);
+.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff8a5c 0%, #ff6b38 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--color-accent-violet-glow);
+    box-shadow: 0 6px 20px rgba(255, 91, 34, 0.4);
+}
+
+#confirm-withdraw-submit-btn {
+    background: linear-gradient(135deg, #FF7A45 0%, #FF5B22 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(255, 91, 34, 0.3) !important;
+    font-weight: 600;
+}
+
+#confirm-withdraw-submit-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff8a5c 0%, #ff6b38 100%) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 91, 34, 0.45) !important;
 }
 
 .btn-secondary {
