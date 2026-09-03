@@ -156,3 +156,38 @@ def test_admin_manual_settle_deposit_stamps_exact_completed_at(admin_exact_time_
     assert settled["completed_at"] != ""
     # Verify completed_at format YYYY-MM-DD HH:MM:SS
     assert len(settled["completed_at"].split(" ")) == 2
+
+def test_auto_migration_adds_missing_completed_at_to_legacy_deposits_table(tmp_path):
+    """Verify that _auto_migrate_columns automatically alters existing deposits/payouts tables missing completed_at."""
+    from sqlalchemy import create_engine, text, inspect
+    db_path = str(tmp_path / "legacy_migration.db")
+    engine = create_engine(f"sqlite:///{db_path}")
+
+    # Create legacy table WITHOUT completed_at column
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE deposits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                checkout_request_id VARCHAR(100) UNIQUE NOT NULL,
+                amount INTEGER NOT NULL,
+                status VARCHAR(50) DEFAULT 'PENDING' NOT NULL,
+                mpesa_receipt VARCHAR(100) DEFAULT '',
+                created_at DATETIME
+            )
+        """))
+
+    # Verify column does not exist
+    inspector = inspect(engine)
+    cols_before = [c["name"] for c in inspector.get_columns("deposits")]
+    assert "completed_at" not in cols_before
+
+    # Instantiate DatabaseManager and initialize
+    db = DatabaseManager(db_path)
+    db.initialize()
+
+    # Verify column was migrated
+    inspector_after = inspect(db.engine)
+    cols_after = [c["name"] for c in inspector_after.get_columns("deposits")]
+    assert "completed_at" in cols_after
+    db.close()
