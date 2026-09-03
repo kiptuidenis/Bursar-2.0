@@ -180,7 +180,7 @@ def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "login_2f
 
     if config.EMAIL_MOCK_MODE or config.IS_TEST_MODE:
         logger.info(f"[MOCK EMAIL] OTP '{otp_code}' sent to '{recipient_clean}' (Purpose: {purpose})")
-        print(f"\n=======================================================\n[MOCK EMAIL] 🔑 2FA OTP Code: {otp_code} (Sent to: {recipient_clean})\n=======================================================\n", flush=True)
+        print(f"\n=======================================================\n[MOCK EMAIL] [OTP KEY] 2FA OTP Code: {otp_code} (Sent to: {recipient_clean})\n=======================================================\n", flush=True)
         return True
 
     # Use SMTP (Zoho ZeptoMail) if SMTP_PASSWORD is provided or provider is smtp

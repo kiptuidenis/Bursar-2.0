@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Check disclaimer status across session and local storage
-    const isSessionAgreed = sessionStorage.getItem("bursar_disclaimer_agreed") === "true" || localStorage.getItem("bursar_disclaimer_agreed") === "true";
+    const isDisclaimerAgreed = sessionStorage.getItem("bursar_disclaimer_agreed") === "true" || localStorage.getItem("bursar_disclaimer_agreed") === "true";
 
     // 2. Auth Status Check (Redirect to dashboard if already authenticated)
     fetch("/api/auth/me")
@@ -61,18 +61,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 return res.json().then(userData => {
                     if (userData && userData.disclaimer_accepted) {
                         sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+                        localStorage.setItem("bursar_disclaimer_agreed", "true");
                     }
                     window.location.replace("/dashboard");
                 });
             } else {
-                if (isSessionAgreed !== "true") {
+                if (!isDisclaimerAgreed) {
                     showDisclaimer();
                 }
             }
         })
         .catch(err => {
             console.error("Auth check failed:", err);
-            if (isSessionAgreed !== "true") {
+            if (!isDisclaimerAgreed) {
                 showDisclaimer();
             }
         });
@@ -238,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showAuthOverlay(action) {
         if (!authOverlay) return;
+        hideDisclaimer();
         currentAuthAction = action;
         authOverlay.classList.add("active");
         if (errorMsg) errorMsg.style.display = "none";
@@ -442,11 +444,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleHash() {
         const hash = window.location.hash;
-        if (hash === "#login") {
+        if (hash === "#login" || hash === "#signup") {
             hideDisclaimer();
-            showAuthOverlay("login");
-        } else if (hash === "#signup") {
-            showAuthOverlay("signup");
+            showAuthOverlay(hash === "#signup" ? "signup" : "login");
         } else {
             if (authOverlay) authOverlay.classList.remove("active");
         }
