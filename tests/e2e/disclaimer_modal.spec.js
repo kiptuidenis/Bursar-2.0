@@ -18,7 +18,7 @@ test.describe('Educational & Regulatory Disclaimer Modal E2E Tests', () => {
       await expect(overlay).toHaveClass(/active/);
 
       // Verify content elements
-      await expect(page.locator('#disclaimer-card h2')).toContainText('Educational Project Notice');
+      await expect(page.locator('#disclaimer-card h2')).toContainText('Notice to Users');
       await expect(page.locator('#disclaimer-card')).toContainText('No Custodial Licenses');
 
       // Click Accept
