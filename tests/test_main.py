@@ -297,7 +297,10 @@ def test_locking_api_constraints():
     db = get_test_db()
     db.adjust_balance(user2_id, 2000)
     c2.post("/api/budget/items", json={"category": "Savings", "amount": 500.0})
-    lock_res = c2.post("/api/budget/lock")
+    import datetime
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    lock_res = c2.post("/api/budget/lock", json={"start_date": tomorrow})
     assert lock_res.status_code == 200
     assert lock_res.json()["budget_locked_until"] != ""
     

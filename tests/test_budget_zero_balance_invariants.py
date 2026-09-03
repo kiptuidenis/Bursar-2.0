@@ -77,7 +77,11 @@ def test_daily_budget_exceeding_wallet_balance_rejected():
     c, user_id = _setup_user(balance=500)
     db = get_test_db()
 
-    res = c.post("/api/budget/lock", json={"items": [{"category": "Food", "amount": 1000}]})
+    import datetime
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+
+    res = c.post("/api/budget/lock", json={"items": [{"category": "Food", "amount": 1000}], "start_date": tomorrow})
     assert res.status_code == 400
     assert "cannot be more than your deposit balance" in res.json()["detail"].lower()
 
