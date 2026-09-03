@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupAuthenticatedUser } = require('./helpers');
+const { setupAuthenticatedUser, dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('WhatsApp Alternate Support Contact E2E Tests (PC & Mobile)', () => {
   const WHATSAPP_NUMBER = '+254786918393';
@@ -15,6 +15,7 @@ test.describe('WhatsApp Alternate Support Contact E2E Tests (PC & Mobile)', () =
     test('Landing page footer renders WhatsApp support contact on PC', async ({ page }) => {
       await page.goto('/');
       await page.waitForLoadState('domcontentloaded');
+      await dismissDisclaimerIfVisible(page);
 
       const footer = page.locator('#landing-footer');
       await expect(footer).toBeVisible();
@@ -70,6 +71,7 @@ test.describe('WhatsApp Alternate Support Contact E2E Tests (PC & Mobile)', () =
     test('Landing page footer renders WhatsApp support contact cleanly on Mobile without overflow', async ({ page }) => {
       await page.goto('/');
       await page.waitForLoadState('domcontentloaded');
+      await dismissDisclaimerIfVisible(page);
 
       const footer = page.locator('#landing-footer');
       await footer.scrollIntoViewIfNeeded();

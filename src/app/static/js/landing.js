@@ -8,14 +8,75 @@ document.addEventListener("DOMContentLoaded", () => {
         window.lucide.createIcons();
     }
 
+    // Educational Project & Regulatory Disclaimer Handling
+    const disclaimerOverlay = document.getElementById("disclaimer-overlay");
+    const btnAcceptDisclaimer = document.getElementById("btn-accept-disclaimer");
+    const btnDeclineDisclaimer = document.getElementById("btn-decline-disclaimer");
+
+    function showDisclaimer() {
+        if (!disclaimerOverlay) return;
+        disclaimerOverlay.style.display = "flex";
+        void disclaimerOverlay.offsetWidth;
+        disclaimerOverlay.classList.add("active");
+        if (window.lucide && window.lucide.createIcons) {
+            window.lucide.createIcons();
+        }
+    }
+
+    function hideDisclaimer() {
+        if (!disclaimerOverlay) return;
+        disclaimerOverlay.classList.remove("active");
+        setTimeout(() => {
+            disclaimerOverlay.style.display = "none";
+        }, 300);
+    }
+
+    if (btnAcceptDisclaimer) {
+        btnAcceptDisclaimer.addEventListener("click", () => {
+            sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+            localStorage.setItem("bursar_disclaimer_agreed", "true");
+            hideDisclaimer();
+        });
+    }
+
+    if (btnDeclineDisclaimer) {
+        btnDeclineDisclaimer.addEventListener("click", () => {
+            sessionStorage.removeItem("bursar_disclaimer_agreed");
+            localStorage.removeItem("bursar_disclaimer_agreed");
+            // Exit application immediately
+            try {
+                window.close();
+            } catch (e) {}
+            window.location.replace("https://www.google.com");
+        });
+    }
+
+    // Check disclaimer status across session and local storage
+    const isDisclaimerAgreed = sessionStorage.getItem("bursar_disclaimer_agreed") === "true" || localStorage.getItem("bursar_disclaimer_agreed") === "true";
+
     // 2. Auth Status Check (Redirect to dashboard if already authenticated)
     fetch("/api/auth/me")
         .then(res => {
             if (res.status === 200) {
-                window.location.replace("/dashboard");
+                return res.json().then(userData => {
+                    if (userData && userData.disclaimer_accepted) {
+                        sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+                        localStorage.setItem("bursar_disclaimer_agreed", "true");
+                    }
+                    window.location.replace("/dashboard");
+                });
+            } else {
+                if (!isDisclaimerAgreed) {
+                    showDisclaimer();
+                }
             }
         })
-        .catch(err => console.error("Auth check failed:", err));
+        .catch(err => {
+            console.error("Auth check failed:", err);
+            if (!isDisclaimerAgreed) {
+                showDisclaimer();
+            }
+        });
 
     // 3. FAQ Accordion (Clean Event Delegation — No inline onclick handlers)
     const faqAccordion = document.getElementById("faq-accordion");
@@ -178,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showAuthOverlay(action) {
         if (!authOverlay) return;
+        hideDisclaimer();
         currentAuthAction = action;
         authOverlay.classList.add("active");
         if (errorMsg) errorMsg.style.display = "none";
@@ -382,10 +444,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleHash() {
         const hash = window.location.hash;
-        if (hash === "#login") {
-            showAuthOverlay("login");
-        } else if (hash === "#signup") {
-            showAuthOverlay("signup");
+        if (hash === "#login" || hash === "#signup") {
+            hideDisclaimer();
+            showAuthOverlay(hash === "#signup" ? "signup" : "login");
         } else {
             if (authOverlay) authOverlay.classList.remove("active");
         }

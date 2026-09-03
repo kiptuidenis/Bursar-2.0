@@ -3809,4 +3809,194 @@ button[disabled]:hover,
     color: var(--text-muted, #cbd5e1);
 }
 
+/* ==========================================================================
+   Educational Project & Regulatory Disclaimer Modal
+   ========================================================================== */
+.disclaimer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(11, 12, 16, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.disclaimer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.disclaimer-card {
+    max-width: 540px;
+    width: 100%;
+    border-radius: 1.25rem;
+    padding: 2.25rem;
+    background: linear-gradient(135deg, rgba(22, 23, 30, 0.96) 0%, rgba(15, 16, 22, 0.99) 100%);
+    border: 1px solid rgba(255, 91, 34, 0.3);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(255, 91, 34, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+    transform: scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+}
+
+.disclaimer-overlay.active .disclaimer-card {
+    transform: scale(1);
+}
+
+.disclaimer-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.disclaimer-icon-badge {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: rgba(255, 91, 34, 0.12);
+    border: 1px solid rgba(255, 91, 34, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 22px rgba(255, 91, 34, 0.25);
+    margin-bottom: 0.25rem;
+}
+
+.disclaimer-badge-icon {
+    width: 1.85rem;
+    height: 1.85rem;
+    color: #FF5B22;
+}
+
+.disclaimer-header h2 {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.disclaimer-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #FF7A45;
+    background: rgba(255, 91, 34, 0.1);
+    border: 1px solid rgba(255, 91, 34, 0.25);
+    padding: 0.2rem 0.65rem;
+    border-radius: 1rem;
+}
+
+.disclaimer-alert-box {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.24);
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: #f1f5f9;
+}
+
+.disclaimer-alert-box p {
+    margin: 0;
+}
+
+.disclaimer-points {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.disclaimer-point {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    font-size: 0.83rem;
+    line-height: 1.45;
+    color: #94a3b8;
+}
+
+.disclaimer-point strong {
+    color: #f8fafc;
+}
+
+.disclaimer-footer {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.35rem;
+}
+
+.disclaimer-footer .btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    cursor: pointer;
+    border-radius: 0.65rem;
+}
+
+.disclaimer-footer #btn-decline-disclaimer {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+    transition: var(--transition-smooth);
+}
+
+.disclaimer-footer #btn-decline-disclaimer:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: var(--color-accent-rose);
+}
+
+.disclaimer-footer #btn-accept-disclaimer {
+    background: linear-gradient(135deg, #FF7A45 0%, #FF5B22 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(255, 91, 34, 0.35);
+    transition: var(--transition-smooth);
+}
+
+.disclaimer-footer #btn-accept-disclaimer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(255, 91, 34, 0.5);
+}
+
+@media (max-width: 480px) {
+    .disclaimer-card {
+        padding: 1.4rem;
+        gap: 1.15rem;
+    }
+    .disclaimer-footer {
+        flex-direction: column-reverse;
+        gap: 0.65rem;
+    }
+    .disclaimer-header h2 {
+        font-size: 1.25rem;
+    }
+}
+
 

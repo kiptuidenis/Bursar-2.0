@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('Bursar 2.0 Production Fintech Account Lockout & CSS Prohibition E2E Tests', () => {
 
@@ -16,6 +17,7 @@ test.describe('Bursar 2.0 Production Fintech Account Lockout & CSS Prohibition E
     // 2. Visit landing page & open login modal
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await dismissDisclaimerIfVisible(page);
     await page.click('#nav-login-btn');
 
     // 3. Fill login credentials & click submit

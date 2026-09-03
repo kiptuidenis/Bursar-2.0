@@ -7,6 +7,16 @@
  * isolated cookie jar that does NOT reliably sync to the browser context.
  */
 
+async function dismissDisclaimerIfVisible(page) {
+  try {
+    const acceptBtn = page.locator('#btn-accept-disclaimer');
+    if (await acceptBtn.isVisible({ timeout: 800 }).catch(() => false)) {
+      await acceptBtn.click();
+      await page.waitForTimeout(200);
+    }
+  } catch (e) {}
+}
+
 async function setupAuthenticatedUser(page, options = {}) {
   const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
   const phone = options.phoneNumber || `2547${randomDigits}`;
@@ -19,6 +29,8 @@ async function setupAuthenticatedUser(page, options = {}) {
 
   // Execute the session setup inside the browser so Set-Cookie is received directly
   await page.evaluate(async (payload) => {
+    sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+    localStorage.setItem("bursar_disclaimer_agreed", "true");
     await fetch('/api/test/setup-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -112,6 +124,7 @@ module.exports = {
   setupAuthenticatedUser,
   setupAuthenticatedAdmin,
   setupEmailOnlyUser,
-  getFutureDates
+  getFutureDates,
+  dismissDisclaimerIfVisible
 };
 

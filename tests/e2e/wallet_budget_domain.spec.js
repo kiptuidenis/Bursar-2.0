@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('Phase 3: Wallet & Budget Domain Models E2E Tests', () => {
   let pageErrors = [];
@@ -18,6 +19,7 @@ test.describe('Phase 3: Wallet & Budget Domain Models E2E Tests', () => {
     });
 
     await page.goto('/');
+    await dismissDisclaimerIfVisible(page);
     
     // Check page loaded cleanly without JS runtime errors
     expect(pageErrors.length).toBe(0);

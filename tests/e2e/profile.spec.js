@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { setupAuthenticatedUser } = require('./helpers');
+const { setupAuthenticatedUser, dismissDisclaimerIfVisible } = require('./helpers');
 
 test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
   let pageErrors = [];
@@ -72,6 +72,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     await logoutBtn.first().click({ force: true });
     await page.waitForURL(url => !url.toString().includes('dashboard'));
     await page.waitForLoadState('networkidle');
+    await dismissDisclaimerIfVisible(page);
     await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'New!Str0ngP@ssw0rd');
@@ -180,6 +181,7 @@ test.describe('Bursar 2.0 Profile & Security Settings E2E Tests', () => {
     expect(page.url()).not.toContain('/dashboard');
 
     // Verify cannot log back in
+    await dismissDisclaimerIfVisible(page);
     await page.click('#nav-login-btn');
     await page.fill('#auth-phone', testPhoneNumber);
     await page.fill('#auth-password', 'Str0ng!P@ssw0rd');

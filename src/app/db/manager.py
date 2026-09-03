@@ -193,6 +193,24 @@ class DatabaseManager:
                     conn.execute(text("ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT 1"))
                 if "payout_phone_number" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN payout_phone_number VARCHAR(50) DEFAULT ''"))
+                if "disclaimer_accepted" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN disclaimer_accepted BOOLEAN DEFAULT 0"))
+                if "disclaimer_accepted_at" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN disclaimer_accepted_at DATETIME NULL"))
+
+            if inspector.has_table("deposits"):
+                dep_cols = [c["name"] for c in inspector.get_columns("deposits")]
+                with self.engine.begin() as conn:
+                    if "completed_at" not in dep_cols:
+                        conn.execute(text("ALTER TABLE deposits ADD COLUMN completed_at VARCHAR(50) DEFAULT ''"))
+
+            if inspector.has_table("payouts"):
+                pay_cols = [c["name"] for c in inspector.get_columns("payouts")]
+                with self.engine.begin() as conn:
+                    if "completed_at" not in pay_cols:
+                        conn.execute(text("ALTER TABLE payouts ADD COLUMN completed_at VARCHAR(50) DEFAULT ''"))
+                    if "failed_at" not in pay_cols:
+                        conn.execute(text("ALTER TABLE payouts ADD COLUMN failed_at VARCHAR(50) DEFAULT ''"))
 
             if inspector.has_table("deposits"):
                 dep_cols = [c["name"] for c in inspector.get_columns("deposits")]
@@ -255,7 +273,7 @@ class DatabaseManager:
             return False
 
     # User Auth Operations
-    def create_user_email(self, email: str, password_hash: str, salt: str = "argon2", payout_phone: Optional[str] = None, phone_number: Optional[str] = None) -> int:
+    def create_user_email(self, email: str, password_hash: str, salt: str = "argon2", payout_phone: Optional[str] = None, phone_number: Optional[str] = None, disclaimer_accepted: bool = True) -> int:
         """Register a new user using email address with pre-hashed password, and initializes settings (email_verified=True)."""
         email_clean = email.strip().lower()
         existing = self.session.query(User).filter(User.email == email_clean).first()
@@ -263,6 +281,7 @@ class DatabaseManager:
             raise ValueError(f"An account with email '{email_clean}' already exists.")
             
         try:
+            now_utc = datetime.datetime.utcnow()
             db_user = User(
                 email=email_clean,
                 password_hash=password_hash,
@@ -270,7 +289,9 @@ class DatabaseManager:
                 phone_number=phone_number if phone_number else None,
                 payout_phone_number=payout_phone or "",
                 email_verified=True,
-                two_factor_enabled=True
+                two_factor_enabled=True,
+                disclaimer_accepted=disclaimer_accepted,
+                disclaimer_accepted_at=now_utc if disclaimer_accepted else None
             )
             self.session.add(db_user)
             self.session.flush()
@@ -449,10 +470,13 @@ class DatabaseManager:
         """Register a new user, hashes password using Argon2id, and creates default settings row."""
         password_hash, salt = self._hash_password(password_plaintext)
         
+        now_utc = datetime.datetime.utcnow()
         db_user = User(
             phone_number=phone_number,
             password_hash=password_hash,
-            salt=salt
+            salt=salt,
+            disclaimer_accepted=True,
+            disclaimer_accepted_at=now_utc
         )
         self.session.add(db_user)
         self._commit()
