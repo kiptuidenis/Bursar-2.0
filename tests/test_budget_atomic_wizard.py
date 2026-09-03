@@ -117,3 +117,20 @@ def test_atomic_budget_lock_fails_validation_leaves_database_untouched():
     settings = db.get_settings(user_id)
     assert settings["daily_budget"] == 0
     assert db.is_budget_locked(user_id) is False
+
+def test_atomic_budget_lock_fails_if_start_date_is_empty():
+    """Verify that start_date is mandatory to prevent same-day payout loopholes."""
+    c, user_id, phone, email = _create_user_with_balance(balance=5000)
+    
+    payload = {
+        "items": [
+            {"category": "Food", "amount": 100}
+        ],
+        "start_date": "",  # Empty start date
+        "end_date": "",
+        "payout_phone_number": phone
+    }
+
+    res = c.post("/api/budget/lock", json=payload)
+    assert res.status_code == 400
+    assert "start date is required" in res.json()["detail"].lower()
