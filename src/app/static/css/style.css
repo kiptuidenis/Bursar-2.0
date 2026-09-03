@@ -3285,6 +3285,20 @@ body:not(.landing-body) {
     color: var(--color-accent-violet);
 }
 
+.footer-whatsapp-link {
+    color: #25D366 !important;
+}
+
+.footer-whatsapp-link i {
+    color: #25D366 !important;
+}
+
+.footer-whatsapp-link:hover,
+.contact-whatsapp:hover {
+    color: #4ade80 !important;
+    filter: drop-shadow(0 0 6px rgba(37, 211, 102, 0.4));
+}
+
 .system-status-indicator {
     display: inline-flex;
     align-items: center;
