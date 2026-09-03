@@ -109,6 +109,9 @@ async function checkAuth() {
                 window.lucide.createIcons();
             }
 
+            // Check Educational & Regulatory Disclaimer acceptance
+            initDashboardDisclaimer(user);
+
             // Load user data
             pollDashboardData();
             fetchProfile(true);
@@ -131,6 +134,43 @@ async function checkAuth() {
     } catch (err) {
         console.error("Auth check failed:", err);
         showAuthScreen();
+    }
+}
+
+function initDashboardDisclaimer(user) {
+    const disclaimerOverlay = document.getElementById("disclaimer-overlay");
+    if (!disclaimerOverlay) return;
+
+    const btnAccept = document.getElementById("btn-accept-disclaimer");
+    const btnDecline = document.getElementById("btn-decline-disclaimer");
+
+    if (btnAccept && !btnAccept._bound) {
+        btnAccept._bound = true;
+        btnAccept.addEventListener("click", () => {
+            sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+            disclaimerOverlay.classList.remove("active");
+            setTimeout(() => { disclaimerOverlay.style.display = "none"; }, 300);
+        });
+    }
+
+    if (btnDecline && !btnDecline._bound) {
+        btnDecline._bound = true;
+        btnDecline.addEventListener("click", () => {
+            try { window.close(); } catch(e) {}
+            window.location.replace("https://www.google.com");
+        });
+    }
+
+    if (user && user.disclaimer_accepted) {
+        disclaimerOverlay.style.display = "none";
+        disclaimerOverlay.classList.remove("active");
+    } else if (sessionStorage.getItem("bursar_disclaimer_agreed") !== "true") {
+        disclaimerOverlay.style.display = "flex";
+        void disclaimerOverlay.offsetWidth;
+        disclaimerOverlay.classList.add("active");
+        if (window.lucide && window.lucide.createIcons) {
+            window.lucide.createIcons();
+        }
     }
 }
 

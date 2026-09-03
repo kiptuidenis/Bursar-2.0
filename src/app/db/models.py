@@ -24,6 +24,8 @@ class User(Base):
     notifications_enabled = Column(Integer, default=1)
     failed_login_attempts = Column(Integer, default=0)
     account_locked_until = Column(String(50), default="")
+    disclaimer_accepted = Column(Boolean, default=False, nullable=False)
+    disclaimer_accepted_at = Column(DateTime, nullable=True)
     
     # Relationships
     wallet = relationship("Wallet", back_populates="user", uselist=False, cascade="all, delete-orphan")

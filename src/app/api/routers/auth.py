@@ -261,7 +261,8 @@ def verify_otp(request: Request, payload: OTPVerificationPayload, response: Resp
         "status": "success",
         "user_id": user.id,
         "email": user.email,
-        "email_verified": user.email_verified
+        "email_verified": user.email_verified,
+        "disclaimer_accepted": bool(getattr(user, "disclaimer_accepted", False))
     }
 
 @router.post("/resend-otp")
@@ -306,6 +307,9 @@ def get_me(request: Request, user_id: int = Depends(get_current_user_id), db: Da
     return {
         "id": user.id,
         "phone_number": user.phone_number,
+        "email": user.email,
+        "disclaimer_accepted": bool(getattr(user, "disclaimer_accepted", False)),
+        "disclaimer_accepted_at": user.disclaimer_accepted_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(getattr(user, "disclaimer_accepted_at", None), datetime.datetime) else getattr(user, "disclaimer_accepted_at", None),
         "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(user.created_at, datetime.datetime) else user.created_at
     }
 

@@ -8,14 +8,72 @@ document.addEventListener("DOMContentLoaded", () => {
         window.lucide.createIcons();
     }
 
+    // Educational Project & Regulatory Disclaimer Handling
+    const disclaimerOverlay = document.getElementById("disclaimer-overlay");
+    const btnAcceptDisclaimer = document.getElementById("btn-accept-disclaimer");
+    const btnDeclineDisclaimer = document.getElementById("btn-decline-disclaimer");
+
+    function showDisclaimer() {
+        if (!disclaimerOverlay) return;
+        disclaimerOverlay.style.display = "flex";
+        void disclaimerOverlay.offsetWidth;
+        disclaimerOverlay.classList.add("active");
+        if (window.lucide && window.lucide.createIcons) {
+            window.lucide.createIcons();
+        }
+    }
+
+    function hideDisclaimer() {
+        if (!disclaimerOverlay) return;
+        disclaimerOverlay.classList.remove("active");
+        setTimeout(() => {
+            disclaimerOverlay.style.display = "none";
+        }, 300);
+    }
+
+    if (btnAcceptDisclaimer) {
+        btnAcceptDisclaimer.addEventListener("click", () => {
+            sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+            hideDisclaimer();
+        });
+    }
+
+    if (btnDeclineDisclaimer) {
+        btnDeclineDisclaimer.addEventListener("click", () => {
+            sessionStorage.removeItem("bursar_disclaimer_agreed");
+            // Exit application immediately
+            try {
+                window.close();
+            } catch (e) {}
+            window.location.replace("https://www.google.com");
+        });
+    }
+
+    // Check disclaimer status
+    const isSessionAgreed = sessionStorage.getItem("bursar_disclaimer_agreed");
+
     // 2. Auth Status Check (Redirect to dashboard if already authenticated)
     fetch("/api/auth/me")
         .then(res => {
             if (res.status === 200) {
-                window.location.replace("/dashboard");
+                return res.json().then(userData => {
+                    if (userData && userData.disclaimer_accepted) {
+                        sessionStorage.setItem("bursar_disclaimer_agreed", "true");
+                    }
+                    window.location.replace("/dashboard");
+                });
+            } else {
+                if (isSessionAgreed !== "true") {
+                    showDisclaimer();
+                }
             }
         })
-        .catch(err => console.error("Auth check failed:", err));
+        .catch(err => {
+            console.error("Auth check failed:", err);
+            if (isSessionAgreed !== "true") {
+                showDisclaimer();
+            }
+        });
 
     // 3. FAQ Accordion (Clean Event Delegation — No inline onclick handlers)
     const faqAccordion = document.getElementById("faq-accordion");
@@ -383,6 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function handleHash() {
         const hash = window.location.hash;
         if (hash === "#login") {
+            hideDisclaimer();
             showAuthOverlay("login");
         } else if (hash === "#signup") {
             showAuthOverlay("signup");
