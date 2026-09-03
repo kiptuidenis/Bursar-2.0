@@ -114,7 +114,7 @@ def test_disclaimer_modal_markup_and_css_presence():
     assert 'id="disclaimer-overlay"' in index_html
     assert 'id="btn-accept-disclaimer"' in index_html
     assert 'id="btn-decline-disclaimer"' in index_html
-    assert "Educational Project Notice" in index_html
+    assert "Notice to Users" in index_html
     assert "No Custodial Licenses" in index_html
 
     # Assert modal elements in dashboard.html
@@ -124,6 +124,7 @@ def test_disclaimer_modal_markup_and_css_presence():
     assert 'id="disclaimer-overlay"' in dash_html
     assert 'id="btn-accept-disclaimer"' in dash_html
     assert 'id="btn-decline-disclaimer"' in dash_html
+    assert "Notice to Users" in dash_html
 
     # Assert CSS rules in style.css
     css_path = Path("src/app/static/css/style.css")
