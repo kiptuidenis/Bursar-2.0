@@ -62,13 +62,17 @@ def test_daily_budget_cannot_exceed_balance_on_settings_update():
     db = get_test_db()
     db.adjust_balance(user_id, 500.0)
 
+    import datetime
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+
     # Try locking budget with daily total of 600 (should fail because 600 > 500)
-    res_fail = c.post("/api/budget/lock", json={"items": [{"category": "Living", "amount": 600}]})
+    res_fail = c.post("/api/budget/lock", json={"items": [{"category": "Living", "amount": 600}], "start_date": tomorrow})
     assert res_fail.status_code == 400
     assert "cannot be more than your deposit balance" in res_fail.json()["detail"].lower()
 
     # Lock budget with daily total of 400 (should succeed)
-    res_ok = c.post("/api/budget/lock", json={"items": [{"category": "Living", "amount": 400}]})
+    res_ok = c.post("/api/budget/lock", json={"items": [{"category": "Living", "amount": 400}], "start_date": tomorrow})
     assert res_ok.status_code == 200
 
 def test_deposit_amount_cannot_be_less_than_daily_budget():

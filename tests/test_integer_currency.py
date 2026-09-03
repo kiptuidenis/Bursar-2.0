@@ -114,5 +114,8 @@ def test_api_accepts_whole_integer_kes_amounts():
     # 3. Budget lock with whole KES budget items (balance is funded)
     user = db.get_user_by_email("user_254711777111@example.com")
     db.adjust_balance(user.id, 2000)
-    res_lock = client.post("/api/budget/lock", json={"items": [{"category": "Transport", "amount": 200}]}, headers=headers)
+    import datetime
+    today_eat = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    tomorrow = (today_eat + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    res_lock = client.post("/api/budget/lock", json={"items": [{"category": "Transport", "amount": 200}], "start_date": tomorrow}, headers=headers)
     assert res_lock.status_code == 200
