@@ -675,14 +675,24 @@ function setupEventHandlers() {
         if (pwdInput) pwdInput.value = "";
 
         const otpInput = document.getElementById("withdraw-otp");
-        if (otpInput) otpInput.value = "";
+        if (otpInput) {
+            otpInput.value = "";
+            otpInput.required = false;
+        }
 
         const otpGroup = document.getElementById("withdraw-otp-group");
         if (otpGroup) otpGroup.style.display = "none";
 
+        const requestOtpBtn = document.getElementById("request-withdraw-otp-btn");
+        if (requestOtpBtn) {
+            requestOtpBtn.style.display = "inline-flex";
+            requestOtpBtn.disabled = false;
+            requestOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
+        }
+
         const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
         if (confirmBtn) {
-            confirmBtn.style.display = "inline-flex";
+            confirmBtn.style.display = "none";
             confirmBtn.disabled = false;
             confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
         }
@@ -772,10 +782,10 @@ function setupEventHandlers() {
             return;
         }
 
-        const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
-        if (confirmBtn) {
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = `<span class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.3rem;"></span> Sending Code...`;
+        const reqOtpBtn = document.getElementById("request-withdraw-otp-btn");
+        if (reqOtpBtn) {
+            reqOtpBtn.disabled = true;
+            reqOtpBtn.innerHTML = `<span class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.3rem;"></span> Sending Code...`;
         }
 
         try {
@@ -791,9 +801,9 @@ function setupEventHandlers() {
                     errBox.innerText = data.detail || "Failed to send authorization code.";
                     errBox.style.display = "block";
                 }
-                if (confirmBtn) {
-                    confirmBtn.disabled = false;
-                    confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
+                if (reqOtpBtn) {
+                    reqOtpBtn.disabled = false;
+                    reqOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
                     if (window.lucide) window.lucide.createIcons();
                 }
                 return;
@@ -803,7 +813,13 @@ function setupEventHandlers() {
             const otpGroup = document.getElementById("withdraw-otp-group");
             if (otpGroup) otpGroup.style.display = "block";
 
+            if (reqOtpBtn) {
+                reqOtpBtn.style.display = "none";
+            }
+
+            const confirmBtn = document.getElementById("confirm-withdraw-submit-btn");
             if (confirmBtn) {
+                confirmBtn.style.display = "inline-flex";
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
                 if (window.lucide) window.lucide.createIcons();
@@ -822,9 +838,9 @@ function setupEventHandlers() {
                 errBox.innerText = "Network error requesting authorization code. Please try again.";
                 errBox.style.display = "block";
             }
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = `<i data-lucide="check"></i> Confirm Withdrawal`;
+            if (reqOtpBtn) {
+                reqOtpBtn.disabled = false;
+                reqOtpBtn.innerHTML = `<i data-lucide="mail"></i> Get Authorization Code`;
                 if (window.lucide) window.lucide.createIcons();
             }
         }
@@ -858,12 +874,7 @@ function setupEventHandlers() {
             const otpInput = document.getElementById("withdraw-otp");
             const otpCode = otpInput ? otpInput.value.trim() : "";
 
-            if (!otpCode) {
-                await handleRequestWithdrawalOtp();
-                return;
-            }
-
-            if (!/^[0-9]{6}$/.test(otpCode)) {
+            if (!otpCode || !/^[0-9]{6}$/.test(otpCode)) {
                 if (errBox) {
                     errBox.innerText = "Please enter the 6-digit verification code sent to your email.";
                     errBox.style.display = "block";
@@ -2554,9 +2565,6 @@ async function openBudgetDesignerModal() {
     // Reset scroll positions of both the modal overlay and the inner designer body to 0
     budgetModal.scrollTop = 0;
 
-    // Show modal
-    budgetModal.classList.add("active");
-
     // Fetch fresh settings before rendering so lock state is always current
     await fetchSettings();
 
@@ -2566,11 +2574,14 @@ async function openBudgetDesignerModal() {
     // Fill date fields now that currentSettings is refreshed
     const startDateInput = document.getElementById("lock-start-date");
     const endDateInput = document.getElementById("lock-end-date");
-    if (startDateInput && currentSettings.start_date) startDateInput.value = currentSettings.start_date;
-    if (endDateInput && currentSettings.end_date) endDateInput.value = currentSettings.end_date;
+    if (startDateInput && currentSettings && currentSettings.start_date) startDateInput.value = currentSettings.start_date;
+    if (endDateInput && currentSettings && currentSettings.end_date) endDateInput.value = currentSettings.end_date;
 
     // Render latest data with correct lock state
     renderBudgetBreakdown();
+
+    // Show modal
+    budgetModal.classList.add("active");
 
     // Focus on Category Name input field if budget is not locked
     const isLocked = currentSettings && currentSettings.is_budget_locked;
