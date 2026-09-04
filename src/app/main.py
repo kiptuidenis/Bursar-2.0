@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
         db_manager.initialize()
             
     if "PYTEST_CURRENT_TEST" not in os.environ and os.environ.get("DISABLE_SCHEDULER") != "1":
-        app.state.scheduler = BackgroundScheduler(db_manager, interval_seconds=60)
+        app.state.scheduler = BackgroundScheduler(db_manager, interval_seconds=2)
         app.state.scheduler.start()
     else:
         app.state.scheduler = None
