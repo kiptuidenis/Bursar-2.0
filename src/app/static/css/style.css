@@ -3954,6 +3954,34 @@ button[disabled]:hover,
     color: #f8fafc;
 }
 
+.disclaimer-support-point {
+    background: rgba(255, 91, 34, 0.07);
+    border: 1px solid rgba(255, 91, 34, 0.22);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    box-sizing: border-box;
+}
+
+.disclaimer-support-point strong {
+    color: #FF7A45;
+}
+
+.disclaimer-support-email {
+    transition: var(--transition-smooth);
+}
+
+.disclaimer-support-email:hover {
+    color: #7dd3fc !important;
+}
+
+.disclaimer-support-whatsapp {
+    transition: var(--transition-smooth);
+}
+
+.disclaimer-support-whatsapp:hover {
+    color: #4ade80 !important;
+}
+
 .disclaimer-footer {
     display: flex;
     gap: 1rem;

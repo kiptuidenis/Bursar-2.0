@@ -36,6 +36,32 @@ test.describe('Educational & Regulatory Disclaimer Modal E2E Tests', () => {
       await expect(page.locator('#disclaimer-overlay')).not.toBeVisible();
     });
 
+    test('First-time visitor sees support contact for deposit and withdrawal issues', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('domcontentloaded');
+
+      const overlay = page.locator('#disclaimer-overlay');
+      await expect(overlay).toBeVisible({ timeout: 5000 });
+
+      // Support point text and instructions
+      const supportPoint = page.locator('#disclaimer-support-point');
+      await expect(supportPoint).toBeVisible();
+      await expect(supportPoint).toContainText('issues with deposits or withdrawals');
+      await expect(supportPoint).toContainText('contact support');
+
+      // Email contact link
+      const emailLink = page.locator('#disclaimer-support-email');
+      await expect(emailLink).toBeVisible();
+      await expect(emailLink).toHaveAttribute('href', 'mailto:support@bursar.co.ke');
+      await expect(emailLink).toContainText('support@bursar.co.ke');
+
+      // WhatsApp contact link
+      const whatsappLink = page.locator('#disclaimer-support-whatsapp');
+      await expect(whatsappLink).toBeVisible();
+      await expect(whatsappLink).toHaveAttribute('href', 'https://wa.me/254786918393');
+      await expect(whatsappLink).toContainText('+254786918393');
+    });
+
     test('Clicking Decline triggers exit redirect', async ({ page }) => {
       await page.goto('/');
       await page.waitForLoadState('domcontentloaded');
@@ -79,6 +105,13 @@ test.describe('Educational & Regulatory Disclaimer Modal E2E Tests', () => {
 
       const card = page.locator('#disclaimer-card');
       await expect(card).toBeVisible();
+
+      // Verify support contact elements are visible on mobile
+      const supportPoint = page.locator('#disclaimer-support-point');
+      await expect(supportPoint).toBeVisible();
+      await expect(supportPoint).toContainText('issues with deposits or withdrawals');
+      await expect(page.locator('#disclaimer-support-email')).toBeVisible();
+      await expect(page.locator('#disclaimer-support-whatsapp')).toBeVisible();
 
       // Verify bounding box fits cleanly inside mobile width
       const box = await card.boundingBox();
