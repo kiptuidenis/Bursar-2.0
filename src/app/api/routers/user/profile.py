@@ -214,7 +214,7 @@ def upload_avatar(request: Request, file: UploadFile = File(...), user_id: int =
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
 
-    static_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "uploads", "avatars")
+    static_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "static", "uploads", "avatars")
     os.makedirs(static_uploads_dir, exist_ok=True)
     
     # Path safety guard: delete previous custom avatar file if present
@@ -347,7 +347,7 @@ def request_stepup_otp(request: Request, payload: StepUpOTPPayload, user_id: int
 @router.post("/payout-phone")
 @limiter.limit("5/minute")
 def update_payout_phone(request: Request, payload: PayoutPhonePayload, user_id: int = Depends(get_current_user_id), db: DatabaseManager = Depends(get_db)):
-    from app.api.routers.auth import sanitize_phone_number
+    from app.api.routers.user.auth import sanitize_phone_number
     sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
 
     user = db.session.query(User).filter(User.id == user_id).first()

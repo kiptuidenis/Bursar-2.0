@@ -1,1 +1,45 @@
-# routers package
+# Routers package root
+# Re-export subpackages for backward compatibility
+from app.api.routers.user import (
+    auth,
+    settings,
+    profile,
+    budget,
+    deposits,
+    payouts,
+    callbacks,
+    notifications,
+    wallet,
+    user_auth_router,
+    user_settings_router,
+    user_profile_router,
+    user_budget_router,
+    user_deposits_router,
+    user_payouts_router,
+    user_callbacks_router,
+    user_notifications_router,
+    user_wallet_router,
+    sanitize_phone_number,
+)
+
+__all__ = [
+    "auth",
+    "settings",
+    "profile",
+    "budget",
+    "deposits",
+    "payouts",
+    "callbacks",
+    "notifications",
+    "wallet",
+    "user_auth_router",
+    "user_settings_router",
+    "user_profile_router",
+    "user_budget_router",
+    "user_deposits_router",
+    "user_payouts_router",
+    "user_callbacks_router",
+    "user_notifications_router",
+    "user_wallet_router",
+    "sanitize_phone_number",
+]
