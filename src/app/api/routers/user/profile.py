@@ -214,7 +214,7 @@ def upload_avatar(request: Request, file: UploadFile = File(...), user_id: int =
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
 
-    static_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "uploads", "avatars")
+    static_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "static", "uploads", "avatars")
     os.makedirs(static_uploads_dir, exist_ok=True)
     
     # Path safety guard: delete previous custom avatar file if present
