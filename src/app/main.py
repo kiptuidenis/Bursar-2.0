@@ -16,8 +16,9 @@ from app.db.manager import DatabaseManager
 from app.services.scheduler import BackgroundScheduler
 from app.core import config
 
-# Import sub-routers
-from app.api.routers import auth, settings, budget, deposits, payouts, callbacks, profile, notifications, wallet
+from app.api.routers.user import (
+    auth, settings, budget, deposits, payouts, callbacks, profile, notifications, wallet
+)
 from app.api.routers.admin import (
     admin_auth_router, admin_overview_router, admin_users_router,
     admin_finances_router, admin_deposits_router, admin_payouts_router,

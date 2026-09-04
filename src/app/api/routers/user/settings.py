@@ -65,7 +65,7 @@ def update_settings(request: Request, payload: SettingsUpdate, user_id: int = De
                 
     # 2. Check if phone_number is being changed
     if "phone_number" in updates and updates["phone_number"]:
-        from app.api.routers.auth import sanitize_phone_number
+        from app.api.routers.user.auth import sanitize_phone_number
         sanitized_phone = sanitize_phone_number(updates["phone_number"])
         current_phone = current.get("phone_number", "") if current else ""
         

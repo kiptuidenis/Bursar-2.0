@@ -111,7 +111,7 @@ def lock_budget_endpoint(request: Request, payload: BudgetLockPayload = Body(def
     current_payout_phone = db.get_payout_phone_number(user_id)
     sanitized_phone = None
     if payload.payout_phone_number:
-        from app.api.routers.auth import sanitize_phone_number
+        from app.api.routers.user.auth import sanitize_phone_number
         sanitized_phone = sanitize_phone_number(payload.payout_phone_number)
         
         # If user is changing an already configured payout phone, enforce step-up
