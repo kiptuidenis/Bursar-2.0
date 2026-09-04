@@ -9,7 +9,8 @@ on:
       - main
 
 jobs:
-  test:
+  test-syntax:
+    name: Static JS & Syntax Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -20,27 +21,111 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Run Static Syntax Audits
+        run: |
+          python tests/check_js_syntax.py
+
+  test-admin:
+    name: Admin Domain Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Python Unit Tests
+      - name: Run Admin Tests
         env:
           MPESA_MODE: simulation
           SECRET_KEY: ci_test_secret_key_for_github_actions_32chars_min
           SESSION_COOKIE_SECURE: "false"
         run: |
-          python -m pytest
+          python -m pytest tests/admin
 
-      - name: Run Static Syntax Audits
+  test-core:
+    name: Core & Security Domain Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
         run: |
-          python tests/check_js_syntax.py
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Core & Security Tests
+        env:
+          MPESA_MODE: simulation
+          SECRET_KEY: ci_test_secret_key_for_github_actions_32chars_min
+          SESSION_COOKIE_SECURE: "false"
+        run: |
+          python -m pytest tests/core
+
+  test-user:
+    name: User Domain Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run User Domain Tests
+        env:
+          MPESA_MODE: simulation
+          SECRET_KEY: ci_test_secret_key_for_github_actions_32chars_min
+          SESSION_COOKIE_SECURE: "false"
+        run: |
+          python -m pytest tests/user
+
+  test-e2e:
+    name: Playwright E2E Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install Node Dependencies
         run: |
@@ -57,7 +142,8 @@ jobs:
           npm run test:e2e
 
   deploy:
-    needs: test
+    name: EC2 Production Deployment
+    needs: [test-syntax, test-admin, test-core, test-user, test-e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
