@@ -2,7 +2,7 @@ import pytest
 import os
 import re
 
-CSS_PATH = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "css", "style.css")
+CSS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "css", "style.css")
 
 def test_css_zindex_stacking_hierarchy():
     """Verify that modal-overlay and stepup-payout-modal have higher z-index stacking than drawer-overlay."""

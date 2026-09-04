@@ -7,7 +7,7 @@ def test_xss_sanitization_in_app_js_sinks():
     Verifies that all server-controlled dynamic variables rendered into innerHTML in app.js
     are wrapped with escapeHTML() to prevent XSS vulnerability SEC-004.
     """
-    app_js_path = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "js", "app.js")
+    app_js_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "js", "app.js")
     assert os.path.exists(app_js_path), "app.js file must exist"
     
     with open(app_js_path, "r", encoding="utf-8") as f:

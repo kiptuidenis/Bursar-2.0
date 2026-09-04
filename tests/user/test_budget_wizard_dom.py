@@ -4,7 +4,7 @@ import pytest
 
 def test_budget_wizard_dom_structure():
     """Verify that dashboard.html contains all necessary components for the 3-step sliding wizard."""
-    html_path = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "dashboard.html")
+    html_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "dashboard.html")
     with open(html_path, "r", encoding="utf-8") as f:
         html = f.read()
 
@@ -44,7 +44,7 @@ def test_budget_wizard_dom_structure():
 
 def test_budget_wizard_css_track_and_tile_proportions():
     """Verify that style.css enforces 300% track width and 33.333333% tile flex bases to prevent horizontal bleed."""
-    css_path = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "css", "style.css")
+    css_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "css", "style.css")
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
 
@@ -55,7 +55,7 @@ def test_budget_wizard_css_track_and_tile_proportions():
 
 def test_budget_wizard_js_step_offset_formula():
     """Verify that app.js calculates offset based on 300% track proportions (100 / 3) to prevent slide overlap."""
-    js_path = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "js", "app.js")
+    js_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "js", "app.js")
     with open(js_path, "r", encoding="utf-8") as f:
         js = f.read()
 
