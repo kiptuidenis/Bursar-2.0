@@ -134,3 +134,22 @@ def test_disclaimer_modal_markup_and_css_presence():
     assert ".disclaimer-card" in css
     assert "#btn-accept-disclaimer" in css
     assert "#btn-decline-disclaimer" in css
+    assert ".disclaimer-support-point" in css
+
+
+def test_disclaimer_modal_contains_deposit_withdrawal_support_contacts():
+    """Verify that disclaimer in index.html and dashboard.html includes support email and WhatsApp contacts for deposits/withdrawals."""
+    index_html = Path("src/app/static/index.html").read_text(encoding="utf-8")
+    dash_html = Path("src/app/static/dashboard.html").read_text(encoding="utf-8")
+
+    for html_content in (index_html, dash_html):
+        assert 'id="disclaimer-support-point"' in html_content
+        assert 'id="disclaimer-support-email"' in html_content
+        assert 'id="disclaimer-support-whatsapp"' in html_content
+        assert 'href="mailto:support@bursar.co.ke"' in html_content
+        assert 'support@bursar.co.ke' in html_content
+        assert 'https://wa.me/254786918393' in html_content
+        assert '+254786918393' in html_content
+        assert 'deposits or withdrawals' in html_content
+        assert 'contact support' in html_content.lower()
+
