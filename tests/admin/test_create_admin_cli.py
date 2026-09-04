@@ -16,7 +16,7 @@ def run_create_admin_cli(args: list, db_url: str, input_text: str = None) -> sub
     """Helper to execute scripts/create_admin.py subprocess."""
     cmd = [
         sys.executable,
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "create_admin.py"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "scripts", "create_admin.py"),
         "--db-url", db_url
     ] + args
 

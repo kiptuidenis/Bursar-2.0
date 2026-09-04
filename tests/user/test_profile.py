@@ -230,9 +230,9 @@ def test_avatar_upload():
 
     # Clean up uploaded test file
     rel_path = avatar_url.lstrip("/")
-    filepath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", rel_path)
+    filepath = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "app", "static", rel_path)
     if os.path.exists(filepath):
         os.remove(filepath)
-    filepath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", rel_path)
+    filepath = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "app", "static", rel_path)
     if os.path.exists(filepath):
         os.remove(filepath)

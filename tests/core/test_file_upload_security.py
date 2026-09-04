@@ -104,7 +104,7 @@ def test_polyglot_png_reencoded_and_cleaned():
     
     # Read saved file on disk and verify trailing script tag was stripped by re-encoding
     rel_path = avatar_url.lstrip("/")
-    saved_filepath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", rel_path.replace("uploads/", "uploads/"))
+    saved_filepath = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "app", "static", rel_path.replace("uploads/", "uploads/"))
     assert os.path.exists(saved_filepath)
     with open(saved_filepath, "rb") as f:
         saved_bytes = f.read()
@@ -133,7 +133,7 @@ def test_old_avatar_deleted_on_new_upload():
     url1 = res1.json()["avatar_url"]
     filename1 = os.path.basename(url1)
 
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static", "uploads", "avatars")
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "app", "static", "uploads", "avatars")
     file1_path = os.path.join(static_dir, filename1)
     assert os.path.exists(file1_path)
 

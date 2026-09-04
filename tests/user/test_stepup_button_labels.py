@@ -2,8 +2,8 @@ import pytest
 import os
 import re
 
-JS_PATH = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "js", "app.js")
-HTML_PATH = os.path.join(os.path.dirname(__file__), "..", "src", "app", "static", "dashboard.html")
+JS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "js", "app.js")
+HTML_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "src", "app", "static", "dashboard.html")
 
 def test_stepup_modal_dynamic_button_labels_in_js():
     """Verify that app.js sets 'Save' for settings and 'Lock Budget' for budget lock."""

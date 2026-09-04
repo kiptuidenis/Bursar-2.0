@@ -4,7 +4,7 @@ import pytest
 from html.parser import HTMLParser
 from app.core.security_headers import SECURITY_HEADERS
 
-STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "static")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "app", "static")
 INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
 DASHBOARD_PATH = os.path.join(STATIC_DIR, "dashboard.html")
 VENDOR_DIR = os.path.join(STATIC_DIR, "js", "vendor")
